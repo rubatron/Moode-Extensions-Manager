@@ -24,6 +24,7 @@
   var runUpdateBtn = document.getElementById('run-update-btn');
   var systemUpdateBtn = document.getElementById('system-update-btn');
   var repairBtn = document.getElementById('repair-btn');
+  var syncRegistryBtn = document.getElementById('sync-registry-btn');
   var listFilterEl = document.getElementById('list-filter');
   var listSortEl = document.getElementById('list-sort');
   var listSearchEl = document.getElementById('list-search');
@@ -498,6 +499,31 @@
       });
   }
 
+  function runRegistrySync() {
+    setStatus('Syncing registry with installed extensions...');
+    api({ action: 'registry_sync' })
+      .then(function (data) {
+        var payload = data.data || {};
+        var summary = payload.summary || {};
+        var state = payload.state || {};
+
+        renderMeta(state.meta || {});
+        renderHealth(state.health || {});
+        allItems = state.extensions || [];
+        renderItems(allItems);
+
+        setStatus(
+          'Registry sync complete. total=' + String(summary.total || 0)
+            + ' installed=' + String(summary.installed || 0)
+            + ' missing=' + String(summary.missing || 0),
+          'ok'
+        );
+      })
+      .catch(function (err) {
+        setStatus(err.message, 'error');
+      });
+  }
+
   if (listFilterEl) {
     listFilterEl.value = readPref('filter', listFilterEl.value || 'all');
   }
@@ -512,6 +538,7 @@
   bindIfPresent(checkUpdateBtn, 'click', runCheckUpdate);
   bindIfPresent(runUpdateBtn, 'click', runUpdate);
   bindIfPresent(repairBtn, 'click', runRepair);
+  bindIfPresent(syncRegistryBtn, 'click', runRegistrySync);
   bindIfPresent(systemUpdateBtn, 'click', function () {
     setStatus('Opening System Settings update hook...', null);
     api({ action: 'system_update_hook' })

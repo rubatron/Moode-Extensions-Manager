@@ -56,6 +56,7 @@ function defaultReleasePolicy() {
             'ext-mgr.version',
             'assets/js/ext-mgr.js',
             'scripts/ext-mgr-import-wizard.sh',
+            'scripts/ext-mgr-registry-sync.sh',
             'README.md',
         ],
     ];
@@ -937,6 +938,57 @@ function responseData($registryPath, $metaPath, $versionPath, $releasePath) {
     ];
 }
 
+function syncRegistryWithFilesystem($registryPath, $pruneMissing = false) {
+    $registry = normalizeRegistry(readRegistry($registryPath));
+    $next = [];
+    $summary = [
+        'total' => 0,
+        'installed' => 0,
+        'missing' => 0,
+        'pruned' => 0,
+    ];
+
+    foreach ($registry['extensions'] as $ext) {
+        if (!is_array($ext)) {
+            continue;
+        }
+
+        $summary['total']++;
+        $id = (string)($ext['id'] ?? '');
+        if ($id === '') {
+            continue;
+        }
+
+        $installedDir = '/var/www/extensions/installed/' . $id;
+        $canonicalLink = '/var/www/' . $id . '.php';
+        $present = is_dir($installedDir) && (is_link($canonicalLink) || file_exists($canonicalLink));
+
+        $ext['installed'] = $present;
+
+        if (!$present) {
+            $ext['enabled'] = false;
+            $ext['state'] = 'missing';
+            $summary['missing']++;
+            if ($pruneMissing) {
+                $summary['pruned']++;
+                continue;
+            }
+        } else {
+            $summary['installed']++;
+            $ext['enabled'] = isset($ext['enabled']) ? (bool)$ext['enabled'] : true;
+            $ext['state'] = $ext['enabled'] ? 'active' : 'inactive';
+        }
+
+        $next[] = $ext;
+    }
+
+    $registry['extensions'] = $next;
+    $registry['generated_at'] = date('c');
+    writeJsonFile($registryPath, $registry);
+
+    return $summary;
+}
+
 function isValidExtensionId($id) {
     return is_string($id) && preg_match('/^[a-zA-Z0-9._-]+$/', $id) === 1;
 }
@@ -1097,14 +1149,30 @@ function runPrivilegedSymlinkRepair($extId, $entryPath, &$error) {
 }
 
 if ($action === 'list' || $action === 'refresh') {
+    syncRegistryWithFilesystem($registryPath, false);
     $data = responseData($registryPath, $metaPath, $versionPath, $releasePath);
     echo json_encode(['ok' => true, 'data' => $data], JSON_UNESCAPED_SLASHES);
     exit;
 }
 
 if ($action === 'status') {
+    syncRegistryWithFilesystem($registryPath, false);
     $data = responseData($registryPath, $metaPath, $versionPath, $releasePath);
     echo json_encode(['ok' => true, 'data' => $data], JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+if ($action === 'registry_sync') {
+    $prune = (string)($_REQUEST['prune'] ?? '0');
+    $summary = syncRegistryWithFilesystem($registryPath, ($prune === '1' || strtolower($prune) === 'true'));
+    $data = responseData($registryPath, $metaPath, $versionPath, $releasePath);
+    echo json_encode([
+        'ok' => true,
+        'data' => [
+            'summary' => $summary,
+            'state' => $data,
+        ],
+    ], JSON_UNESCAPED_SLASHES);
     exit;
 }
 

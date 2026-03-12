@@ -12,6 +12,7 @@ SRC_JS="$PROJECT_ROOT/assets/js/ext-mgr.js"
 SRC_MODAL_FIX_JS="$PROJECT_ROOT/assets/js/ext-mgr-modal-fix.js"
 SRC_HOVER_MENU_JS="$PROJECT_ROOT/assets/js/ext-mgr-hover-menu.js"
 SRC_CSS="$PROJECT_ROOT/assets/css/ext-mgr.css"
+SRC_REGISTRY_SYNC_SCRIPT="$PROJECT_ROOT/scripts/ext-mgr-registry-sync.sh"
 
 TARGET_EXT_DIR="/var/www/extensions"
 TARGET_JS_DIR="$TARGET_EXT_DIR/assets/js"
@@ -24,6 +25,8 @@ TARGET_JS="$TARGET_JS_DIR/ext-mgr.js"
 TARGET_MODAL_FIX_JS="$TARGET_JS_DIR/ext-mgr-modal-fix.js"
 TARGET_CSS="$TARGET_CSS_DIR/ext-mgr.css"
 TARGET_HOVER_MENU_JS="$TARGET_EXT_DIR/ext-mgr-hover-menu.js"
+TARGET_SCRIPT_DIR="$TARGET_EXT_DIR/scripts"
+TARGET_REGISTRY_SYNC_SCRIPT="$TARGET_SCRIPT_DIR/ext-mgr-registry-sync.sh"
 TARGET_INSTALLED_ROOT="$TARGET_EXT_DIR/installed"
 TARGET_RUNTIME_ROOT="$TARGET_EXT_DIR/.ext-mgr"
 TARGET_RUNTIME_CACHE="$TARGET_RUNTIME_ROOT/cache"
@@ -228,6 +231,7 @@ require_file "$SRC_JS"
 require_file "$SRC_MODAL_FIX_JS"
 require_file "$SRC_HOVER_MENU_JS"
 require_file "$SRC_CSS"
+require_file "$SRC_REGISTRY_SYNC_SCRIPT"
 
 MODULE1_REASON=""
 if [[ "$SKIP_MODULE1" -eq 0 ]]; then
@@ -247,10 +251,10 @@ fi
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
 echo "[1/10] Preparing target directories..."
-$SUDO mkdir -p "$TARGET_EXT_DIR" "$TARGET_JS_DIR" "$TARGET_CSS_DIR" "$TARGET_INSTALLED_ROOT" "$TARGET_RUNTIME_CACHE" "$TARGET_RUNTIME_DATA" "$TARGET_RUNTIME_LOGS"
+$SUDO mkdir -p "$TARGET_EXT_DIR" "$TARGET_JS_DIR" "$TARGET_CSS_DIR" "$TARGET_SCRIPT_DIR" "$TARGET_INSTALLED_ROOT" "$TARGET_RUNTIME_CACHE" "$TARGET_RUNTIME_DATA" "$TARGET_RUNTIME_LOGS"
 
 echo "[2/10] Backing up existing ext-mgr files (if present)..."
-for f in "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_REGISTRY" "$TARGET_JS" "$TARGET_MODAL_FIX_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS"; do
+for f in "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_REGISTRY" "$TARGET_JS" "$TARGET_MODAL_FIX_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_REGISTRY_SYNC_SCRIPT"; do
     if [[ -f "$f" ]]; then
         $SUDO cp -a "$f" "$f.bak-extmgr-$STAMP"
     fi
@@ -264,6 +268,7 @@ $SUDO install -o www-data -g www-data -m 0644 "$SRC_JS" "$TARGET_JS"
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_MODAL_FIX_JS" "$TARGET_MODAL_FIX_JS"
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_CSS" "$TARGET_CSS"
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_HOVER_MENU_JS" "$TARGET_HOVER_MENU_JS"
+$SUDO install -o root -g "$SECURITY_GROUP" -m 0750 "$SRC_REGISTRY_SYNC_SCRIPT" "$TARGET_REGISTRY_SYNC_SCRIPT"
 
 if [[ -f "$TARGET_REGISTRY" ]]; then
     echo "Existing registry detected, preserving current state at $TARGET_REGISTRY"

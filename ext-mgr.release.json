@@ -18,6 +18,7 @@
     "ext-mgr.version",
     "assets/js/ext-mgr.js",
     "scripts/ext-mgr-import-wizard.sh",
+    "scripts/ext-mgr-registry-sync.sh",
     "README.md"
   ],
   "notes": "Release 1.2 focuses on import wizard, extension state lifecycle, transparent registry sync, and transactional managed-file updates."

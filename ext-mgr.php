@@ -105,6 +105,7 @@ if (file_exists('/var/www/header.php')) {
             <p class="config-help-static extmgr-help">Use these tools to fix common ext-mgr installation issues.</p>
             <div class="extmgr-actions">
                 <button id="repair-btn" class="btn btn-small btn-danger" type="button"><i class="fa-solid fa-sharp fa-wrench"></i> Repair Installation</button>
+                <button id="sync-registry-btn" type="button">Sync Registry</button>
             </div>
             <div id="maintenance-log" class="extmgr-log">No maintenance actions executed.</div>
         </fieldset>
