@@ -1017,7 +1017,12 @@ function repairExtensionSymlink($extId, $entryPath, &$error) {
     $linkPath = '/var/www/' . $extId . '.php';
     if (file_exists($linkPath) || is_link($linkPath)) {
         if (!@unlink($linkPath)) {
-            $error = 'Unable to replace existing link/file at ' . $linkPath;
+            $helperResult = runPrivilegedSymlinkRepair($extId, $entryPath, $helperError);
+            if (is_array($helperResult)) {
+                return $helperResult;
+            }
+
+            $error = 'Unable to replace existing link/file at ' . $linkPath . '. Helper fallback: ' . $helperError;
             return null;
         }
     }
