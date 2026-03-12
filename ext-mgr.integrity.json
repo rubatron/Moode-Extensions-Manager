@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1",
+  "algorithm": "sha256",
+  "generatedAt": "2026-03-12T15:47:50",
+  "files": {
+    "ext-mgr.php": "54409b9679508f0d24ca86ac098363e562468623f2c8095cc4aaf82999ec7320",
+    "ext-mgr-api.php": "8f02cc8c65b16034a20c28a3e88b7e68daaf88bcca0704c2b42502311b9b86b9",
+    "ext-mgr.meta.json": "8902fa2132f25f70121c70975c3f3690eb0f197119b0ccbabeab48542e9121f6",
+    "ext-mgr.release.json": "810a7dabc8b433879e5d4887b4983bea2ff8931431d69260e67c88e0ec704998",
+    "ext-mgr.version": "4c3dc68152f0f90abbc683925552458eb9a82f416719f84535fbe884a4fdb854",
+    "assets/js/ext-mgr.js": "9b7a2788a5cceac39b30d5be53e7328f884794e35b19b0c150d5ace3001e9090",
+    "scripts/ext-mgr-import-wizard.sh": "5c97d4c0d161037afc2b75e662f7672cba6c0cf3b80692a4bcab3dd346c79d89",
+    "README.md": "c7591f55fb752e5d6f688bc34dd97ff89bea1acfbcda98c35f0581b54c96b23b"
+  }
+}

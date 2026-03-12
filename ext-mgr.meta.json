@@ -1,0 +1,22 @@
+{
+  "name": "Extension Manager",
+  "slug": "ext-mgr",
+  "version": "1.2.0-beta.1",
+  "latestVersion": "1.2.0",
+  "creator": "Rubatron Team",
+  "license": "GPL-3.0-or-later",
+  "description": "Central manager for moOde extension discovery and pin state.",
+  "releaseFocus": "1.2",
+  "updateIntegration": {
+    "provider": "github",
+    "repository": "rubatron/Moode-Extensions-Manager",
+    "signatureVerification": "planned",
+    "systemSettingsHook": "placeholder"
+  },
+  "updated": "2026-03-12",
+  "maintenance": {
+    "lastAction": "none",
+    "lastResult": "n/a",
+    "lastRunAt": null
+  }
+}

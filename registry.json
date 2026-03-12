@@ -1,0 +1,13 @@
+{
+  "extensions": [
+    {
+      "id": "radio-browser",
+      "name": "Radio Browser",
+      "entry": "/radio-browser.php",
+      "path": "/radio-browser.php",
+      "enabled": true,
+      "state": "active",
+      "pinned": true
+    }
+  ]
+}
