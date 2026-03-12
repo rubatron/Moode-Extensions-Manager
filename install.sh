@@ -24,6 +24,11 @@ TARGET_JS="$TARGET_JS_DIR/ext-mgr.js"
 TARGET_MODAL_FIX_JS="$TARGET_JS_DIR/ext-mgr-modal-fix.js"
 TARGET_CSS="$TARGET_CSS_DIR/ext-mgr.css"
 TARGET_HOVER_MENU_JS="$TARGET_EXT_DIR/ext-mgr-hover-menu.js"
+TARGET_INSTALLED_ROOT="$TARGET_EXT_DIR/installed"
+TARGET_RUNTIME_ROOT="$TARGET_EXT_DIR/.ext-mgr"
+TARGET_RUNTIME_CACHE="$TARGET_RUNTIME_ROOT/cache"
+TARGET_RUNTIME_DATA="$TARGET_RUNTIME_ROOT/data"
+TARGET_RUNTIME_LOGS="$TARGET_RUNTIME_ROOT/logs"
 
 SYMLINK_HELPER="/usr/local/sbin/ext-mgr-repair-symlink"
 SYMLINK_SUDOERS="/etc/sudoers.d/ext-mgr"
@@ -73,6 +78,45 @@ sync_security_user_groups() {
             $SUDO usermod -aG "$group_name" "$SECURITY_USER" || true
         fi
     done
+}
+
+ensure_extmgr_structure_permissions() {
+    local dirs=(
+        "$TARGET_EXT_DIR"
+        "$TARGET_JS_DIR"
+        "$TARGET_CSS_DIR"
+        "$TARGET_INSTALLED_ROOT"
+        "$TARGET_RUNTIME_ROOT"
+        "$TARGET_RUNTIME_CACHE"
+        "$TARGET_RUNTIME_DATA"
+        "$TARGET_RUNTIME_LOGS"
+    )
+
+    local d
+    for d in "${dirs[@]}"; do
+        $SUDO mkdir -p "$d"
+        $SUDO chown root:"$SECURITY_GROUP" "$d"
+        $SUDO chmod 2775 "$d"
+    done
+
+    if [[ -f "$TARGET_REGISTRY" ]]; then
+        $SUDO chown "$SECURITY_USER":"$SECURITY_GROUP" "$TARGET_REGISTRY"
+        $SUDO chmod 0664 "$TARGET_REGISTRY"
+    fi
+
+    if command -v setfacl >/dev/null 2>&1; then
+        for d in "${dirs[@]}"; do
+            $SUDO setfacl -m "u:${WEB_USER}:rwX" "$d" 2>/dev/null || true
+            $SUDO setfacl -m "u:${SECURITY_USER}:rwX" "$d" 2>/dev/null || true
+            $SUDO setfacl -d -m "u:${WEB_USER}:rwX" "$d" 2>/dev/null || true
+            $SUDO setfacl -d -m "u:${SECURITY_USER}:rwX" "$d" 2>/dev/null || true
+        done
+
+        if [[ -f "$TARGET_REGISTRY" ]]; then
+            $SUDO setfacl -m "u:${WEB_USER}:rw" "$TARGET_REGISTRY" 2>/dev/null || true
+            $SUDO setfacl -m "u:${SECURITY_USER}:rw" "$TARGET_REGISTRY" 2>/dev/null || true
+        fi
+    fi
 }
 
 require_file() {
@@ -185,15 +229,25 @@ require_file "$SRC_MODAL_FIX_JS"
 require_file "$SRC_HOVER_MENU_JS"
 require_file "$SRC_CSS"
 
+MODULE1_REASON=""
 if [[ "$SKIP_MODULE1" -eq 0 ]]; then
-    require_file "$HEADER_FILE"
-    require_file "$RB_FILE"
+    if [[ ! -f "$HEADER_FILE" ]]; then
+        MODULE1_REASON="header.php not found at $HEADER_FILE"
+        SKIP_MODULE1=1
+    elif [[ ! -f "$RB_FILE" ]]; then
+        MODULE1_REASON="radio-browser.php not found at $RB_FILE"
+        SKIP_MODULE1=1
+    fi
+
+    if [[ "$SKIP_MODULE1" -eq 1 ]]; then
+        echo "WARN: Module 1 integration auto-skipped: $MODULE1_REASON" >&2
+    fi
 fi
 
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
 echo "[1/10] Preparing target directories..."
-$SUDO mkdir -p "$TARGET_EXT_DIR" "$TARGET_JS_DIR" "$TARGET_CSS_DIR"
+$SUDO mkdir -p "$TARGET_EXT_DIR" "$TARGET_JS_DIR" "$TARGET_CSS_DIR" "$TARGET_INSTALLED_ROOT" "$TARGET_RUNTIME_CACHE" "$TARGET_RUNTIME_DATA" "$TARGET_RUNTIME_LOGS"
 
 echo "[2/10] Backing up existing ext-mgr files (if present)..."
 for f in "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_REGISTRY" "$TARGET_JS" "$TARGET_MODAL_FIX_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS"; do
@@ -236,6 +290,9 @@ $SUDO usermod -aG "$WEB_USER" "$SECURITY_USER" || true
 
 PRIMARY_USER="$(detect_primary_user || true)"
 sync_security_user_groups "$PRIMARY_USER"
+
+echo "[5.1/10] Applying ext-mgr folder and permission structure..."
+ensure_extmgr_structure_permissions
 
 cat <<'SH' | $SUDO tee "$SYMLINK_HELPER" > /dev/null
 #!/usr/bin/env bash
@@ -297,7 +354,11 @@ $SUDO chmod 0440 "$SYMLINK_SUDOERS"
 
 echo "[6/10] Applying Module 1 (radio-browser modal fix)..."
 if [[ "$SKIP_MODULE1" -eq 1 ]]; then
-    echo "Skipped Module 1 integration due to --skip-module1"
+    if [[ -n "$MODULE1_REASON" ]]; then
+        echo "Skipped Module 1 integration: $MODULE1_REASON"
+    else
+        echo "Skipped Module 1 integration due to --skip-module1"
+    fi
 else
     $SUDO cp -a "$HEADER_FILE" "$HEADER_FILE.bak-module1-$STAMP"
     $SUDO cp -a "$RB_FILE" "$RB_FILE.bak-module1-$STAMP"
