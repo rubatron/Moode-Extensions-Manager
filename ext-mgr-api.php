@@ -220,6 +220,72 @@ function writeTextFileAtomic($path, $content) {
     return rename($tmp, $path);
 }
 
+function isPhpFunctionEnabled($name) {
+    if (!function_exists($name)) {
+        return false;
+    }
+    $disabled = ini_get('disable_functions');
+    if (!is_string($disabled) || trim($disabled) === '') {
+        return true;
+    }
+    $items = array_map('trim', explode(',', $disabled));
+    return !in_array($name, $items, true);
+}
+
+function httpGetViaWget($url, &$error) {
+    $error = '';
+
+    if (!isPhpFunctionEnabled('exec')) {
+        $error = 'wget fallback unavailable: exec() is disabled.';
+        return null;
+    }
+
+    $whichOutput = [];
+    $whichCode = 0;
+    @exec('command -v wget 2>/dev/null', $whichOutput, $whichCode);
+    if ($whichCode !== 0 || !is_array($whichOutput) || count($whichOutput) === 0) {
+        $error = 'wget fallback unavailable: wget command not found.';
+        return null;
+    }
+
+    $wgetPath = trim((string)$whichOutput[0]);
+    if ($wgetPath === '') {
+        $error = 'wget fallback unavailable: invalid wget path.';
+        return null;
+    }
+
+    $tmpFile = tempnam(sys_get_temp_dir(), 'extmgr_wget_');
+    if ($tmpFile === false) {
+        $error = 'wget fallback unavailable: unable to allocate temp file.';
+        return null;
+    }
+
+    $cmd = escapeshellarg($wgetPath)
+        . ' --quiet --max-redirect=5 --timeout=20 -O '
+        . escapeshellarg($tmpFile)
+        . ' '
+        . escapeshellarg($url)
+        . ' 2>&1';
+
+    $output = [];
+    $exitCode = 0;
+    @exec($cmd, $output, $exitCode);
+    if ($exitCode !== 0) {
+        $error = 'Network error via wget: ' . trim(implode("\n", $output));
+        @unlink($tmpFile);
+        return null;
+    }
+
+    $content = @file_get_contents($tmpFile);
+    @unlink($tmpFile);
+    if ($content === false) {
+        $error = 'wget fallback failed to read downloaded content.';
+        return null;
+    }
+
+    return $content;
+}
+
 function httpGet($url, &$error) {
     $error = '';
 
@@ -249,6 +315,12 @@ function httpGet($url, &$error) {
         return $response;
     }
 
+    $wgetError = '';
+    $wgetResponse = httpGetViaWget($url, $wgetError);
+    if ($wgetResponse !== null) {
+        return $wgetResponse;
+    }
+
     $context = stream_context_create([
         'http' => [
             'method' => 'GET',
@@ -260,7 +332,7 @@ function httpGet($url, &$error) {
 
     $response = @file_get_contents($url, false, $context);
     if ($response === false) {
-        $error = 'Network error: unable to fetch resource.';
+        $error = 'Network error: unable to fetch resource. ' . ($wgetError !== '' ? 'Wget fallback: ' . $wgetError : '');
         return null;
     }
 

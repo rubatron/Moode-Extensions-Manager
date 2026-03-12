@@ -18,6 +18,7 @@ Lightweight workspace to continue development of the moOde extension manager wit
 - `docs/ARCHITECTURE.md`
 - `docs/MIGRATION-PLAN.md`
 - `scripts/dev-smoke.ps1`
+- `scripts/bootstrap-moode.sh`
 - `scripts/publish-github.ps1`
 - `tests/api-smoke.ps1`
 - `ext-mgr.integrity.json`
@@ -32,17 +33,23 @@ Use this flow on a fresh or existing moOde host.
 
 1. Connect to the Pi and install prerequisites.
   - `sudo apt-get update`
-  - `sudo apt-get install -y git php-cli`
-2. Clone this repository on the Pi.
+  - `sudo apt-get install -y wget php-cli`
+2. Fast install without git clone (recommended).
+  - `wget -qO- https://raw.githubusercontent.com/rubatron/Moode-Extensions-Manager/main/scripts/bootstrap-moode.sh | sudo bash`
+  - ext-mgr only: `wget -qO- https://raw.githubusercontent.com/rubatron/Moode-Extensions-Manager/main/scripts/bootstrap-moode.sh | sudo bash -s -- --skip-module1`
+3. Alternative install with git clone.
+  - `sudo apt-get install -y git`
   - `git clone https://github.com/rubatron/Moode-Extensions-Manager.git`
   - `cd Moode-Extensions-Manager`
-3. Run installer.
-  - Full install with radio-browser module integration: `sudo ./install.sh`
-  - Install ext-mgr only: `sudo ./install.sh --skip-module1`
+  - `sudo ./install.sh`
 4. Open in browser.
   - `http://<pi-ip>/ext-mgr.php`
 5. Verify API reachability from the Pi.
   - `curl -s -X POST http://localhost/ext-mgr-api.php -d 'action=list'`
+
+The update mechanism itself does not require git on the target host.
+- Provider fetch uses HTTP (`curl`, `wget` fallback, or PHP stream context).
+- Update apply uses managed file downloads from release tags.
 
 Expected install targets:
 - `/var/www/extensions/ext-mgr.php`
