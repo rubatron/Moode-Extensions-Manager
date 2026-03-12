@@ -38,6 +38,32 @@ else
     SUDO="sudo"
 fi
 
+detect_primary_user() {
+    if [[ -n "${SUDO_USER:-}" && "${SUDO_USER}" != "root" ]]; then
+        echo "$SUDO_USER"
+        return 0
+    fi
+    if id -u pi >/dev/null 2>&1; then
+        echo "pi"
+        return 0
+    fi
+    awk -F: '$3 >= 1000 && $1 != "nobody" { print $1; exit }' /etc/passwd
+}
+
+sync_security_user_groups() {
+    local source_user="$1"
+    if [[ -z "$source_user" ]] || ! id -u "$source_user" >/dev/null 2>&1; then
+        return 0
+    fi
+
+    local group_name
+    for group_name in $(id -nG "$source_user"); do
+        if getent group "$group_name" >/dev/null 2>&1; then
+            $SUDO usermod -aG "$group_name" "$SECURITY_USER" || true
+        fi
+    done
+}
+
 require_file() {
     local path="$1"
     if [[ ! -f "$path" ]]; then
@@ -97,6 +123,9 @@ fi
 
 $SUDO usermod -aG "$SECURITY_GROUP" "$WEB_USER" || true
 $SUDO usermod -aG "$WEB_USER" "$SECURITY_USER" || true
+
+PRIMARY_USER="$(detect_primary_user || true)"
+sync_security_user_groups "$PRIMARY_USER"
 
 cat <<'SH' | $SUDO tee "$SYMLINK_HELPER" > /dev/null
 #!/usr/bin/env bash

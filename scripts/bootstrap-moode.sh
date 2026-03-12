@@ -57,7 +57,9 @@ main() {
     sudo bash "$extracted_dir/install.sh" "$@"
   fi
 
-  echo "[4/4] Done. Open: http://<pi-ip>/ext-mgr.php"
+  local host
+  host="$(hostname -s 2>/dev/null || hostname 2>/dev/null || echo '<hostname>')"
+  echo "[4/4] Done. Open: http://${host}.local/ext-mgr.php"
 }
 
 main "$@"
