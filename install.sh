@@ -4,15 +4,19 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$SCRIPT_DIR"
 
-SRC_PAGE="$PROJECT_ROOT/ext-mgr.php"
-SRC_API="$PROJECT_ROOT/ext-mgr-api.php"
-SRC_META="$PROJECT_ROOT/ext-mgr.meta.json"
-SRC_REGISTRY="$PROJECT_ROOT/registry.json"
-SRC_JS="$PROJECT_ROOT/assets/js/ext-mgr.js"
-SRC_MODAL_FIX_JS="$PROJECT_ROOT/assets/js/ext-mgr-modal-fix.js"
-SRC_HOVER_MENU_JS="$PROJECT_ROOT/assets/js/ext-mgr-hover-menu.js"
-SRC_CSS="$PROJECT_ROOT/assets/css/ext-mgr.css"
-SRC_REGISTRY_SYNC_SCRIPT="$PROJECT_ROOT/scripts/ext-mgr-registry-sync.sh"
+SRC_PAGE=""
+SRC_API=""
+SRC_META=""
+SRC_REGISTRY=""
+SRC_RELEASE=""
+SRC_VERSION=""
+SRC_INTEGRITY=""
+SRC_JS=""
+SRC_MODAL_FIX_JS=""
+SRC_HOVER_MENU_JS=""
+SRC_CSS=""
+SRC_REGISTRY_SYNC_SCRIPT=""
+SRC_IMPORT_WIZARD_SCRIPT=""
 
 TARGET_EXT_DIR="/var/www/extensions"
 TARGET_JS_DIR="$TARGET_EXT_DIR/assets/js"
@@ -21,6 +25,9 @@ TARGET_PAGE="$TARGET_EXT_DIR/ext-mgr.php"
 TARGET_API="$TARGET_EXT_DIR/ext-mgr-api.php"
 TARGET_META="$TARGET_EXT_DIR/ext-mgr.meta.json"
 TARGET_REGISTRY="$TARGET_EXT_DIR/registry.json"
+TARGET_RELEASE="$TARGET_EXT_DIR/ext-mgr.release.json"
+TARGET_VERSION="$TARGET_EXT_DIR/ext-mgr.version"
+TARGET_INTEGRITY="$TARGET_EXT_DIR/ext-mgr.integrity.json"
 TARGET_JS="$TARGET_JS_DIR/ext-mgr.js"
 TARGET_MODAL_FIX_JS="$TARGET_JS_DIR/ext-mgr-modal-fix.js"
 TARGET_CSS="$TARGET_CSS_DIR/ext-mgr.css"
@@ -46,16 +53,74 @@ INDEX_TEMPLATE_FILE="/var/www/templates/indextpl.min.html"
 RB_FILE="/var/www/extensions/installed/radio-browser/radio-browser.php"
 RB_JS_FILE="/var/www/extensions/installed/radio-browser/assets/radio-browser-modal-fix.js"
 
+ACTION="install"
+REPAIR_FROM_MAIN=0
 SKIP_MODULE1=0
-if [[ "${1:-}" == "--skip-module1" ]]; then
-    SKIP_MODULE1=1
-fi
+REPAIR_TMP_DIR=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --skip-module1)
+            SKIP_MODULE1=1
+            shift
+            ;;
+        --action)
+            ACTION="${2:-install}"
+            shift 2
+            ;;
+        --install)
+            ACTION="install"
+            shift
+            ;;
+        --repair)
+            ACTION="repair"
+            shift
+            ;;
+        --repair-from-main)
+            ACTION="repair"
+            REPAIR_FROM_MAIN=1
+            shift
+            ;;
+        --uninstall)
+            ACTION="uninstall"
+            shift
+            ;;
+        --help|-h)
+            ACTION="help"
+            shift
+            ;;
+        *)
+            echo "ERROR: unknown option: $1" >&2
+            ACTION="help"
+            shift
+            ;;
+    esac
+done
 
 if [[ "${EUID}" -eq 0 ]]; then
     SUDO=""
 else
     SUDO="sudo"
 fi
+
+set_source_root() {
+    local root="$1"
+    SRC_PAGE="$root/ext-mgr.php"
+    SRC_API="$root/ext-mgr-api.php"
+    SRC_META="$root/ext-mgr.meta.json"
+    SRC_REGISTRY="$root/registry.json"
+    SRC_RELEASE="$root/ext-mgr.release.json"
+    SRC_VERSION="$root/ext-mgr.version"
+    SRC_INTEGRITY="$root/ext-mgr.integrity.json"
+    SRC_JS="$root/assets/js/ext-mgr.js"
+    SRC_MODAL_FIX_JS="$root/assets/js/ext-mgr-modal-fix.js"
+    SRC_HOVER_MENU_JS="$root/assets/js/ext-mgr-hover-menu.js"
+    SRC_CSS="$root/assets/css/ext-mgr.css"
+    SRC_REGISTRY_SYNC_SCRIPT="$root/scripts/ext-mgr-registry-sync.sh"
+    SRC_IMPORT_WIZARD_SCRIPT="$root/scripts/ext-mgr-import-wizard.sh"
+}
+
+set_source_root "$PROJECT_ROOT"
 
 detect_primary_user() {
     if [[ -n "${SUDO_USER:-}" && "${SUDO_USER}" != "root" ]]; then
@@ -107,6 +172,21 @@ ensure_extmgr_structure_permissions() {
         $SUDO chmod 0664 "$TARGET_REGISTRY"
     fi
 
+    local runtime_files=(
+        "$TARGET_META"
+        "$TARGET_RELEASE"
+        "$TARGET_VERSION"
+        "$TARGET_INTEGRITY"
+    )
+
+    local f
+    for f in "${runtime_files[@]}"; do
+        if [[ -f "$f" ]]; then
+            $SUDO chown "$SECURITY_USER":"$SECURITY_GROUP" "$f"
+            $SUDO chmod 0664 "$f"
+        fi
+    done
+
     if command -v setfacl >/dev/null 2>&1; then
         for d in "${dirs[@]}"; do
             $SUDO setfacl -m "u:${WEB_USER}:rwX" "$d" 2>/dev/null || true
@@ -119,6 +199,13 @@ ensure_extmgr_structure_permissions() {
             $SUDO setfacl -m "u:${WEB_USER}:rw" "$TARGET_REGISTRY" 2>/dev/null || true
             $SUDO setfacl -m "u:${SECURITY_USER}:rw" "$TARGET_REGISTRY" 2>/dev/null || true
         fi
+
+        for f in "${runtime_files[@]}"; do
+            if [[ -f "$f" ]]; then
+                $SUDO setfacl -m "u:${WEB_USER}:rw" "$f" 2>/dev/null || true
+                $SUDO setfacl -m "u:${SECURITY_USER}:rw" "$f" 2>/dev/null || true
+            fi
+        done
     fi
 }
 
@@ -128,6 +215,156 @@ require_file() {
         echo "ERROR: required file not found: $path" >&2
         exit 1
     fi
+}
+
+print_usage() {
+    cat <<EOF
+Usage: ./install.sh [options]
+
+Options:
+  --install              Install/upgrade ext-mgr (default)
+  --repair               Repair local installation using workspace files
+  --repair-from-main     Repair installation using files fetched from main branch
+  --uninstall            Remove ext-mgr files/symlinks and helpers
+  --skip-module1         Skip radio-browser specific module patching
+  --help, -h             Show this help
+EOF
+}
+
+read_version_value() {
+    local path="$1"
+    if [[ ! -f "$path" ]]; then
+        echo ""
+        return 0
+    fi
+    tr -d '\r' < "$path" | head -n 1 | xargs
+}
+
+version_compare() {
+    local a="$1" b="$2"
+    if [[ "$a" == "$b" ]]; then
+        echo 0
+        return 0
+    fi
+    if command -v sort >/dev/null 2>&1; then
+        local first
+        first="$(printf '%s\n%s\n' "$a" "$b" | sort -V | head -n 1)"
+        if [[ "$first" == "$a" ]]; then
+            echo -1
+        else
+            echo 1
+        fi
+        return 0
+    fi
+    echo 0
+}
+
+print_version_warning() {
+    local source_ver target_ver cmp
+    source_ver="$(read_version_value "$SRC_VERSION")"
+    target_ver="$(read_version_value "$TARGET_VERSION")"
+
+    if [[ -z "$source_ver" ]]; then
+        echo "WARN: source version file missing/empty: $SRC_VERSION" >&2
+        return 0
+    fi
+
+    if [[ -z "$target_ver" ]]; then
+        echo "INFO: fresh install target (no existing ext-mgr.version found)."
+        return 0
+    fi
+
+    cmp="$(version_compare "$source_ver" "$target_ver")"
+    if [[ "$cmp" == "1" ]]; then
+        echo "INFO: upgrade detected target=$target_ver -> source=$source_ver"
+    elif [[ "$cmp" == "-1" ]]; then
+        echo "WARN: downgrade detected target=$target_ver -> source=$source_ver"
+    else
+        echo "INFO: reinstalling same version: $source_ver"
+    fi
+}
+
+fetch_from_main_branch() {
+    local base_url="https://raw.githubusercontent.com/rubatron/Moode-Extensions-Manager/main"
+    local tmp_dir
+    tmp_dir="$(mktemp -d)"
+    REPAIR_TMP_DIR="$tmp_dir"
+
+    local required=(
+        "ext-mgr.php"
+        "ext-mgr-api.php"
+        "ext-mgr.meta.json"
+        "registry.json"
+        "ext-mgr.release.json"
+        "ext-mgr.version"
+        "ext-mgr.integrity.json"
+        "assets/js/ext-mgr.js"
+        "assets/js/ext-mgr-modal-fix.js"
+        "assets/js/ext-mgr-hover-menu.js"
+        "assets/css/ext-mgr.css"
+        "scripts/ext-mgr-import-wizard.sh"
+        "scripts/ext-mgr-registry-sync.sh"
+    )
+
+    echo "INFO: fetching repair payload from main branch..."
+
+    local rel target_dir target_file url
+    for rel in "${required[@]}"; do
+        target_dir="$tmp_dir/$(dirname "$rel")"
+        target_file="$tmp_dir/$rel"
+        mkdir -p "$target_dir"
+        url="$base_url/$rel"
+
+        if command -v curl >/dev/null 2>&1; then
+            if ! curl -fsSL "$url" -o "$target_file"; then
+                echo "ERROR: failed to fetch $url" >&2
+                rm -rf "$tmp_dir"
+                return 1
+            fi
+        elif command -v wget >/dev/null 2>&1; then
+            if ! wget -q -O "$target_file" "$url"; then
+                echo "ERROR: failed to fetch $url" >&2
+                rm -rf "$tmp_dir"
+                return 1
+            fi
+        else
+            echo "ERROR: curl or wget is required for --repair-from-main" >&2
+            rm -rf "$tmp_dir"
+            return 1
+        fi
+    done
+
+    PROJECT_ROOT="$tmp_dir"
+    set_source_root "$PROJECT_ROOT"
+    echo "INFO: repair source switched to main branch payload: $PROJECT_ROOT"
+    return 0
+}
+
+cleanup_tmp_dir() {
+    if [[ -n "$REPAIR_TMP_DIR" && -d "$REPAIR_TMP_DIR" ]]; then
+        rm -rf "$REPAIR_TMP_DIR"
+    fi
+}
+
+trap cleanup_tmp_dir EXIT
+
+run_uninstall() {
+    local stamp
+    stamp="$(date +%Y%m%d-%H%M%S)"
+
+    echo "[uninstall] Backing up core files where present..."
+    for f in "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_RELEASE" "$TARGET_VERSION" "$TARGET_INTEGRITY" "$TARGET_JS" "$TARGET_MODAL_FIX_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_REGISTRY" "$TARGET_REGISTRY_SYNC_SCRIPT"; do
+        if [[ -f "$f" ]]; then
+            $SUDO cp -a "$f" "$f.bak-uninstall-$stamp"
+        fi
+    done
+
+    echo "[uninstall] Removing ext-mgr files/symlinks/helpers..."
+    $SUDO rm -f "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_RELEASE" "$TARGET_VERSION" "$TARGET_INTEGRITY" "$TARGET_JS" "$TARGET_MODAL_FIX_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_REGISTRY_SYNC_SCRIPT"
+    $SUDO rm -f /var/www/ext-mgr.php /var/www/ext-mgr-api.php /var/www/extensions-manager.php
+    $SUDO rm -f "$SYMLINK_HELPER" "$SYMLINK_SUDOERS"
+
+    echo "[uninstall] Completed. Registry kept at $TARGET_REGISTRY (if present)."
 }
 
 patch_index_template_menu() {
@@ -155,6 +392,24 @@ if 'extensions-manager-btn' not in s:
     s = s.replace(marker, insert, 1)
 elif 'extmgr-hover-menu' not in s:
     s = s.replace(ext_btn, '<span class="extmgr-hover-menu" style="position:relative;display:block;width:100%;">' + ext_btn.replace('class="btn extensions-manager-btn menu-separator"', 'class="btn extensions-manager-btn menu-separator" style="width:100%;"') + '<div id="extmgr-hover-panel" style="display:none;position:static;min-width:0;z-index:auto;background:transparent;border:none;box-shadow:none;padding:0 0 4px 0;border-radius:0;"><div id="extmgr-hover-list"></div></div></span>', 1)
+
+# Keep Extensions as second item in Library list: right after Radio.
+radio_start = s.find('<button aria-label="Radio" class="btn radio-view-btn"')
+ext_start = s.find('<span class="extmgr-hover-menu"')
+if radio_start != -1 and ext_start != -1 and ext_start < radio_start:
+    radio_end = s.find('</button>', radio_start)
+    if radio_end != -1:
+        radio_end += len('</button>')
+        ext_end = s.find('</span>', ext_start)
+        if ext_end != -1:
+            ext_end += len('</span>')
+            ext_block = s[ext_start:ext_end]
+            s = s[:ext_start] + s[ext_end:]
+            radio_start = s.find('<button aria-label="Radio" class="btn radio-view-btn"')
+            radio_end = s.find('</button>', radio_start)
+            if radio_end != -1:
+                radio_end += len('</button>')
+                s = s[:radio_end] + ' ' + ext_block + s[radio_end:]
 
 script_tag = '<script src="/extensions/ext-mgr-hover-menu.js" defer></script>'
 if script_tag not in s:
@@ -223,15 +478,44 @@ print('patched footer')
 PY
 }
 
+case "$ACTION" in
+    help)
+        print_usage
+        exit 0
+        ;;
+    uninstall)
+        run_uninstall
+        exit 0
+        ;;
+    repair)
+        if [[ "$REPAIR_FROM_MAIN" -eq 1 ]]; then
+            fetch_from_main_branch
+        fi
+        echo "INFO: running repair mode (non-destructive where possible)."
+        ;;
+    install)
+        ;;
+    *)
+        echo "ERROR: unsupported action: $ACTION" >&2
+        print_usage
+        exit 1
+        ;;
+esac
+
 require_file "$SRC_PAGE"
 require_file "$SRC_API"
 require_file "$SRC_META"
 require_file "$SRC_REGISTRY"
+require_file "$SRC_RELEASE"
+require_file "$SRC_VERSION"
+require_file "$SRC_INTEGRITY"
 require_file "$SRC_JS"
 require_file "$SRC_MODAL_FIX_JS"
 require_file "$SRC_HOVER_MENU_JS"
 require_file "$SRC_CSS"
 require_file "$SRC_REGISTRY_SYNC_SCRIPT"
+
+print_version_warning
 
 MODULE1_REASON=""
 if [[ "$SKIP_MODULE1" -eq 0 ]]; then
@@ -254,7 +538,7 @@ echo "[1/10] Preparing target directories..."
 $SUDO mkdir -p "$TARGET_EXT_DIR" "$TARGET_JS_DIR" "$TARGET_CSS_DIR" "$TARGET_SCRIPT_DIR" "$TARGET_INSTALLED_ROOT" "$TARGET_RUNTIME_CACHE" "$TARGET_RUNTIME_DATA" "$TARGET_RUNTIME_LOGS"
 
 echo "[2/10] Backing up existing ext-mgr files (if present)..."
-for f in "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_REGISTRY" "$TARGET_JS" "$TARGET_MODAL_FIX_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_REGISTRY_SYNC_SCRIPT"; do
+for f in "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_REGISTRY" "$TARGET_RELEASE" "$TARGET_VERSION" "$TARGET_INTEGRITY" "$TARGET_JS" "$TARGET_MODAL_FIX_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_REGISTRY_SYNC_SCRIPT"; do
     if [[ -f "$f" ]]; then
         $SUDO cp -a "$f" "$f.bak-extmgr-$STAMP"
     fi
@@ -264,6 +548,9 @@ echo "[3/10] Installing ext-mgr page/api/metadata/assets..."
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_PAGE" "$TARGET_PAGE"
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_API" "$TARGET_API"
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_META" "$TARGET_META"
+$SUDO install -o www-data -g www-data -m 0644 "$SRC_RELEASE" "$TARGET_RELEASE"
+$SUDO install -o www-data -g www-data -m 0644 "$SRC_VERSION" "$TARGET_VERSION"
+$SUDO install -o www-data -g www-data -m 0644 "$SRC_INTEGRITY" "$TARGET_INTEGRITY"
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_JS" "$TARGET_JS"
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_MODAL_FIX_JS" "$TARGET_MODAL_FIX_JS"
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_CSS" "$TARGET_CSS"
@@ -298,6 +585,15 @@ sync_security_user_groups "$PRIMARY_USER"
 
 echo "[5.1/10] Applying ext-mgr folder and permission structure..."
 ensure_extmgr_structure_permissions
+
+echo "[5.2/10] Reloading web services to apply updated group memberships..."
+if command -v systemctl >/dev/null 2>&1; then
+    for svc in php8.3-fpm php8.2-fpm php8.1-fpm php-fpm nginx apache2; do
+        if systemctl list-unit-files | grep -q "^${svc}\.service"; then
+            $SUDO systemctl restart "$svc" || true
+        fi
+    done
+fi
 
 cat <<'SH' | $SUDO tee "$SYMLINK_HELPER" > /dev/null
 #!/usr/bin/env bash

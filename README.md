@@ -22,8 +22,11 @@ Lightweight workspace to continue development of the moOde extension manager wit
 - `docs/ARCHITECTURE.md`
 - `docs/MIGRATION-PLAN.md`
 - `docs/MOODE-OS-CONTEXT.md`
+- `docs/LOCAL-VM-HYPERV.md`
 - `scripts/dev-smoke.ps1`
 - `scripts/bootstrap-moode.sh`
+- `scripts/hyperv-enable.ps1`
+- `scripts/hyperv-create-moode-dev-vm.ps1`
 - `scripts/publish-github.ps1`
 - `tests/api-smoke.ps1`
 - `ext-mgr.integrity.json`
@@ -32,6 +35,32 @@ Lightweight workspace to continue development of the moOde extension manager wit
 1. Copy or symlink these files into a moOde test instance under `/var/www/extensions/`.
 2. Open `/ext-mgr.php` in browser.
 3. Use browser devtools to validate API calls and UI state transitions.
+
+## Local Moode-like Development (Docker)
+This workspace includes a `moode-dev` compose service with a minimal `/var/www` shell so menu/modal integration can be tested without a Pi.
+
+1. Start the dev container:
+  - `docker compose up --build`
+2. Open local endpoints:
+  - `http://localhost:8080/index.php`
+  - `http://localhost:8080/ext-mgr.php`
+  - `http://localhost:8080/radio-browser.php`
+3. Optional smoke check:
+  - `powershell -ExecutionPolicy Bypass -File tests/api-smoke.ps1 -BaseUrl http://localhost:8080`
+
+Notes:
+- Container generates minimal moOde-like files (`header.php`, `footer.min.php`, `templates/indextpl.min.html`) at startup.
+- ext-mgr files are linked from your workspace so edits are reflected immediately on refresh.
+
+## Local Packaging Build (Hyper-V VM)
+For package/build pipeline work, use a Linux VM (Hyper-V) instead of Docker.
+
+1. Enable Hyper-V (elevated PowerShell):
+  - `powershell -ExecutionPolicy Bypass -File scripts/hyperv-enable.ps1`
+2. Create lightweight VM profile:
+  - `powershell -ExecutionPolicy Bypass -File scripts/hyperv-create-moode-dev-vm.ps1 -Preset pi4-2gb -IsoPath "D:\ISO\ubuntu-24.04-live-server-amd64.iso"`
+3. Follow full runbook:
+  - `docs/LOCAL-VM-HYPERV.md`
 
 ## Install On Raspberry Pi (moOde)
 Use this flow on a fresh or existing moOde host.

@@ -17,7 +17,7 @@ function defaultMeta() {
         'latestVersion' => '0.0.0-dev',
         'creator' => 'Rubatron Team',
         'license' => 'GPL-3.0-or-later',
-        'description' => 'Central manager for moOde extension discovery and pin state.',
+        'description' => 'Central manager for moOde extension discovery and menu visibility state.',
         'releaseFocus' => '1.2',
         'updateIntegration' => [
             'provider' => 'github',
@@ -38,6 +38,10 @@ function defaultReleasePolicy() {
     return [
         'schemaVersion' => '2',
         'channel' => 'dev',
+        'updateTrack' => 'channel',
+        'branch' => 'main',
+        'devBranch' => 'dev',
+        'availableBranches' => ['main', 'dev'],
         'latestVersion' => '0.0.0-dev',
         'provider' => 'github',
         'repository' => 'rubatron/Moode-Extensions-Manager',
@@ -55,6 +59,7 @@ function defaultReleasePolicy() {
             'ext-mgr.release.json',
             'ext-mgr.version',
             'assets/js/ext-mgr.js',
+            'assets/css/ext-mgr.css',
             'scripts/ext-mgr-import-wizard.sh',
             'scripts/ext-mgr-registry-sync.sh',
             'README.md',
@@ -94,6 +99,43 @@ function normalizeReleasePolicy($policy) {
     if (!in_array($normalized['channel'], $allowedChannels, true)) {
         $normalized['channel'] = $defaults['channel'];
     }
+
+    $allowedTracks = ['channel', 'branch'];
+    if (!in_array((string)$normalized['updateTrack'], $allowedTracks, true)) {
+        $normalized['updateTrack'] = $defaults['updateTrack'];
+    }
+
+    $normalized['branch'] = trim((string)($normalized['branch'] ?? $defaults['branch']));
+    if ($normalized['branch'] === '' || preg_match('/^[a-zA-Z0-9._\/-]+$/', $normalized['branch']) !== 1) {
+        $normalized['branch'] = $defaults['branch'];
+    }
+
+    $normalized['devBranch'] = trim((string)($normalized['devBranch'] ?? $defaults['devBranch']));
+    if ($normalized['devBranch'] === '' || preg_match('/^[a-zA-Z0-9._\/-]+$/', $normalized['devBranch']) !== 1) {
+        $normalized['devBranch'] = $defaults['devBranch'];
+    }
+
+    if (!isset($normalized['availableBranches']) || !is_array($normalized['availableBranches'])) {
+        $normalized['availableBranches'] = $defaults['availableBranches'];
+    }
+    $branches = [];
+    foreach ($normalized['availableBranches'] as $b) {
+        $clean = trim((string)$b);
+        if ($clean === '' || preg_match('/^[a-zA-Z0-9._\/-]+$/', $clean) !== 1) {
+            continue;
+        }
+        $branches[] = $clean;
+    }
+    if (count($branches) === 0) {
+        $branches = $defaults['availableBranches'];
+    }
+    if (!in_array($normalized['branch'], $branches, true)) {
+        $branches[] = $normalized['branch'];
+    }
+    if (!in_array($normalized['devBranch'], $branches, true)) {
+        $branches[] = $normalized['devBranch'];
+    }
+    $normalized['availableBranches'] = array_values(array_unique($branches));
 
     $allowedProviders = ['github', 'gitlab', 'custom'];
     if (!in_array($normalized['provider'], $allowedProviders, true)) {
@@ -181,10 +223,37 @@ function writeJsonFile($path, $data) {
     if ($encoded === false) {
         return false;
     }
-    if (file_put_contents($tmp, $encoded . PHP_EOL) === false) {
-        return false;
+    $payload = $encoded . PHP_EOL;
+    if (file_put_contents($tmp, $payload) !== false && @rename($tmp, $path)) {
+        return true;
     }
-    return rename($tmp, $path);
+
+    if (file_exists($tmp)) {
+        @unlink($tmp);
+    }
+
+    // Fallback for environments where directory rename permissions are restricted
+    // but the target file itself is writable.
+    return file_put_contents($path, $payload, LOCK_EX) !== false;
+}
+
+function canWriteJsonPath($path) {
+    if (file_exists($path)) {
+        return is_writable($path);
+    }
+    return is_writable(dirname($path));
+}
+
+function formatWriteFailure($path, $label) {
+    $dir = dirname($path);
+    $fileWritable = file_exists($path) ? (is_writable($path) ? 'yes' : 'no') : 'missing';
+    $dirWritable = is_writable($dir) ? 'yes' : 'no';
+
+    return 'Failed to write ' . $label
+        . ' (path=' . $path
+        . ', fileWritable=' . $fileWritable
+        . ', dirWritable=' . $dirWritable
+        . ').';
 }
 
 function readMeta($path) {
@@ -415,6 +484,221 @@ function githubReleaseApiPathForChannel($channel) {
     return '/releases?per_page=30';
 }
 
+function resolveRemoteBranchCandidate($repository, $branch, &$error) {
+    $error = '';
+    $branch = trim((string)$branch);
+    if ($branch === '') {
+        $error = 'Missing branch name for branch update track.';
+        return null;
+    }
+
+    $apiUrl = githubApiUrl($repository, '/branches/' . rawurlencode($branch));
+    if ($apiUrl === null) {
+        $error = 'Invalid repository format in release policy.';
+        return null;
+    }
+
+    $networkError = '';
+    $payload = httpGet($apiUrl, $networkError);
+    if ($payload === null) {
+        $error = $networkError;
+        return null;
+    }
+
+    $decoded = json_decode($payload, true);
+    if (!is_array($decoded)) {
+        $error = 'Invalid JSON response from branch provider.';
+        return null;
+    }
+
+    $commitSha = trim((string)($decoded['commit']['sha'] ?? ''));
+    if ($commitSha === '') {
+        $error = 'Branch response missing commit sha.';
+        return null;
+    }
+
+    $shortSha = substr($commitSha, 0, 8);
+
+    return [
+        'provider' => 'github',
+        'repository' => $repository,
+        'channel' => 'dev',
+        'tag' => $branch,
+        'ref' => $branch,
+        'version' => 'branch-' . $branch . '+' . $shortSha,
+        'name' => 'Branch ' . $branch,
+        'publishedAt' => '',
+        'prerelease' => true,
+        'draft' => false,
+        'source' => 'branch',
+        'branch' => $branch,
+        'commitSha' => $commitSha,
+    ];
+}
+
+function resolveAvailableRemoteBranches($repository, &$error) {
+    $error = '';
+    $apiUrl = githubApiUrl($repository, '/branches?per_page=50');
+    if ($apiUrl === null) {
+        $error = 'Invalid repository format in release policy.';
+        return null;
+    }
+
+    $networkError = '';
+    $payload = httpGet($apiUrl, $networkError);
+    if ($payload === null) {
+        $error = $networkError;
+        return null;
+    }
+
+    $decoded = json_decode($payload, true);
+    if (!is_array($decoded)) {
+        $error = 'Invalid JSON response from branches provider.';
+        return null;
+    }
+
+    $branches = [];
+    foreach ($decoded as $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+        $name = trim((string)($row['name'] ?? ''));
+        if ($name === '') {
+            continue;
+        }
+        $branches[] = $name;
+    }
+
+    if (count($branches) === 0) {
+        $error = 'No branches returned from provider.';
+        return null;
+    }
+
+    return array_values(array_unique($branches));
+}
+
+function hasUpdateForCandidate($candidate, $currentVersion, $policy) {
+    if (!is_array($candidate)) {
+        return false;
+    }
+
+    $source = (string)($candidate['source'] ?? 'releases');
+    if ($source === 'branch') {
+        $candidateCommit = trim((string)($candidate['commitSha'] ?? ''));
+        $lastAppliedCommit = trim((string)($policy['lastAppliedCommit'] ?? ''));
+        if ($candidateCommit === '') {
+            return false;
+        }
+        if ($lastAppliedCommit === '') {
+            return true;
+        }
+        return strtolower($candidateCommit) !== strtolower($lastAppliedCommit);
+    }
+
+    return safeHasUpdate((string)($candidate['version'] ?? ''), (string)$currentVersion);
+}
+
+function chooseGithubTagByChannel($tags, $channel) {
+    if (!is_array($tags) || count($tags) === 0) {
+        return null;
+    }
+
+    $stable = [];
+    $beta = [];
+    $dev = [];
+
+    foreach ($tags as $tag) {
+        if (!is_array($tag)) {
+            continue;
+        }
+        $name = trim((string)($tag['name'] ?? ''));
+        if ($name === '') {
+            continue;
+        }
+
+        $normalized = strtolower(normalizeVersion($name));
+        if ($normalized === '') {
+            continue;
+        }
+
+        if (strpos($normalized, 'dev') !== false || strpos($normalized, 'alpha') !== false) {
+            $dev[] = $tag;
+            continue;
+        }
+        if (strpos($normalized, 'beta') !== false || strpos($normalized, 'rc') !== false) {
+            $beta[] = $tag;
+            continue;
+        }
+        $stable[] = $tag;
+    }
+
+    if ($channel === 'stable') {
+        return $stable[0] ?? null;
+    }
+    if ($channel === 'beta') {
+        return $beta[0] ?? ($stable[0] ?? null);
+    }
+    if ($channel === 'dev') {
+        return $dev[0] ?? ($beta[0] ?? ($stable[0] ?? null));
+    }
+
+    return $stable[0] ?? ($beta[0] ?? ($dev[0] ?? null));
+}
+
+function resolveRemoteTagCandidate($repository, $channel, &$error) {
+    $error = '';
+    $apiUrl = githubApiUrl($repository, '/tags?per_page=50');
+    if ($apiUrl === null) {
+        $error = 'Invalid repository format in release policy.';
+        return null;
+    }
+
+    $networkError = '';
+    $payload = httpGet($apiUrl, $networkError);
+    if ($payload === null) {
+        $error = $networkError;
+        return null;
+    }
+
+    $decoded = json_decode($payload, true);
+    if (!is_array($decoded)) {
+        $error = 'Invalid JSON response from tags provider.';
+        return null;
+    }
+
+    $selected = chooseGithubTagByChannel($decoded, $channel);
+    if (!is_array($selected)) {
+        $error = 'No tag candidate found for channel: ' . $channel;
+        return null;
+    }
+
+    $tag = trim((string)($selected['name'] ?? ''));
+    if ($tag === '') {
+        $error = 'Selected tag has no name.';
+        return null;
+    }
+
+    $version = normalizeVersion($tag);
+    if ($version === '') {
+        $error = 'Unable to derive version from selected tag.';
+        return null;
+    }
+
+    return [
+        'provider' => 'github',
+        'repository' => $repository,
+        'channel' => $channel,
+        'tag' => $tag,
+        'ref' => $tag,
+        'version' => $version,
+        'name' => $tag,
+        'publishedAt' => '',
+        'prerelease' => (strpos(strtolower($version), 'beta') !== false || strpos(strtolower($version), 'rc') !== false || strpos(strtolower($version), 'dev') !== false || strpos(strtolower($version), 'alpha') !== false),
+        'draft' => false,
+        'source' => 'tags-fallback',
+    ];
+}
+
 function resolveRemoteReleaseCandidate($policy, &$error) {
     $error = '';
     $provider = (string)($policy['provider'] ?? 'github');
@@ -428,6 +712,12 @@ function resolveRemoteReleaseCandidate($policy, &$error) {
     if (count($repoParts) !== 2 || $repoParts[0] === '' || $repoParts[1] === '') {
         $error = 'Invalid repository format in release policy.';
         return null;
+    }
+
+    $updateTrack = (string)($policy['updateTrack'] ?? 'channel');
+    if ($updateTrack === 'branch') {
+        $branchName = (string)($policy['branch'] ?? 'main');
+        return resolveRemoteBranchCandidate($repository, $branchName, $error);
     }
 
     $channel = (string)($policy['channel'] ?? 'dev');
@@ -453,7 +743,14 @@ function resolveRemoteReleaseCandidate($policy, &$error) {
     $releases = isset($decoded['id']) ? [$decoded] : $decoded;
     $selected = chooseGithubReleaseByChannel($releases, $channel);
     if (!is_array($selected)) {
-        $error = 'No release candidate found for channel: ' . $channel;
+        $tagError = '';
+        $tagCandidate = resolveRemoteTagCandidate($repository, $channel, $tagError);
+        if (is_array($tagCandidate)) {
+            $error = '';
+            return $tagCandidate;
+        }
+
+        $error = 'No release candidate found for channel: ' . $channel . '. Tag fallback failed: ' . $tagError;
         return null;
     }
 
@@ -474,11 +771,13 @@ function resolveRemoteReleaseCandidate($policy, &$error) {
         'repository' => $repository,
         'channel' => $channel,
         'tag' => $tag,
+        'ref' => $tag,
         'version' => $version,
         'name' => (string)($selected['name'] ?? $tag),
         'publishedAt' => (string)($selected['published_at'] ?? ''),
         'prerelease' => !empty($selected['prerelease']),
         'draft' => !empty($selected['draft']),
+        'source' => 'releases',
     ];
 }
 
@@ -491,9 +790,9 @@ function fetchManagedFilesFromRelease($policy, $candidate, &$error) {
     }
 
     $repo = (string)($candidate['repository'] ?? '');
-    $tag = (string)($candidate['tag'] ?? '');
-    if ($repo === '' || $tag === '') {
-        $error = 'Release candidate is missing repository/tag.';
+    $ref = (string)($candidate['ref'] ?? ($candidate['tag'] ?? ''));
+    if ($repo === '' || $ref === '') {
+        $error = 'Release candidate is missing repository/ref.';
         return null;
     }
 
@@ -504,7 +803,7 @@ function fetchManagedFilesFromRelease($policy, $candidate, &$error) {
             return null;
         }
         $clean = trim(str_replace('\\', '/', (string)$filePath));
-        $url = githubRawFileUrl($repo, $tag, $clean);
+        $url = githubRawFileUrl($repo, $ref, $clean);
         if ($url === null) {
             $error = 'Unable to build raw URL for ' . $clean;
             return null;
@@ -820,6 +1119,8 @@ function buildMeta($metaPath, $versionPath, $releasePath) {
         'signatureVerification' => (string)($policy['signatureVerification'] ?? 'planned'),
         'systemSettingsHook' => (string)($policy['systemSettingsHook'] ?? 'placeholder'),
         'channel' => (string)($policy['channel'] ?? 'dev'),
+        'updateTrack' => (string)($policy['updateTrack'] ?? 'channel'),
+        'branch' => (string)($policy['branch'] ?? 'main'),
     ];
 
     $meta['versionSources'] = [
@@ -837,6 +1138,62 @@ function readRegistry($path) {
         $data['extensions'] = [];
     }
     return $data;
+}
+
+function normalizeUiPathOrUrl($value) {
+    $v = trim((string)$value);
+    if ($v === '') {
+        return null;
+    }
+    if (preg_match('/^https?:\/\//i', $v) === 1) {
+        return $v;
+    }
+    if (substr($v, 0, 1) !== '/') {
+        $v = '/' . ltrim($v, '/');
+    }
+    return $v;
+}
+
+function loadExtensionInfo($extId, $entryPath, $fallbackName, $fallbackVersion) {
+    $installedDir = '/var/www/extensions/installed/' . $extId;
+    $candidates = [
+        $installedDir . '/info.json',
+        $installedDir . '/extension-info.json',
+        $installedDir . '/' . $extId . '.info.json',
+    ];
+
+    $infoFile = null;
+    $rawInfo = null;
+    foreach ($candidates as $candidate) {
+        if (!is_file($candidate)) {
+            continue;
+        }
+        $decoded = readJsonFile($candidate, null);
+        if (is_array($decoded)) {
+            $infoFile = $candidate;
+            $rawInfo = $decoded;
+            break;
+        }
+    }
+
+    $settingsPage = normalizeUiPathOrUrl($rawInfo['settingsPage'] ?? null)
+        ?? normalizeUiPathOrUrl($rawInfo['settings_page'] ?? null)
+        ?? normalizeUiPathOrUrl($rawInfo['configPage'] ?? null)
+        ?? normalizeUiPathOrUrl($rawInfo['config_page'] ?? null)
+        ?? normalizeUiPathOrUrl($entryPath)
+        ?? ('/' . $extId . '.php');
+
+    return [
+        'name' => trim((string)($rawInfo['name'] ?? $fallbackName)),
+        'version' => trim((string)($rawInfo['version'] ?? $fallbackVersion)),
+        'author' => trim((string)($rawInfo['author'] ?? 'unknown')),
+        'license' => trim((string)($rawInfo['license'] ?? 'unknown')),
+        'description' => trim((string)($rawInfo['description'] ?? 'No extension description available.')),
+        'repository' => trim((string)($rawInfo['repository'] ?? '')),
+        'helpUrl' => trim((string)($rawInfo['help_url'] ?? $rawInfo['helpUrl'] ?? '')),
+        'settingsPage' => $settingsPage,
+        'infoFile' => $infoFile,
+    ];
 }
 
 function normalizeRegistry($registry) {
@@ -878,6 +1235,9 @@ function normalizeRegistry($registry) {
         if (!isset($ext['state']) || $ext['state'] === '') {
             $ext['state'] = !empty($ext['enabled']) ? 'active' : 'inactive';
         }
+        if (!isset($ext['settingsCardOnly'])) {
+            $ext['settingsCardOnly'] = false;
+        }
 
         $legacyM = isset($ext['showInMMenu']) ? (bool)$ext['showInMMenu'] : null;
         $legacyLibrary = isset($ext['showInLibrary']) ? (bool)$ext['showInLibrary'] : null;
@@ -893,13 +1253,38 @@ function normalizeRegistry($registry) {
 
         $ext['pinned'] = (bool)$ext['pinned'];
         $ext['enabled'] = (bool)$ext['enabled'];
+        $ext['settingsCardOnly'] = (bool)$ext['settingsCardOnly'];
         $ext['state'] = $ext['enabled'] ? 'active' : 'inactive';
         $ext['menuVisibility']['m'] = (bool)$ext['menuVisibility']['m'];
         $ext['menuVisibility']['library'] = (bool)$ext['menuVisibility']['library'];
+        $ext['extensionInfo'] = loadExtensionInfo(
+            (string)$ext['id'],
+            (string)$ext['entry'],
+            (string)$ext['name'],
+            (string)$ext['version']
+        );
 
         // Keep flat compatibility fields for downstream scripts.
         $ext['showInMMenu'] = $ext['menuVisibility']['m'];
         $ext['showInLibrary'] = $ext['menuVisibility']['library'];
+    }
+    unset($ext);
+
+    return $registry;
+}
+
+function sanitizeRegistryForPersist($registry) {
+    if (!isset($registry['extensions']) || !is_array($registry['extensions'])) {
+        $registry['extensions'] = [];
+        return $registry;
+    }
+
+    foreach ($registry['extensions'] as &$ext) {
+        if (!is_array($ext)) {
+            $ext = [];
+            continue;
+        }
+        unset($ext['extensionInfo']);
     }
     unset($ext);
 
@@ -911,15 +1296,23 @@ function responseData($registryPath, $metaPath, $versionPath, $releasePath) {
     [$meta, $policy] = buildMeta($metaPath, $versionPath, $releasePath);
     $activeCount = 0;
     $inactiveCount = 0;
-    $pinnedCount = 0;
+    $mVisibleCount = 0;
+    $libraryVisibleCount = 0;
+    $settingsCardCount = 0;
     foreach ($registry['extensions'] as $ext) {
         if (!empty($ext['enabled'])) {
             $activeCount++;
         } else {
             $inactiveCount++;
         }
-        if (!empty($ext['pinned'])) {
-            $pinnedCount++;
+        if (!empty($ext['menuVisibility']['m'])) {
+            $mVisibleCount++;
+        }
+        if (!empty($ext['menuVisibility']['library'])) {
+            $libraryVisibleCount++;
+        }
+        if (!empty($ext['settingsCardOnly'])) {
+            $settingsCardCount++;
         }
     }
 
@@ -929,11 +1322,13 @@ function responseData($registryPath, $metaPath, $versionPath, $releasePath) {
         'releasePolicy' => $policy,
         'health' => [
             'apiService' => 'online',
-            'registry' => is_writable(dirname($registryPath)) ? 'writable' : 'read-only',
+            'registry' => canWriteJsonPath($registryPath) ? 'writable' : 'read-only',
             'extensionCount' => count($registry['extensions']),
             'activeCount' => $activeCount,
             'inactiveCount' => $inactiveCount,
-            'pinnedCount' => $pinnedCount,
+            'mVisibleCount' => $mVisibleCount,
+            'libraryVisibleCount' => $libraryVisibleCount,
+            'settingsCardCount' => $settingsCardCount,
         ],
     ];
 }
@@ -984,7 +1379,7 @@ function syncRegistryWithFilesystem($registryPath, $pruneMissing = false) {
 
     $registry['extensions'] = $next;
     $registry['generated_at'] = date('c');
-    writeJsonFile($registryPath, $registry);
+    writeJsonFile($registryPath, sanitizeRegistryForPersist($registry));
 
     return $summary;
 }
@@ -1178,6 +1573,17 @@ if ($action === 'registry_sync') {
 
 if ($action === 'check_update') {
     [$meta, $policy] = buildMeta($metaPath, $versionPath, $releasePath);
+
+    $branchWarning = null;
+    $remoteBranchError = '';
+    $remoteBranches = resolveAvailableRemoteBranches((string)($policy['repository'] ?? ''), $remoteBranchError);
+    if (is_array($remoteBranches) && count($remoteBranches) > 0) {
+        $policy['availableBranches'] = array_values(array_unique(array_merge((array)($policy['availableBranches'] ?? []), $remoteBranches)));
+        writeJsonFile($releasePath, $policy);
+    } elseif ($remoteBranchError !== '') {
+        $branchWarning = $remoteBranchError;
+    }
+
     $resolveError = '';
     $candidate = resolveRemoteReleaseCandidate($policy, $resolveError);
 
@@ -1188,7 +1594,7 @@ if ($action === 'check_update') {
     }
 
     $hasUpdate = is_array($candidate)
-        ? safeHasUpdate((string)$candidate['version'], (string)$meta['version'])
+        ? hasUpdateForCandidate($candidate, (string)$meta['version'], $policy)
         : safeHasUpdate((string)$meta['latestVersion'], (string)$meta['version']);
 
     $meta = markMetaMaintenance($meta, 'check_update', is_array($candidate) ? 'success' : 'provider-error');
@@ -1202,6 +1608,7 @@ if ($action === 'check_update') {
             'hasUpdate' => $hasUpdate,
             'candidate' => $candidate,
             'warning' => $candidate === null ? $resolveError : null,
+            'branchWarning' => $branchWarning,
             'comparison' => [
                 'current' => (string)$meta['version'],
                 'latest' => is_array($candidate) ? (string)$candidate['version'] : (string)$meta['latestVersion'],
@@ -1212,6 +1619,10 @@ if ($action === 'check_update') {
                 'signatureVerification' => (string)($policy['signatureVerification'] ?? 'planned'),
                 'checksumAlgorithm' => (string)($policy['checksumAlgorithm'] ?? 'sha256'),
                 'integrityManifestPath' => (string)($policy['integrityManifestPath'] ?? 'ext-mgr.integrity.json'),
+                'updateTrack' => (string)($policy['updateTrack'] ?? 'channel'),
+                'channel' => (string)($policy['channel'] ?? 'dev'),
+                'branch' => (string)($policy['branch'] ?? 'main'),
+                'availableBranches' => array_values((array)($policy['availableBranches'] ?? ['main', 'dev'])),
             ],
         ],
     ], JSON_UNESCAPED_SLASHES);
@@ -1234,7 +1645,7 @@ if ($action === 'run_update') {
     }
 
     $targetVersion = (string)$candidate['version'];
-    $hasUpdate = safeHasUpdate($targetVersion, (string)$meta['version']);
+    $hasUpdate = hasUpdateForCandidate($candidate, (string)$meta['version'], $policy);
     if (!$hasUpdate) {
         $meta = markMetaMaintenance($meta, 'update', 'noop-latest');
         writeJsonFile($metaPath, $meta);
@@ -1334,6 +1745,9 @@ if ($action === 'run_update') {
     $policy['latestVersion'] = $targetVersion;
     $policy['lastAppliedAt'] = date('c');
     $policy['lastResolvedTag'] = (string)$candidate['tag'];
+    if (isset($candidate['commitSha']) && is_string($candidate['commitSha']) && $candidate['commitSha'] !== '') {
+        $policy['lastAppliedCommit'] = (string)$candidate['commitSha'];
+    }
     if (!writeJsonFile($releasePath, $policy)) {
         http_response_code(500);
         echo json_encode(['ok' => false, 'error' => 'Update applied but failed to persist release policy.']);
@@ -1369,6 +1783,56 @@ if ($action === 'run_update') {
     exit;
 }
 
+if ($action === 'set_update_advanced') {
+    $track = strtolower(trim((string)($_REQUEST['track'] ?? 'channel')));
+    $channel = strtolower(trim((string)($_REQUEST['channel'] ?? 'dev')));
+    $branch = trim((string)($_REQUEST['branch'] ?? 'main'));
+
+    if ($track !== 'channel' && $track !== 'branch') {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'Invalid track. Use channel or branch.']);
+        exit;
+    }
+
+    if ($channel !== 'dev' && $channel !== 'beta' && $channel !== 'stable') {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'Invalid channel. Use dev, beta, or stable.']);
+        exit;
+    }
+
+    if ($branch === '' || preg_match('/^[a-zA-Z0-9._\/-]+$/', $branch) !== 1) {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'Invalid branch name.']);
+        exit;
+    }
+
+    $policy = readReleasePolicy($releasePath);
+    $policy['updateTrack'] = $track;
+    $policy['channel'] = $channel;
+    $policy['branch'] = $branch;
+    if (!isset($policy['availableBranches']) || !is_array($policy['availableBranches'])) {
+        $policy['availableBranches'] = ['main', 'dev'];
+    }
+    if (!in_array($branch, $policy['availableBranches'], true)) {
+        $policy['availableBranches'][] = $branch;
+    }
+
+    if (!writeJsonFile($releasePath, $policy)) {
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'error' => formatWriteFailure($releasePath, 'release policy')]);
+        exit;
+    }
+
+    echo json_encode([
+        'ok' => true,
+        'data' => [
+            'releasePolicy' => $policy,
+            'message' => 'Advanced update settings saved.',
+        ],
+    ], JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
 if ($action === 'system_update_hook') {
     [$meta, $policy] = buildMeta($metaPath, $versionPath, $releasePath);
     $resolveError = '';
@@ -1398,7 +1862,7 @@ if ($action === 'repair') {
     $meta = readMeta($metaPath);
     $registry = normalizeRegistry(readRegistry($registryPath));
 
-    if (!writeJsonFile($registryPath, $registry)) {
+    if (!writeJsonFile($registryPath, sanitizeRegistryForPersist($registry))) {
         http_response_code(500);
         echo json_encode(['ok' => false, 'error' => 'Failed to repair registry']);
         exit;
@@ -1452,9 +1916,9 @@ if ($action === 'pin') {
         exit;
     }
 
-    if (!writeJsonFile($registryPath, $registry)) {
+    if (!writeJsonFile($registryPath, sanitizeRegistryForPersist($registry))) {
         http_response_code(500);
-        echo json_encode(['ok' => false, 'error' => 'Failed to write registry']);
+        echo json_encode(['ok' => false, 'error' => formatWriteFailure($registryPath, 'registry')]);
         exit;
     }
 
@@ -1491,9 +1955,9 @@ if ($action === 'set_enabled') {
         exit;
     }
 
-    if (!writeJsonFile($registryPath, $registry)) {
+    if (!writeJsonFile($registryPath, sanitizeRegistryForPersist($registry))) {
         http_response_code(500);
-        echo json_encode(['ok' => false, 'error' => 'Failed to write registry']);
+        echo json_encode(['ok' => false, 'error' => formatWriteFailure($registryPath, 'registry')]);
         exit;
     }
 
@@ -1587,9 +2051,9 @@ if ($action === 'set_menu_visibility') {
         exit;
     }
 
-    if (!writeJsonFile($registryPath, $registry)) {
+    if (!writeJsonFile($registryPath, sanitizeRegistryForPersist($registry))) {
         http_response_code(500);
-        echo json_encode(['ok' => false, 'error' => 'Failed to write registry']);
+        echo json_encode(['ok' => false, 'error' => formatWriteFailure($registryPath, 'registry')]);
         exit;
     }
 
@@ -1599,6 +2063,51 @@ if ($action === 'set_menu_visibility') {
             'id' => $id,
             'menu' => $menu,
             'visible' => $visible,
+        ],
+    ], JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+if ($action === 'set_settings_card_only') {
+    $id = (string)($_REQUEST['id'] ?? '');
+    $value = (string)($_REQUEST['value'] ?? '0');
+
+    if ($id === '') {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'Missing id']);
+        exit;
+    }
+
+    $registry = normalizeRegistry(readRegistry($registryPath));
+    $updated = false;
+    $enabled = ($value === '1' || strtolower($value) === 'true');
+
+    foreach ($registry['extensions'] as &$ext) {
+        if (($ext['id'] ?? '') === $id) {
+            $ext['settingsCardOnly'] = $enabled;
+            $updated = true;
+            break;
+        }
+    }
+    unset($ext);
+
+    if (!$updated) {
+        http_response_code(404);
+        echo json_encode(['ok' => false, 'error' => 'Extension not found']);
+        exit;
+    }
+
+    if (!writeJsonFile($registryPath, sanitizeRegistryForPersist($registry))) {
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'error' => formatWriteFailure($registryPath, 'registry')]);
+        exit;
+    }
+
+    echo json_encode([
+        'ok' => true,
+        'data' => [
+            'id' => $id,
+            'settingsCardOnly' => $enabled,
         ],
     ], JSON_UNESCAPED_SLASHES);
     exit;

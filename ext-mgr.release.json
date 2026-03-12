@@ -1,6 +1,13 @@
 {
   "schemaVersion": "2",
   "channel": "beta",
+  "updateTrack": "channel",
+  "branch": "main",
+  "devBranch": "dev",
+  "availableBranches": [
+    "main",
+    "dev"
+  ],
   "latestVersion": "1.2.0",
   "provider": "github",
   "repository": "rubatron/Moode-Extensions-Manager",
@@ -17,6 +24,7 @@
     "ext-mgr.release.json",
     "ext-mgr.version",
     "assets/js/ext-mgr.js",
+    "assets/css/ext-mgr.css",
     "scripts/ext-mgr-import-wizard.sh",
     "scripts/ext-mgr-registry-sync.sh",
     "README.md"

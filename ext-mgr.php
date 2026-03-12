@@ -78,8 +78,16 @@ if (file_exists('/var/www/header.php')) {
                     <div id="inactive-count" class="extmgr-metric-value">-</div>
                 </div>
                 <div class="extmgr-metric">
-                    <div class="extmgr-metric-label">Pinned</div>
-                    <div id="pinned-count" class="extmgr-metric-value">-</div>
+                    <div class="extmgr-metric-label">M Menu Visible</div>
+                    <div id="m-visible-count" class="extmgr-metric-value">-</div>
+                </div>
+                <div class="extmgr-metric">
+                    <div class="extmgr-metric-label">Library Visible</div>
+                    <div id="library-visible-count" class="extmgr-metric-value">-</div>
+                </div>
+                <div class="extmgr-metric">
+                    <div class="extmgr-metric-label">Settings Card Mode</div>
+                    <div id="settings-card-count" class="extmgr-metric-value">-</div>
                 </div>
             </div>
         </fieldset>
@@ -98,16 +106,44 @@ if (file_exists('/var/www/header.php')) {
                 <button id="refresh-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-arrows-rotate"></i> Refresh List</button>
             </div>
             <div id="update-note" class="extmgr-note">No update info yet.</div>
+
+            <details class="extmgr-collapse extmgr-collapse-inner">
+                <summary>Advanced Update</summary>
+                <div class="extmgr-advanced-grid">
+                    <label for="advanced-track">Track</label>
+                    <select id="advanced-track" aria-label="Advanced update track">
+                        <option value="channel">Channel</option>
+                        <option value="branch">Branch</option>
+                    </select>
+
+                    <label for="advanced-channel">Channel</label>
+                    <select id="advanced-channel" aria-label="Advanced update channel">
+                        <option value="dev">dev</option>
+                        <option value="beta">beta</option>
+                        <option value="stable">stable</option>
+                    </select>
+
+                    <label for="advanced-branch">Branch</label>
+                    <select id="advanced-branch" aria-label="Advanced update branch"></select>
+                </div>
+                <div class="extmgr-actions">
+                    <button id="save-advanced-update-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-floppy-disk"></i> Save Advanced Update</button>
+                    <span id="advanced-update-note" class="extmgr-note">Branch option includes an extra dev branch.</span>
+                </div>
+            </details>
         </fieldset>
 
         <fieldset class="extmgr-panel">
             <legend>Troubleshooting</legend>
+            <details class="extmgr-collapse">
+                <summary>Open Troubleshooting Tools</summary>
             <p class="config-help-static extmgr-help">Use these tools to fix common ext-mgr installation issues.</p>
             <div class="extmgr-actions">
                 <button id="repair-btn" class="btn btn-small btn-danger" type="button"><i class="fa-solid fa-sharp fa-wrench"></i> Repair Installation</button>
-                <button id="sync-registry-btn" type="button">Sync Registry</button>
+                <button id="sync-registry-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-rotate"></i> Sync Registry</button>
             </div>
             <div id="maintenance-log" class="extmgr-log">No maintenance actions executed.</div>
+            </details>
         </fieldset>
 
         <fieldset class="extmgr-panel">
@@ -118,12 +154,11 @@ if (file_exists('/var/www/header.php')) {
                     <option value="all">All</option>
                     <option value="active">Active</option>
                     <option value="inactive">Inactive</option>
-                    <option value="pinned">Pinned</option>
                 </select>
                 <select id="list-sort" aria-label="Sort extensions">
                     <option value="name">Sort: Name</option>
                     <option value="state">Sort: State</option>
-                    <option value="pinned">Sort: Pinned first</option>
+                    <option value="visibility">Sort: Visibility</option>
                 </select>
                 <input id="list-search" type="search" placeholder="Search extension" aria-label="Search extension">
             </div>
@@ -133,6 +168,8 @@ if (file_exists('/var/www/header.php')) {
 
         <fieldset class="extmgr-panel">
             <legend>Developer Requirements and FAQ</legend>
+            <details class="extmgr-collapse">
+            <summary>Open Developer Notes and FAQ</summary>
             <div class="extmgr-list-summary">Target release focus: ext-mgr 1.2. GitHub-backed update retrieval is active; signature verification policy is still configurable/planned.</div>
             <div class="config-help-static extmgr-help">Minimum requirements for ext-mgr import compatibility.</div>
             <div class="extmgr-list-summary">Required: manifest.json, info.json, extension entry PHP file, and optional service metadata under ext_mgr.service.</div>
@@ -152,6 +189,7 @@ if (file_exists('/var/www/header.php')) {
                 <div class="extmgr-faq-q">Can I choose where an extension is visible?</div>
                 <div class="extmgr-faq-a">Yes. Each extension has independent visibility toggles for M menu and Library menu.</div>
             </div>
+            </details>
         </fieldset>
     </div>
 </div>

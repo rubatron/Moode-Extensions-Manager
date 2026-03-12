@@ -187,13 +187,33 @@ foreach ($data["extensions"] as &$ext) {
     if ($ver !== "") { $ext["version"]=$ver; }
     if ($verSrc !== "") { $ext["versionSource"]=$verSrc; }
     if (!isset($ext["pinned"])) { $ext["pinned"]=false; }
+    if (!isset($ext["menuVisibility"]) || !is_array($ext["menuVisibility"])) { $ext["menuVisibility"]=["m"=>true,"library"=>true]; }
+    if (!array_key_exists("m", $ext["menuVisibility"])) { $ext["menuVisibility"]["m"]=true; }
+    if (!array_key_exists("library", $ext["menuVisibility"])) { $ext["menuVisibility"]["library"]=true; }
+    if (!isset($ext["settingsCardOnly"])) { $ext["settingsCardOnly"]=false; }
+    $ext["showInMMenu"] = (bool)$ext["menuVisibility"]["m"];
+    $ext["showInLibrary"] = (bool)$ext["menuVisibility"]["library"];
     $found=true;
     break;
   }
 }
 unset($ext);
 if (!$found) {
-  $data["extensions"][]=["id"=>$id,"name"=>$name,"entry"=>$entry,"path"=>$entry,"enabled"=>$enabled,"state"=>($enabled?"active":"inactive"),"pinned"=>false,"version"=>$ver,"versionSource"=>$verSrc];
+  $data["extensions"][]=[
+    "id"=>$id,
+    "name"=>$name,
+    "entry"=>$entry,
+    "path"=>$entry,
+    "enabled"=>$enabled,
+    "state"=>($enabled?"active":"inactive"),
+    "pinned"=>false,
+    "version"=>$ver,
+    "versionSource"=>$verSrc,
+    "menuVisibility"=>["m"=>true,"library"=>true],
+    "showInMMenu"=>true,
+    "showInLibrary"=>true,
+    "settingsCardOnly"=>false
+  ];
 }
 $data["generated_at"]=date("c");
 file_put_contents($path, json_encode($data, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES));

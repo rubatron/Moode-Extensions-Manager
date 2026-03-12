@@ -11,12 +11,19 @@
   var extensionCountEl = document.getElementById('extension-count');
   var activeCountEl = document.getElementById('active-count');
   var inactiveCountEl = document.getElementById('inactive-count');
-  var pinnedCountEl = document.getElementById('pinned-count');
+  var mVisibleCountEl = document.getElementById('m-visible-count');
+  var libraryVisibleCountEl = document.getElementById('library-visible-count');
+  var settingsCardCountEl = document.getElementById('settings-card-count');
 
   var metaVersionEl = document.getElementById('meta-version');
   var metaCreatorEl = document.getElementById('meta-creator');
   var metaLicenseEl = document.getElementById('meta-license');
   var updateNoteEl = document.getElementById('update-note');
+  var advancedTrackEl = document.getElementById('advanced-track');
+  var advancedChannelEl = document.getElementById('advanced-channel');
+  var advancedBranchEl = document.getElementById('advanced-branch');
+  var saveAdvancedUpdateBtn = document.getElementById('save-advanced-update-btn');
+  var advancedUpdateNoteEl = document.getElementById('advanced-update-note');
   var maintenanceLogEl = document.getElementById('maintenance-log');
 
   var refreshBtn = document.getElementById('refresh-btn');
@@ -121,7 +128,9 @@
     setText(extensionCountEl, String(health.extensionCount || 0));
     setText(activeCountEl, String(health.activeCount || 0));
     setText(inactiveCountEl, String(health.inactiveCount || 0));
-    setText(pinnedCountEl, String(health.pinnedCount || 0));
+    setText(mVisibleCountEl, String(health.mVisibleCount || 0));
+    setText(libraryVisibleCountEl, String(health.libraryVisibleCount || 0));
+    setText(settingsCardCountEl, String(health.settingsCardCount || 0));
   }
 
   function buildIntegrityText(integrity, providerStatus) {
@@ -149,19 +158,71 @@
     var provider = integration.provider || 'n/a';
     var verification = integration.signatureVerification || 'n/a';
     var candidateVersion = candidate && candidate.version ? candidate.version : 'n/a';
+    var candidateSource = candidate && candidate.source ? candidate.source : 'n/a';
     var channel = integration.channel || 'n/a';
+    var track = (providerStatus && providerStatus.updateTrack) || 'channel';
+    var branch = (providerStatus && providerStatus.branch) || 'n/a';
     var integrityText = buildIntegrityText(integrity, providerStatus);
     if (hasUpdate) {
-      updateNoteEl.textContent = 'Update available: ' + currentVersion + ' -> ' + latestVersion + ' | candidate=' + candidateVersion + ' | channel=' + channel + ' | provider=' + provider + ' | signature=' + verification + ' | ' + integrityText;
+      updateNoteEl.textContent = 'Update available: ' + currentVersion + ' -> ' + latestVersion + ' | candidate=' + candidateVersion + ' | source=' + candidateSource + ' | track=' + track + ' | channel=' + channel + ' | branch=' + branch + ' | provider=' + provider + ' | signature=' + verification + ' | ' + integrityText;
       return;
     }
 
     if (warning) {
-      updateNoteEl.textContent = 'Update check warning: ' + warning + ' | current=' + currentVersion + ' | latest=' + latestVersion + ' | ' + integrityText;
+      updateNoteEl.textContent = 'Update check warning: ' + warning + ' | current=' + currentVersion + ' | latest=' + latestVersion + ' | track=' + track + ' | channel=' + channel + ' | branch=' + branch + ' | ' + integrityText;
       return;
     }
 
-    updateNoteEl.textContent = 'No update pending. Current version: ' + currentVersion + '. channel=' + channel + ' provider=' + provider + ' signature=' + verification + ' | ' + integrityText;
+    updateNoteEl.textContent = 'No update pending. Current version: ' + currentVersion + '. track=' + track + ' channel=' + channel + ' branch=' + branch + ' provider=' + provider + ' signature=' + verification + ' | ' + integrityText;
+  }
+
+  function ensureBranchOption(value) {
+    if (!advancedBranchEl || !value) {
+      return;
+    }
+    var exists = Array.prototype.some.call(advancedBranchEl.options, function (opt) { return opt.value === value; });
+    if (!exists) {
+      var option = document.createElement('option');
+      option.value = value;
+      option.textContent = value;
+      advancedBranchEl.appendChild(option);
+    }
+  }
+
+  function renderAdvancedUpdateControls(providerStatus, payloadWarning) {
+    if (!advancedTrackEl || !advancedChannelEl || !advancedBranchEl) {
+      return;
+    }
+
+    var track = (providerStatus && providerStatus.updateTrack) || 'channel';
+    var channel = (providerStatus && providerStatus.channel) || 'dev';
+    var branch = (providerStatus && providerStatus.branch) || 'main';
+    var branches = (providerStatus && providerStatus.availableBranches) || ['main', 'dev'];
+
+    advancedBranchEl.innerHTML = '';
+    branches.forEach(function (name) {
+      if (!name) {
+        return;
+      }
+      var option = document.createElement('option');
+      option.value = String(name);
+      option.textContent = String(name);
+      advancedBranchEl.appendChild(option);
+    });
+
+    ensureBranchOption('dev');
+    ensureBranchOption(branch);
+
+    advancedTrackEl.value = track;
+    advancedChannelEl.value = channel;
+    advancedBranchEl.value = branch;
+    advancedBranchEl.disabled = track !== 'branch';
+
+    if (advancedUpdateNoteEl) {
+      advancedUpdateNoteEl.textContent = payloadWarning
+        ? ('Branch discovery warning: ' + payloadWarning + '. Using stored branch list.')
+        : ('Branch mode includes dev option. Active track=' + track + '.');
+    }
   }
 
   function setRunUpdateButtonState() {
@@ -196,8 +257,54 @@
   }
 
   function visibilityLabel(target, visible) {
-    var name = target === 'm' ? 'M menu' : 'Library';
-    return name + ': ' + (visible ? 'On' : 'Off');
+    var name = target === 'm' ? 'M menu' : 'Library menu';
+    return name + ': ' + (visible ? 'Visible' : 'Hidden');
+  }
+
+  function settingsCardLabel(enabled) {
+    return 'Settings Card: ' + (enabled ? 'Enabled' : 'Disabled');
+  }
+
+  function applyVisibilityButtonState(button, target, visible) {
+    if (!button) {
+      return;
+    }
+    button.classList.add('visibility-toggle');
+    button.classList.remove('is-on', 'is-off');
+    button.classList.add(visible ? 'is-on' : 'is-off');
+    button.textContent = visibilityLabel(target, visible);
+  }
+
+  function applySettingsCardButtonState(button, enabled) {
+    if (!button) {
+      return;
+    }
+    button.classList.add('visibility-toggle');
+    button.classList.remove('is-on', 'is-off');
+    button.classList.add(enabled ? 'is-on' : 'is-off');
+    button.textContent = settingsCardLabel(enabled);
+  }
+
+  function getSettingsCardOnly(item) {
+    return !!(item && item.settingsCardOnly);
+  }
+
+  function extensionInfoSummary(item) {
+    var info = (item && item.extensionInfo) || {};
+    var version = info.version || item.version || 'unknown';
+    var author = info.author || 'unknown';
+    var license = info.license || 'unknown';
+    return 'Version: ' + version + ' | Author: ' + author + ' | License: ' + license;
+  }
+
+  function extensionDescription(item) {
+    var info = (item && item.extensionInfo) || {};
+    return info.description || 'No extension description available.';
+  }
+
+  function extensionSettingsPage(item) {
+    var info = (item && item.extensionInfo) || {};
+    return info.settingsPage || item.entry || ('/' + (item.id || '') + '.php');
   }
 
   function applyListControls(items) {
@@ -210,13 +317,12 @@
       result = result.filter(function (item) { return !!item.enabled; });
     } else if (filter === 'inactive') {
       result = result.filter(function (item) { return !item.enabled; });
-    } else if (filter === 'pinned') {
-      result = result.filter(function (item) { return !!item.pinned; });
     }
 
     if (search) {
       result = result.filter(function (item) {
-        var hay = ((item.name || '') + ' ' + (item.id || '') + ' ' + (item.path || '')).toLowerCase();
+        var info = item.extensionInfo || {};
+        var hay = ((item.name || '') + ' ' + (item.id || '') + ' ' + (item.path || '') + ' ' + (info.description || '') + ' ' + (info.author || '')).toLowerCase();
         return hay.indexOf(search) !== -1;
       });
     }
@@ -228,12 +334,14 @@
         }
         return a.enabled ? -1 : 1;
       });
-    } else if (sort === 'pinned') {
+    } else if (sort === 'visibility') {
       result.sort(function (a, b) {
-        if (!!a.pinned === !!b.pinned) {
+        var scoreA = (getVisibility(a, 'm') ? 1 : 0) + (getVisibility(a, 'library') ? 1 : 0);
+        var scoreB = (getVisibility(b, 'm') ? 1 : 0) + (getVisibility(b, 'library') ? 1 : 0);
+        if (scoreA === scoreB) {
           return String(a.name || a.id).localeCompare(String(b.name || b.id));
         }
-        return a.pinned ? -1 : 1;
+        return scoreB - scoreA;
       });
     } else {
       result.sort(function (a, b) {
@@ -275,28 +383,21 @@
       left.innerHTML =
         '<div class="list-top"><div class="list-name">' + escapeHtml(item.name || item.id || 'Unnamed extension') + '</div><span class="badge ' + stateClass + '">' + stateLabel + '</span></div>' +
         '<div class="list-sub">' + escapeHtml(item.path || '#') + '</div>' +
-        '<div class="list-sub">Visibility: ' + escapeHtml(visibilityLabel('m', showInM)) + ' | ' + escapeHtml(visibilityLabel('library', showInLibrary)) + '</div>';
+        '<div class="list-sub">Visibility: ' + escapeHtml(visibilityLabel('m', showInM)) + ' | ' + escapeHtml(visibilityLabel('library', showInLibrary)) + '</div>' +
+        '<div class="list-sub">' + escapeHtml(extensionInfoSummary(item)) + '</div>' +
+        '<div class="list-sub">' + escapeHtml(extensionDescription(item)) + '</div>';
+
+      if (getSettingsCardOnly(item)) {
+        left.innerHTML +=
+          '<div class="extmgr-subcard">' +
+          '<div class="extmgr-subcard-title">Settings Card Mode</div>' +
+          '<div class="extmgr-subcard-body">This extension is handled as a settings-only card in ext-mgr.</div>' +
+          '<a class="btn btn-small" href="' + escapeHtml(extensionSettingsPage(item)) + '">Open Settings Page</a>' +
+          '</div>';
+      }
 
       var rightWrap = document.createElement('div');
       rightWrap.className = 'item-actions';
-
-      var pinBtn = document.createElement('button');
-      pinBtn.type = 'button';
-      pinBtn.className = 'btn-muted';
-      pinBtn.textContent = item.pinned ? 'Unpin' : 'Pin';
-      pinBtn.addEventListener('click', function () {
-        var next = item.pinned ? '0' : '1';
-        api({ action: 'pin', id: item.id, value: next })
-          .then(function () {
-            item.pinned = !item.pinned;
-            pinBtn.textContent = item.pinned ? 'Unpin' : 'Pin';
-            setStatus('Pin state updated.', 'ok');
-            runRefresh();
-          })
-          .catch(function (err) {
-            setStatus(err.message, 'error');
-          });
-      });
 
       var enableBtn = document.createElement('button');
       enableBtn.type = 'button';
@@ -329,19 +430,19 @@
 
       var menuMBtn = document.createElement('button');
       menuMBtn.type = 'button';
-      menuMBtn.className = 'btn-muted';
-      menuMBtn.textContent = visibilityLabel('m', showInM);
+      applyVisibilityButtonState(menuMBtn, 'm', showInM);
       menuMBtn.addEventListener('click', function () {
         var next = getVisibility(item, 'm') ? '0' : '1';
         menuMBtn.disabled = true;
         api({ action: 'set_menu_visibility', id: item.id, menu: 'm', value: next })
           .then(function () {
             setVisibility(item, 'm', next === '1');
+            applyVisibilityButtonState(menuMBtn, 'm', getVisibility(item, 'm'));
             setStatus('M menu visibility updated for ' + (item.name || item.id) + '.', 'ok');
             runRefresh();
           })
           .catch(function (err) {
-            setStatus(err.message, 'error');
+            setStatus(err.message + (err.message.indexOf('Failed to write registry') !== -1 ? ' Check ext-mgr permissions and restart php-fpm.' : ''), 'error');
           })
           .finally(function () {
             menuMBtn.disabled = false;
@@ -350,22 +451,43 @@
 
       var menuLibraryBtn = document.createElement('button');
       menuLibraryBtn.type = 'button';
-      menuLibraryBtn.className = 'btn-muted';
-      menuLibraryBtn.textContent = visibilityLabel('library', showInLibrary);
+      applyVisibilityButtonState(menuLibraryBtn, 'library', showInLibrary);
       menuLibraryBtn.addEventListener('click', function () {
         var next = getVisibility(item, 'library') ? '0' : '1';
         menuLibraryBtn.disabled = true;
         api({ action: 'set_menu_visibility', id: item.id, menu: 'library', value: next })
           .then(function () {
             setVisibility(item, 'library', next === '1');
+            applyVisibilityButtonState(menuLibraryBtn, 'library', getVisibility(item, 'library'));
             setStatus('Library visibility updated for ' + (item.name || item.id) + '.', 'ok');
             runRefresh();
           })
           .catch(function (err) {
-            setStatus(err.message, 'error');
+            setStatus(err.message + (err.message.indexOf('Failed to write registry') !== -1 ? ' Check ext-mgr permissions and restart php-fpm.' : ''), 'error');
           })
           .finally(function () {
             menuLibraryBtn.disabled = false;
+          });
+      });
+
+      var settingsCardBtn = document.createElement('button');
+      settingsCardBtn.type = 'button';
+      applySettingsCardButtonState(settingsCardBtn, getSettingsCardOnly(item));
+      settingsCardBtn.addEventListener('click', function () {
+        var next = getSettingsCardOnly(item) ? '0' : '1';
+        settingsCardBtn.disabled = true;
+        api({ action: 'set_settings_card_only', id: item.id, value: next })
+          .then(function () {
+            item.settingsCardOnly = next === '1';
+            applySettingsCardButtonState(settingsCardBtn, getSettingsCardOnly(item));
+            setStatus('Settings-card mode updated for ' + (item.name || item.id) + '.', 'ok');
+            runRefresh();
+          })
+          .catch(function (err) {
+            setStatus(err.message + (err.message.indexOf('Failed to write registry') !== -1 ? ' Check ext-mgr permissions and restart php-fpm.' : ''), 'error');
+          })
+          .finally(function () {
+            settingsCardBtn.disabled = false;
           });
       });
 
@@ -390,10 +512,10 @@
       });
 
       row.appendChild(left);
-      rightWrap.appendChild(pinBtn);
       rightWrap.appendChild(enableBtn);
       rightWrap.appendChild(menuMBtn);
       rightWrap.appendChild(menuLibraryBtn);
+      rightWrap.appendChild(settingsCardBtn);
       rightWrap.appendChild(repairSymlinkBtn);
       row.appendChild(rightWrap);
       listEl.appendChild(row);
@@ -443,6 +565,7 @@
 
         renderMeta(payload.meta || {});
         renderUpdateStatus(payload.meta || {}, hasUpdate, payload.candidate || null, payload.warning || null, payload.providerStatus || null, null);
+        renderAdvancedUpdateControls(payload.providerStatus || null, payload.branchWarning || null);
         setRunUpdateButtonState();
 
         if (hasUpdate) {
@@ -526,9 +649,15 @@
 
   if (listFilterEl) {
     listFilterEl.value = readPref('filter', listFilterEl.value || 'all');
+    if (!listFilterEl.value) {
+      listFilterEl.value = 'all';
+    }
   }
   if (listSortEl) {
     listSortEl.value = readPref('sort', listSortEl.value || 'name');
+    if (!listSortEl.value) {
+      listSortEl.value = 'name';
+    }
   }
   if (listSearchEl) {
     listSearchEl.value = readPref('search', '');
@@ -549,6 +678,45 @@
       })
       .catch(function (err) {
         setStatus(err.message, 'error');
+      });
+  });
+
+  bindIfPresent(advancedTrackEl, 'change', function () {
+    if (!advancedBranchEl) {
+      return;
+    }
+    advancedBranchEl.disabled = advancedTrackEl.value !== 'branch';
+  });
+
+  bindIfPresent(saveAdvancedUpdateBtn, 'click', function () {
+    var track = (advancedTrackEl && advancedTrackEl.value) || 'channel';
+    var channel = (advancedChannelEl && advancedChannelEl.value) || 'dev';
+    var branch = (advancedBranchEl && advancedBranchEl.value) || 'main';
+
+    if (saveAdvancedUpdateBtn) {
+      saveAdvancedUpdateBtn.disabled = true;
+    }
+
+    setStatus('Saving advanced update settings...', null);
+    api({ action: 'set_update_advanced', track: track, channel: channel, branch: branch })
+      .then(function (data) {
+        var policy = (data && data.data && data.data.releasePolicy) || null;
+        renderAdvancedUpdateControls({
+          updateTrack: policy && policy.updateTrack,
+          channel: policy && policy.channel,
+          branch: policy && policy.branch,
+          availableBranches: policy && policy.availableBranches
+        }, null);
+        setStatus('Advanced update settings saved.', 'ok');
+        runCheckUpdate();
+      })
+      .catch(function (err) {
+        setStatus(err.message, 'error');
+      })
+      .finally(function () {
+        if (saveAdvancedUpdateBtn) {
+          saveAdvancedUpdateBtn.disabled = false;
+        }
       });
   });
 
