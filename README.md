@@ -27,6 +27,50 @@ Lightweight workspace to continue development of the moOde extension manager wit
 2. Open `/ext-mgr.php` in browser.
 3. Use browser devtools to validate API calls and UI state transitions.
 
+## Install On Raspberry Pi (moOde)
+Use this flow on a fresh or existing moOde host.
+
+1. Connect to the Pi and install prerequisites.
+  - `sudo apt-get update`
+  - `sudo apt-get install -y git php-cli`
+2. Clone this repository on the Pi.
+  - `git clone https://github.com/rubatron/Moode-Extensions-Manager.git`
+  - `cd Moode-Extensions-Manager`
+3. Run installer.
+  - Full install with radio-browser module integration: `sudo ./install.sh`
+  - Install ext-mgr only: `sudo ./install.sh --skip-module1`
+4. Open in browser.
+  - `http://<pi-ip>/ext-mgr.php`
+5. Verify API reachability from the Pi.
+  - `curl -s -X POST http://localhost/ext-mgr-api.php -d 'action=list'`
+
+Expected install targets:
+- `/var/www/extensions/ext-mgr.php`
+- `/var/www/extensions/ext-mgr-api.php`
+- `/var/www/extensions/assets/js/ext-mgr.js`
+- `/var/www/extensions/ext-mgr.meta.json`
+- `/var/www/extensions/registry.json`
+
+Created shortcuts:
+- `/var/www/ext-mgr.php`
+- `/var/www/ext-mgr-api.php`
+
+## Import An Extension With ext-mgr
+Import is centralized through the wizard script and updates the registry automatically.
+
+1. Ensure extension source has a `manifest.json` with `id`, `name`, and `main`.
+2. Run import:
+  - `sudo ./scripts/ext-mgr-import-wizard.sh /path/to/extension-source`
+3. Optional state toggles:
+  - Disable: `sudo ./scripts/ext-mgr-import-wizard.sh --disable /path/to/extension-source`
+  - Enable: `sudo ./scripts/ext-mgr-import-wizard.sh --enable /path/to/extension-source`
+
+Import side effects:
+- Installs to `/var/www/extensions/installed/<extension-id>`.
+- Creates canonical symlink `/var/www/<extension-id>.php`.
+- Updates `/var/www/extensions/registry.json` with enabled/state/version fields.
+- Applies ext-mgr security principal, DB ACL policy, and watchdog service setup.
+
 ## Validation
 - Syntax checks:
   - `php -l ext-mgr.php`
@@ -60,3 +104,12 @@ Lightweight workspace to continue development of the moOde extension manager wit
 2. Run:
    - `powershell -ExecutionPolicy Bypass -File scripts/publish-github.ps1 -RemoteUrl https://github.com/<owner>/<repo>.git`
 3. The script initializes `.git` if needed, commits current changes, configures `origin`, and pushes to the selected branch.
+
+## Repository Tracking Policy
+Why `.github`, `.vscode`, and `1. inspiration` are currently committed:
+- `.github`: repository automation/instruction files that belong to the project.
+- `.vscode`: shared task configuration (`ext-mgr: smoke`) used by contributors.
+- `1. inspiration`: intentionally stored reference material for architecture and migration context.
+
+If you want those folders local-only for your own workflow, add them to `.gitignore` and remove them from tracking with:
+- `git rm -r --cached .vscode .github "1. inspiration"`
