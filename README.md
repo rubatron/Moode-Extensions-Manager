@@ -4,6 +4,7 @@ Lightweight workspace to continue development of the moOde extension manager wit
 - `ext-mgr.php`: page shell and initial bootstrap data
 - `ext-mgr-api.php`: JSON API for list, refresh, and pin actions
 - `assets/js/ext-mgr.js`: client-side UI/state logic
+- `assets/css/ext-mgr.css`: moOde-aligned page styles for ext-mgr
 
 ## Goals
 - Keep page rendering and API concerns separated.
@@ -14,9 +15,13 @@ Lightweight workspace to continue development of the moOde extension manager wit
 - `ext-mgr.php`
 - `ext-mgr-api.php`
 - `ext-mgr.meta.json`
+- `assets/css/ext-mgr.css`
 - `assets/js/ext-mgr.js`
+- `assets/js/ext-mgr-modal-fix.js`
+- `assets/js/ext-mgr-hover-menu.js`
 - `docs/ARCHITECTURE.md`
 - `docs/MIGRATION-PLAN.md`
+- `docs/MOODE-OS-CONTEXT.md`
 - `scripts/dev-smoke.ps1`
 - `scripts/bootstrap-moode.sh`
 - `scripts/publish-github.ps1`
@@ -65,12 +70,20 @@ Expected install targets:
 - `/var/www/extensions/ext-mgr.php`
 - `/var/www/extensions/ext-mgr-api.php`
 - `/var/www/extensions/assets/js/ext-mgr.js`
+- `/var/www/extensions/assets/js/ext-mgr-modal-fix.js`
+- `/var/www/extensions/ext-mgr-hover-menu.js`
+- `/var/www/extensions/assets/css/ext-mgr.css`
 - `/var/www/extensions/ext-mgr.meta.json`
 - `/var/www/extensions/registry.json`
 
 Created shortcuts:
 - `/var/www/ext-mgr.php`
 - `/var/www/ext-mgr-api.php`
+- `/var/www/extensions-manager.php`
+
+Menu + modal integrations applied by installer:
+- Module 1: radio-browser Configure modal fallback script + section handling.
+- Module 3: Extensions entry in top tabs, Configure modal, and Library dropdown.
 
 ## Import An Extension With ext-mgr
 Import is centralized through the wizard script and updates the registry automatically.

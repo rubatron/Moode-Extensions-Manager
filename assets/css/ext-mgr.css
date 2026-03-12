@@ -1,0 +1,200 @@
+/* ext-mgr styles layered on top of moOde base styles. */
+
+.extmgr-page-shell {
+  padding-bottom: 20px;
+}
+
+.extmgr-page-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.35rem;
+}
+
+.extmgr-page-title i {
+  opacity: 0.85;
+}
+
+.extmgr-page-title .config-title {
+  margin: 0;
+}
+
+.extmgr-page-subtitle {
+  margin-bottom: 1rem;
+}
+
+.extmgr-status {
+  margin-bottom: 0.9rem;
+  color: #9aa0a6;
+}
+
+.extmgr-status.ok {
+  color: #5fcf80;
+}
+
+.extmgr-status.error {
+  color: #ff7f7f;
+}
+
+.extmgr-panel {
+  margin-bottom: 0.95rem;
+}
+
+.extmgr-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  gap: 0.7rem;
+}
+
+.extmgr-metric {
+  border: 1px solid rgba(128, 128, 128, 0.28);
+  border-radius: 6px;
+  padding: 0.6rem 0.65rem;
+  background: rgba(0, 0, 0, 0.14);
+}
+
+.extmgr-metric-label {
+  color: #9aa0a6;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.extmgr-metric-value {
+  margin-top: 0.22rem;
+  font-weight: 600;
+}
+
+.extmgr-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.8rem;
+}
+
+.extmgr-actions select,
+.extmgr-actions input {
+  margin: 0;
+}
+
+.extmgr-note,
+.extmgr-help,
+.extmgr-list-summary {
+  margin-top: 0.55rem;
+  color: #a1a7ad;
+  font-size: 0.88rem;
+}
+
+.extmgr-log {
+  margin-top: 0.65rem;
+  border: 1px solid rgba(128, 128, 128, 0.28);
+  border-radius: 6px;
+  min-height: 76px;
+  padding: 0.5rem;
+  color: #b4bcc6;
+  background: rgba(0, 0, 0, 0.25);
+  font-family: Consolas, Monaco, monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+.extmgr-list {
+  margin-top: 0.5rem;
+}
+
+.list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.8rem;
+  border-top: 1px solid rgba(128, 128, 128, 0.28);
+  padding: 0.62rem 0;
+}
+
+.list-item:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.list-top {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.list-name {
+  font-weight: 600;
+}
+
+.list-sub {
+  color: #99a0a9;
+  font-size: 0.84rem;
+  margin-top: 0.2rem;
+}
+
+.badge {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-size: 0.68rem;
+  line-height: 1.75;
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  color: #b5bdc7;
+}
+
+.badge.active {
+  color: #b9ffd2;
+  border-color: #2d5e3f;
+  background: #1a3123;
+}
+
+.badge.inactive {
+  color: #ffd2d2;
+  border-color: #5f2d31;
+  background: #2b171a;
+}
+
+.item-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.btn-muted {
+  opacity: 0.9;
+}
+
+.extmgr-faq-item {
+  margin-top: 0.55rem;
+}
+
+.extmgr-faq-q {
+  font-weight: 600;
+}
+
+.extmgr-faq-a {
+  color: #9ea5ad;
+  margin-top: 0.16rem;
+}
+
+@media (max-width: 980px) {
+  .extmgr-grid {
+    grid-template-columns: repeat(2, minmax(180px, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .extmgr-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .list-item {
+    flex-direction: column;
+  }
+
+  .item-actions {
+    width: 100%;
+  }
+}

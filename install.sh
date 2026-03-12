@@ -9,14 +9,22 @@ SRC_API="$PROJECT_ROOT/ext-mgr-api.php"
 SRC_META="$PROJECT_ROOT/ext-mgr.meta.json"
 SRC_REGISTRY="$PROJECT_ROOT/registry.json"
 SRC_JS="$PROJECT_ROOT/assets/js/ext-mgr.js"
+SRC_MODAL_FIX_JS="$PROJECT_ROOT/assets/js/ext-mgr-modal-fix.js"
+SRC_HOVER_MENU_JS="$PROJECT_ROOT/assets/js/ext-mgr-hover-menu.js"
+SRC_CSS="$PROJECT_ROOT/assets/css/ext-mgr.css"
 
 TARGET_EXT_DIR="/var/www/extensions"
 TARGET_JS_DIR="$TARGET_EXT_DIR/assets/js"
+TARGET_CSS_DIR="$TARGET_EXT_DIR/assets/css"
 TARGET_PAGE="$TARGET_EXT_DIR/ext-mgr.php"
 TARGET_API="$TARGET_EXT_DIR/ext-mgr-api.php"
 TARGET_META="$TARGET_EXT_DIR/ext-mgr.meta.json"
 TARGET_REGISTRY="$TARGET_EXT_DIR/registry.json"
 TARGET_JS="$TARGET_JS_DIR/ext-mgr.js"
+TARGET_MODAL_FIX_JS="$TARGET_JS_DIR/ext-mgr-modal-fix.js"
+TARGET_CSS="$TARGET_CSS_DIR/ext-mgr.css"
+TARGET_HOVER_MENU_JS="$TARGET_EXT_DIR/ext-mgr-hover-menu.js"
+
 SYMLINK_HELPER="/usr/local/sbin/ext-mgr-repair-symlink"
 SYMLINK_SUDOERS="/etc/sudoers.d/ext-mgr"
 SECURITY_GROUP="moode-extmgr"
@@ -24,6 +32,9 @@ SECURITY_USER="moode-extmgrusr"
 WEB_USER="www-data"
 
 HEADER_FILE="/var/www/header.php"
+FOOTER_MIN_FILE="/var/www/footer.min.php"
+FOOTER_FILE="/var/www/footer.php"
+INDEX_TEMPLATE_FILE="/var/www/templates/indextpl.min.html"
 RB_FILE="/var/www/extensions/installed/radio-browser/radio-browser.php"
 RB_JS_FILE="/var/www/extensions/installed/radio-browser/assets/radio-browser-modal-fix.js"
 
@@ -72,11 +83,107 @@ require_file() {
     fi
 }
 
+patch_index_template_menu() {
+    if [[ ! -f "$INDEX_TEMPLATE_FILE" ]]; then
+        echo "WARN: index template not found, skipping module 3 menu patch" >&2
+        return 0
+    fi
+
+    $SUDO python3 - <<'PY'
+from pathlib import Path
+
+p = Path('/var/www/templates/indextpl.min.html')
+s = p.read_text(encoding='utf-8', errors='ignore')
+
+s = s.replace("window.location.href='/extensions-manager.php';", "window.location.href='/ext-mgr.php';")
+s = s.replace('/extensions-manager.php', '/ext-mgr.php')
+
+ext_btn = '<button aria-label="Extensions" class="btn extensions-manager-btn menu-separator" href="#notarget" onclick="window.location.href=\'/ext-mgr.php\';"><i class="fa-solid fa-sharp fa-puzzle-piece"></i> Extensions</button>'
+
+if 'extensions-manager-btn' not in s:
+    marker = '</span></button> <button aria-label="Folder" class="btn folder-view-btn" href="#library-panel">'
+    insert = '</span></button> <span class="extmgr-hover-menu" style="position:relative;display:block;width:100%;">' + ext_btn.replace('class="btn extensions-manager-btn menu-separator"', 'class="btn extensions-manager-btn menu-separator" style="width:100%;"') + '<div id="extmgr-hover-panel" style="display:none;position:static;min-width:0;z-index:auto;background:transparent;border:none;box-shadow:none;padding:0 0 4px 0;border-radius:0;"><div id="extmgr-hover-list"></div></div></span> <button aria-label="Folder" class="btn folder-view-btn" href="#library-panel">'
+    if marker not in s:
+        raise SystemExit('ERROR: unable to find library menu marker in index template')
+    s = s.replace(marker, insert, 1)
+elif 'extmgr-hover-menu' not in s:
+    s = s.replace(ext_btn, '<span class="extmgr-hover-menu" style="position:relative;display:block;width:100%;">' + ext_btn.replace('class="btn extensions-manager-btn menu-separator"', 'class="btn extensions-manager-btn menu-separator" style="width:100%;"') + '<div id="extmgr-hover-panel" style="display:none;position:static;min-width:0;z-index:auto;background:transparent;border:none;box-shadow:none;padding:0 0 4px 0;border-radius:0;"><div id="extmgr-hover-list"></div></div></span>', 1)
+
+script_tag = '<script src="/extensions/ext-mgr-hover-menu.js" defer></script>'
+if script_tag not in s:
+    anchor = '</span> <button aria-label="Folder" class="btn folder-view-btn" href="#library-panel">'
+    if anchor in s:
+        s = s.replace(anchor, '</span> ' + script_tag + ' <button aria-label="Folder" class="btn folder-view-btn" href="#library-panel">', 1)
+
+p.write_text(s, encoding='utf-8')
+print('patched index template')
+PY
+}
+
+patch_header_and_footer_menu() {
+    if [[ -f "$HEADER_FILE" ]]; then
+        $SUDO python3 - <<'PY'
+from pathlib import Path
+
+p = Path('/var/www/header.php')
+s = p.read_text(encoding='utf-8', errors='ignore')
+
+s = s.replace('id="ext-mgr-btn" class="btn" href="ext-mgr.php"', 'id="ext-mgr-btn" class="btn" href="/ext-mgr.php"')
+
+btn = '<a id="ext-mgr-btn" class="btn" href="/ext-mgr.php"><span>Extensions</span><i class="fa-solid fa-sharp fa-puzzle-piece"></i></a>'
+if 'id="ext-mgr-btn"' not in s:
+    marker = '<a id="per-config-btn" class="btn" href="per-config.php"><span>Peripherals</span><i class="fa-solid fa-sharp fa-display"></i></a>'
+    if marker in s:
+        s = s.replace(marker, marker + '\n\t\t\t\t\t' + btn, 1)
+
+p.write_text(s, encoding='utf-8')
+print('patched header')
+PY
+    else
+        echo "WARN: $HEADER_FILE not found, skipping top tabs extension button patch" >&2
+    fi
+
+    $SUDO python3 - <<'PY'
+from pathlib import Path
+
+tile = '<li><a href="/ext-mgr.php" class="btn btn-large"><i class="fa-solid fa-sharp fa-puzzle-piece"></i><br>Extensions</a></li>'
+
+for p in [Path('/var/www/footer.min.php'), Path('/var/www/footer.php')]:
+    if not p.exists():
+        continue
+
+    s = p.read_text(encoding='utf-8', errors='ignore')
+    s = s.replace('href="ext-mgr.php" class="btn btn-large"', 'href="/ext-mgr.php" class="btn btn-large"')
+
+    if 'href="/ext-mgr.php" class="btn btn-large"' in s:
+        p.write_text(s, encoding='utf-8')
+        continue
+
+    marker_clock = '<?php if ($section == \'index\') { ?> <li class="context-menu"'
+    marker_camilla = '<li><a href="cdsp-config.php" class="btn btn-large"><i class="fa-solid fa-sharp fa-square-sliders-vertical"></i><br>CamillaDSP</a></li>'
+    marker_close = '</ul></div></div><div class="modal-footer">'
+
+    if marker_clock in s:
+        s = s.replace(marker_clock, tile + ' ' + marker_clock, 1)
+    elif marker_camilla in s:
+        s = s.replace(marker_camilla, marker_camilla + ' ' + tile, 1)
+    elif marker_close in s:
+        s = s.replace(marker_close, tile + marker_close, 1)
+
+    p.write_text(s, encoding='utf-8')
+
+print('patched footer')
+PY
+}
+
 require_file "$SRC_PAGE"
 require_file "$SRC_API"
 require_file "$SRC_META"
 require_file "$SRC_REGISTRY"
 require_file "$SRC_JS"
+require_file "$SRC_MODAL_FIX_JS"
+require_file "$SRC_HOVER_MENU_JS"
+require_file "$SRC_CSS"
 
 if [[ "$SKIP_MODULE1" -eq 0 ]]; then
     require_file "$HEADER_FILE"
@@ -85,20 +192,24 @@ fi
 
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
-echo "[1/8] Preparing target directories..."
-$SUDO mkdir -p "$TARGET_EXT_DIR" "$TARGET_JS_DIR"
+echo "[1/10] Preparing target directories..."
+$SUDO mkdir -p "$TARGET_EXT_DIR" "$TARGET_JS_DIR" "$TARGET_CSS_DIR"
 
-echo "[2/8] Backing up existing ext-mgr files (if present)..."
-for f in "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_REGISTRY" "$TARGET_JS"; do
+echo "[2/10] Backing up existing ext-mgr files (if present)..."
+for f in "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_REGISTRY" "$TARGET_JS" "$TARGET_MODAL_FIX_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS"; do
     if [[ -f "$f" ]]; then
         $SUDO cp -a "$f" "$f.bak-extmgr-$STAMP"
     fi
 done
 
-echo "[3/8] Installing ext-mgr page/api/metadata/js files..."
+echo "[3/10] Installing ext-mgr page/api/metadata/assets..."
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_PAGE" "$TARGET_PAGE"
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_API" "$TARGET_API"
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_META" "$TARGET_META"
+$SUDO install -o www-data -g www-data -m 0644 "$SRC_JS" "$TARGET_JS"
+$SUDO install -o www-data -g www-data -m 0644 "$SRC_MODAL_FIX_JS" "$TARGET_MODAL_FIX_JS"
+$SUDO install -o www-data -g www-data -m 0644 "$SRC_CSS" "$TARGET_CSS"
+$SUDO install -o www-data -g www-data -m 0644 "$SRC_HOVER_MENU_JS" "$TARGET_HOVER_MENU_JS"
 
 if [[ -f "$TARGET_REGISTRY" ]]; then
     echo "Existing registry detected, preserving current state at $TARGET_REGISTRY"
@@ -106,13 +217,12 @@ else
     $SUDO install -o www-data -g www-data -m 0644 "$SRC_REGISTRY" "$TARGET_REGISTRY"
 fi
 
-$SUDO install -o www-data -g www-data -m 0644 "$SRC_JS" "$TARGET_JS"
-
-echo "[4/8] Creating root shortcuts..."
+echo "[4/10] Creating root shortcuts..."
 $SUDO ln -sfn /var/www/extensions/ext-mgr.php /var/www/ext-mgr.php
 $SUDO ln -sfn /var/www/extensions/ext-mgr-api.php /var/www/ext-mgr-api.php
+$SUDO ln -sfn /var/www/ext-mgr.php /var/www/extensions-manager.php
 
-echo "[4.1/8] Installing privileged symlink repair helper..."
+echo "[5/10] Installing privileged symlink repair helper..."
 if ! getent group "$SECURITY_GROUP" >/dev/null 2>&1; then
     $SUDO groupadd --system "$SECURITY_GROUP"
 fi
@@ -185,24 +295,19 @@ EOF
 $SUDO chown root:root "$SYMLINK_SUDOERS"
 $SUDO chmod 0440 "$SYMLINK_SUDOERS"
 
-echo "[5/8] Validating ext-mgr syntax..."
-php -l "$TARGET_PAGE"
-php -l "$TARGET_API"
-
-echo "[6/8] Applying Module 1 (radio-browser modal fix)..."
+echo "[6/10] Applying Module 1 (radio-browser modal fix)..."
 if [[ "$SKIP_MODULE1" -eq 1 ]]; then
     echo "Skipped Module 1 integration due to --skip-module1"
 else
     $SUDO cp -a "$HEADER_FILE" "$HEADER_FILE.bak-module1-$STAMP"
     $SUDO cp -a "$RB_FILE" "$RB_FILE.bak-module1-$STAMP"
 
-    # Make header section patch tolerant to quote-style differences across moOde versions.
     if ! grep -Eq "\$section[[:space:]]*==[[:space:]]*['\"]radio-browser['\"]" "$HEADER_FILE"; then
         $SUDO sed -i "s/if (\\\$section == 'index')/if (\\\$section == 'index' || \\\$section == 'radio-browser')/" "$HEADER_FILE" || true
         $SUDO sed -i 's/if (\$section == "index")/if (\$section == "index" || \$section == "radio-browser")/' "$HEADER_FILE" || true
 
         if ! grep -Eq "\$section[[:space:]]*==[[:space:]]*['\"]radio-browser['\"]" "$HEADER_FILE"; then
-            echo "WARN: Could not patch header.php section condition automatically. Configure modal integration may be degraded." >&2
+            echo "WARN: Could not patch header.php section condition automatically." >&2
         fi
     fi
 
@@ -210,7 +315,6 @@ else
         if grep -q 'radio-browser\.js" defer<\/script>' "$RB_FILE"; then
             $SUDO sed -i '/radio-browser\.js" defer<\/script>/a echo '\''<script src="'\'' . $extAssetsPath . '\''/radio-browser-modal-fix.js" defer><\/script>'\'' . "\\n";' "$RB_FILE"
         else
-            # Fallback for template variations: inject before footer include.
             $SUDO sed -i "/include('\/var\/www\/footer\.min\.php');/i echo '<script src=\"' . \$extAssetsPath . '\/radio-browser-modal-fix.js\" defer><\/script>' . \"\\n\";" "$RB_FILE"
         fi
     fi
@@ -263,8 +367,22 @@ JS
     php -l "$RB_FILE"
 fi
 
-echo "[7/8] Completed installation."
-echo "Installed: $TARGET_PAGE, $TARGET_API, $TARGET_JS, $TARGET_META"
-echo "Root endpoints: /ext-mgr.php and /ext-mgr-api.php"
+echo "[7/10] Applying Module 3 menu integration..."
+if [[ -f "$INDEX_TEMPLATE_FILE" ]]; then
+    $SUDO cp -a "$INDEX_TEMPLATE_FILE" "$INDEX_TEMPLATE_FILE.bak-extmgr-$STAMP"
+fi
+patch_index_template_menu
+patch_header_and_footer_menu
 
-echo "[8/8] Done."
+echo "[8/10] Validating ext-mgr syntax..."
+php -l "$TARGET_PAGE"
+php -l "$TARGET_API"
+
+echo "[9/10] Validation hints..."
+echo "- Verify Library dropdown shows Extensions and canonical routes"
+echo "- Verify Configure modal includes Extensions tile"
+echo "- Verify /ext-mgr.php loads in moOde shell"
+
+echo "[10/10] Done."
+echo "Installed: $TARGET_PAGE, $TARGET_API, $TARGET_JS, $TARGET_MODAL_FIX_JS, $TARGET_HOVER_MENU_JS, $TARGET_CSS, $TARGET_META"
+echo "Root endpoints: /ext-mgr.php, /ext-mgr-api.php, /extensions-manager.php"
