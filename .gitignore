@@ -2,10 +2,19 @@
 .ext-mgr-update-backups/
 *.tmp
 *.bak
+*.ps1
+copilot-instructions.txt
+copilot-instructions.md
 
 # Logs
 *.log
 
+# Local dev environment
+docker/
+1. inspiration/
+radio-browser/
+vscode/
+radio-browser-menu-integration/
 # OS/editor
 .DS_Store
 Thumbs.db

@@ -36,6 +36,7 @@ TARGET_CSS="$TARGET_CSS_DIR/ext-mgr.css"
 TARGET_HOVER_MENU_JS="$TARGET_JS_DIR/ext-mgr-hover-menu.js"
 TARGET_SCRIPT_DIR="$TARGET_SYS_DIR/scripts"
 TARGET_REGISTRY_SYNC_SCRIPT="$TARGET_SCRIPT_DIR/ext-mgr-registry-sync.sh"
+TARGET_IMPORT_WIZARD_SCRIPT="$TARGET_SCRIPT_DIR/ext-mgr-import-wizard.sh"
 TARGET_INSTALLED_ROOT="$TARGET_EXT_DIR/installed"
 TARGET_RUNTIME_ROOT="$TARGET_SYS_DIR/.ext-mgr"
 TARGET_RUNTIME_CACHE="$TARGET_RUNTIME_ROOT/cache"
@@ -161,6 +162,7 @@ ensure_extmgr_structure_permissions() {
         "$TARGET_ASSETS_DIR"
         "$TARGET_JS_DIR"
         "$TARGET_CSS_DIR"
+        "$TARGET_SCRIPT_DIR"
         "$TARGET_INSTALLED_ROOT"
         "$TARGET_RUNTIME_ROOT"
         "$TARGET_RUNTIME_CACHE"
@@ -182,6 +184,7 @@ ensure_extmgr_structure_permissions() {
 
     local runtime_files=(
         "$TARGET_META"
+        "$TARGET_REGISTRY"
         "$TARGET_RELEASE"
         "$TARGET_VERSION"
         "$TARGET_INTEGRITY"
@@ -363,14 +366,14 @@ run_uninstall() {
     stamp="$(date +%Y%m%d-%H%M%S)"
 
     echo "[uninstall] Backing up core files where present..."
-    for f in "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_RELEASE" "$TARGET_VERSION" "$TARGET_INTEGRITY" "$TARGET_JS" "$TARGET_MODAL_FIX_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_REGISTRY" "$TARGET_REGISTRY_SYNC_SCRIPT"; do
+    for f in "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_RELEASE" "$TARGET_VERSION" "$TARGET_INTEGRITY" "$TARGET_JS" "$TARGET_MODAL_FIX_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_REGISTRY" "$TARGET_REGISTRY_SYNC_SCRIPT" "$TARGET_IMPORT_WIZARD_SCRIPT"; do
         if [[ -f "$f" ]]; then
             $SUDO cp -a "$f" "$f.bak-uninstall-$stamp"
         fi
     done
 
     echo "[uninstall] Removing ext-mgr files/symlinks/helpers..."
-    $SUDO rm -f "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_RELEASE" "$TARGET_VERSION" "$TARGET_INTEGRITY" "$TARGET_JS" "$TARGET_MODAL_FIX_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_REGISTRY_SYNC_SCRIPT"
+    $SUDO rm -f "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_RELEASE" "$TARGET_VERSION" "$TARGET_INTEGRITY" "$TARGET_JS" "$TARGET_MODAL_FIX_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_REGISTRY_SYNC_SCRIPT" "$TARGET_IMPORT_WIZARD_SCRIPT"
     $SUDO rm -f /var/www/extensions/ext-mgr.php /var/www/extensions/ext-mgr-api.php /var/www/extensions/ext-mgr.meta.json /var/www/extensions/ext-mgr.release.json /var/www/extensions/ext-mgr.version /var/www/extensions/ext-mgr.integrity.json /var/www/extensions/registry.json /var/www/extensions/ext-mgr-hover-menu.js
     $SUDO rm -f /var/www/extensions/assets/js/ext-mgr.js /var/www/extensions/assets/js/ext-mgr-modal-fix.js /var/www/extensions/assets/css/ext-mgr.css
     $SUDO rm -f /var/www/ext-mgr.php /var/www/ext-mgr-api.php /var/www/extensions-manager.php
@@ -526,6 +529,7 @@ require_file "$SRC_MODAL_FIX_JS"
 require_file "$SRC_HOVER_MENU_JS"
 require_file "$SRC_CSS"
 require_file "$SRC_REGISTRY_SYNC_SCRIPT"
+require_file "$SRC_IMPORT_WIZARD_SCRIPT"
 
 print_version_warning
 
@@ -550,7 +554,7 @@ echo "[1/10] Preparing target directories..."
 $SUDO mkdir -p "$TARGET_EXT_DIR" "$TARGET_SYS_DIR" "$TARGET_ASSETS_DIR" "$TARGET_JS_DIR" "$TARGET_CSS_DIR" "$TARGET_SCRIPT_DIR" "$TARGET_INSTALLED_ROOT" "$TARGET_RUNTIME_CACHE" "$TARGET_RUNTIME_DATA" "$TARGET_RUNTIME_LOGS"
 
 echo "[2/10] Backing up existing ext-mgr files (if present)..."
-for f in "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_REGISTRY" "$TARGET_RELEASE" "$TARGET_VERSION" "$TARGET_INTEGRITY" "$TARGET_JS" "$TARGET_MODAL_FIX_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_REGISTRY_SYNC_SCRIPT"; do
+for f in "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_REGISTRY" "$TARGET_RELEASE" "$TARGET_VERSION" "$TARGET_INTEGRITY" "$TARGET_JS" "$TARGET_MODAL_FIX_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_REGISTRY_SYNC_SCRIPT" "$TARGET_IMPORT_WIZARD_SCRIPT"; do
     if [[ -f "$f" ]]; then
         $SUDO cp -a "$f" "$f.bak-extmgr-$STAMP"
     fi
@@ -568,6 +572,7 @@ $SUDO install -o www-data -g www-data -m 0644 "$SRC_MODAL_FIX_JS" "$TARGET_MODAL
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_CSS" "$TARGET_CSS"
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_HOVER_MENU_JS" "$TARGET_HOVER_MENU_JS"
 $SUDO install -o root -g "$SECURITY_GROUP" -m 0750 "$SRC_REGISTRY_SYNC_SCRIPT" "$TARGET_REGISTRY_SYNC_SCRIPT"
+$SUDO install -o root -g "$SECURITY_GROUP" -m 0750 "$SRC_IMPORT_WIZARD_SCRIPT" "$TARGET_IMPORT_WIZARD_SCRIPT"
 
 if [[ -f "$TARGET_REGISTRY" ]]; then
     echo "Existing registry detected, preserving current state at $TARGET_REGISTRY"
