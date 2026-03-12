@@ -94,7 +94,7 @@ else
 
     # Make header section patch tolerant to quote-style differences across moOde versions.
     if ! grep -Eq "\$section[[:space:]]*==[[:space:]]*['\"]radio-browser['\"]" "$HEADER_FILE"; then
-        $SUDO sed -i "s/if (\\$section == 'index')/if (\\$section == 'index' || \\$section == 'radio-browser')/" "$HEADER_FILE" || true
+        $SUDO sed -i "s/if (\\\$section == 'index')/if (\\\$section == 'index' || \\\$section == 'radio-browser')/" "$HEADER_FILE" || true
         $SUDO sed -i 's/if (\$section == "index")/if (\$section == "index" || \$section == "radio-browser")/' "$HEADER_FILE" || true
 
         if ! grep -Eq "\$section[[:space:]]*==[[:space:]]*['\"]radio-browser['\"]" "$HEADER_FILE"; then
