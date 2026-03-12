@@ -27,8 +27,8 @@ if (function_exists('storeBackLink')) {
 if (file_exists('/var/www/header.php')) {
     $usingMoodeShell = true;
     include '/var/www/header.php';
-    echo '<link rel="stylesheet" href="/extensions/assets/css/ext-mgr.css">' . "\n";
-    echo '<script src="/extensions/assets/js/ext-mgr-modal-fix.js" defer></script>' . "\n";
+    echo '<link rel="stylesheet" href="/extensions/sys/assets/css/ext-mgr.css">' . "\n";
+    echo '<script src="/extensions/sys/assets/js/ext-mgr-modal-fix.js" defer></script>' . "\n";
 } else {
     ?>
 <!doctype html>
@@ -37,7 +37,7 @@ if (file_exists('/var/www/header.php')) {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Extensions Manager</title>
-    <link rel="stylesheet" href="/extensions/assets/css/ext-mgr.css">
+    <link rel="stylesheet" href="/extensions/sys/assets/css/ext-mgr.css">
 </head>
 <body>
     <?php
@@ -197,7 +197,7 @@ if (file_exists('/var/www/header.php')) {
 <script>
 window.__EXT_MGR_INIT__ = <?php echo json_encode($init, JSON_UNESCAPED_SLASHES); ?>;
 </script>
-<script src="/extensions/assets/js/ext-mgr.js"></script>
+<script src="/extensions/sys/assets/js/ext-mgr.js"></script>
 
 <?php
 if ($usingMoodeShell) {

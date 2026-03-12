@@ -4,7 +4,7 @@ set -euo pipefail
 # ext-mgr import wizard
 # - Imports an extension package into /var/www/extensions/installed/<id>
 # - Applies ext-mgr security principal and permission model
-# - Registers extension in /var/www/extensions/registry.json
+# - Registers extension in /var/www/extensions/sys/registry.json
 # - Optionally enables/disables extension service from manifest
 
 SECURITY_GROUP="moode-extmgr"
@@ -13,7 +13,7 @@ WEB_USER="www-data"
 WEB_GROUP="www-data"
 SQLITE_DB="/var/local/www/db/moode-sqlite3.db"
 MYSQL_SOCKET="/var/run/mysqld/mysqld.sock"
-REGISTRY_PATH="/var/www/extensions/registry.json"
+REGISTRY_PATH="/var/www/extensions/sys/registry.json"
 INSTALLED_ROOT="/var/www/extensions/installed"
 WATCHDOG_SCRIPT="/usr/local/bin/moode-extmgr-watchdog.sh"
 WATCHDOG_SERVICE="/etc/systemd/system/moode-extmgr-watchdog.service"
@@ -114,7 +114,7 @@ install_watchdog_service() {
 #!/bin/bash
 set -euo pipefail
 LOG_FILE="/var/log/moode_extmgr.log"
-REGISTRY="/var/www/extensions/registry.json"
+REGISTRY="/var/www/extensions/sys/registry.json"
 touch "$LOG_FILE" 2>/dev/null || true
 while true; do
   if [[ ! -f "$REGISTRY" ]]; then

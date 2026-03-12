@@ -19,23 +19,25 @@ SRC_REGISTRY_SYNC_SCRIPT=""
 SRC_IMPORT_WIZARD_SCRIPT=""
 
 TARGET_EXT_DIR="/var/www/extensions"
-TARGET_JS_DIR="$TARGET_EXT_DIR/assets/js"
-TARGET_CSS_DIR="$TARGET_EXT_DIR/assets/css"
-TARGET_PAGE="$TARGET_EXT_DIR/ext-mgr.php"
-TARGET_API="$TARGET_EXT_DIR/ext-mgr-api.php"
-TARGET_META="$TARGET_EXT_DIR/ext-mgr.meta.json"
-TARGET_REGISTRY="$TARGET_EXT_DIR/registry.json"
-TARGET_RELEASE="$TARGET_EXT_DIR/ext-mgr.release.json"
-TARGET_VERSION="$TARGET_EXT_DIR/ext-mgr.version"
-TARGET_INTEGRITY="$TARGET_EXT_DIR/ext-mgr.integrity.json"
+TARGET_SYS_DIR="$TARGET_EXT_DIR/sys"
+TARGET_ASSETS_DIR="$TARGET_SYS_DIR/assets"
+TARGET_JS_DIR="$TARGET_ASSETS_DIR/js"
+TARGET_CSS_DIR="$TARGET_ASSETS_DIR/css"
+TARGET_PAGE="$TARGET_SYS_DIR/ext-mgr.php"
+TARGET_API="$TARGET_SYS_DIR/ext-mgr-api.php"
+TARGET_META="$TARGET_SYS_DIR/ext-mgr.meta.json"
+TARGET_REGISTRY="$TARGET_SYS_DIR/registry.json"
+TARGET_RELEASE="$TARGET_SYS_DIR/ext-mgr.release.json"
+TARGET_VERSION="$TARGET_SYS_DIR/ext-mgr.version"
+TARGET_INTEGRITY="$TARGET_SYS_DIR/ext-mgr.integrity.json"
 TARGET_JS="$TARGET_JS_DIR/ext-mgr.js"
 TARGET_MODAL_FIX_JS="$TARGET_JS_DIR/ext-mgr-modal-fix.js"
 TARGET_CSS="$TARGET_CSS_DIR/ext-mgr.css"
-TARGET_HOVER_MENU_JS="$TARGET_EXT_DIR/ext-mgr-hover-menu.js"
-TARGET_SCRIPT_DIR="$TARGET_EXT_DIR/scripts"
+TARGET_HOVER_MENU_JS="$TARGET_JS_DIR/ext-mgr-hover-menu.js"
+TARGET_SCRIPT_DIR="$TARGET_SYS_DIR/scripts"
 TARGET_REGISTRY_SYNC_SCRIPT="$TARGET_SCRIPT_DIR/ext-mgr-registry-sync.sh"
 TARGET_INSTALLED_ROOT="$TARGET_EXT_DIR/installed"
-TARGET_RUNTIME_ROOT="$TARGET_EXT_DIR/.ext-mgr"
+TARGET_RUNTIME_ROOT="$TARGET_SYS_DIR/.ext-mgr"
 TARGET_RUNTIME_CACHE="$TARGET_RUNTIME_ROOT/cache"
 TARGET_RUNTIME_DATA="$TARGET_RUNTIME_ROOT/data"
 TARGET_RUNTIME_LOGS="$TARGET_RUNTIME_ROOT/logs"
@@ -155,6 +157,8 @@ sync_security_user_groups() {
 ensure_extmgr_structure_permissions() {
     local dirs=(
         "$TARGET_EXT_DIR"
+        "$TARGET_SYS_DIR"
+        "$TARGET_ASSETS_DIR"
         "$TARGET_JS_DIR"
         "$TARGET_CSS_DIR"
         "$TARGET_INSTALLED_ROOT"
@@ -367,6 +371,8 @@ run_uninstall() {
 
     echo "[uninstall] Removing ext-mgr files/symlinks/helpers..."
     $SUDO rm -f "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_RELEASE" "$TARGET_VERSION" "$TARGET_INTEGRITY" "$TARGET_JS" "$TARGET_MODAL_FIX_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_REGISTRY_SYNC_SCRIPT"
+    $SUDO rm -f /var/www/extensions/ext-mgr.php /var/www/extensions/ext-mgr-api.php /var/www/extensions/ext-mgr.meta.json /var/www/extensions/ext-mgr.release.json /var/www/extensions/ext-mgr.version /var/www/extensions/ext-mgr.integrity.json /var/www/extensions/registry.json /var/www/extensions/ext-mgr-hover-menu.js
+    $SUDO rm -f /var/www/extensions/assets/js/ext-mgr.js /var/www/extensions/assets/js/ext-mgr-modal-fix.js /var/www/extensions/assets/css/ext-mgr.css
     $SUDO rm -f /var/www/ext-mgr.php /var/www/ext-mgr-api.php /var/www/extensions-manager.php
     $SUDO rm -f "$SYMLINK_HELPER" "$SYMLINK_SUDOERS"
 
@@ -417,7 +423,7 @@ if ext_start != -1:
                 first_button_end += len('</button>')
                 s = s[:first_button_end] + ' ' + ext_block + s[first_button_end:]
 
-script_tag = '<script src="/extensions/ext-mgr-hover-menu.js" defer></script>'
+script_tag = '<script src="/extensions/sys/assets/js/ext-mgr-hover-menu.js" defer></script>'
 if script_tag not in s:
     anchor = '</span> <button aria-label="Folder" class="btn folder-view-btn" href="#library-panel">'
     if anchor in s:
@@ -541,7 +547,7 @@ fi
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
 echo "[1/10] Preparing target directories..."
-$SUDO mkdir -p "$TARGET_EXT_DIR" "$TARGET_JS_DIR" "$TARGET_CSS_DIR" "$TARGET_SCRIPT_DIR" "$TARGET_INSTALLED_ROOT" "$TARGET_RUNTIME_CACHE" "$TARGET_RUNTIME_DATA" "$TARGET_RUNTIME_LOGS"
+$SUDO mkdir -p "$TARGET_EXT_DIR" "$TARGET_SYS_DIR" "$TARGET_ASSETS_DIR" "$TARGET_JS_DIR" "$TARGET_CSS_DIR" "$TARGET_SCRIPT_DIR" "$TARGET_INSTALLED_ROOT" "$TARGET_RUNTIME_CACHE" "$TARGET_RUNTIME_DATA" "$TARGET_RUNTIME_LOGS"
 
 echo "[2/10] Backing up existing ext-mgr files (if present)..."
 for f in "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_REGISTRY" "$TARGET_RELEASE" "$TARGET_VERSION" "$TARGET_INTEGRITY" "$TARGET_JS" "$TARGET_MODAL_FIX_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_REGISTRY_SYNC_SCRIPT"; do
@@ -570,8 +576,8 @@ else
 fi
 
 echo "[4/10] Creating root shortcuts..."
-$SUDO ln -sfn /var/www/extensions/ext-mgr.php /var/www/ext-mgr.php
-$SUDO ln -sfn /var/www/extensions/ext-mgr-api.php /var/www/ext-mgr-api.php
+$SUDO ln -sfn /var/www/extensions/sys/ext-mgr.php /var/www/ext-mgr.php
+$SUDO ln -sfn /var/www/extensions/sys/ext-mgr-api.php /var/www/ext-mgr-api.php
 $SUDO ln -sfn /var/www/ext-mgr.php /var/www/extensions-manager.php
 
 echo "[5/10] Installing privileged symlink repair helper..."

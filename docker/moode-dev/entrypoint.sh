@@ -5,8 +5,9 @@ SRC_ROOT="${EXTMGR_SRC:-/workspace/ext-mgr}"
 
 mkdir -p /var/www/inc
 mkdir -p /var/www/templates
-mkdir -p /var/www/extensions/assets/js
-mkdir -p /var/www/extensions/assets/css
+mkdir -p /var/www/extensions/sys/assets/js
+mkdir -p /var/www/extensions/sys/assets/css
+mkdir -p /var/www/extensions/sys/scripts
 mkdir -p /var/www/extensions/installed/radio-browser/assets
 
 cat > /var/www/inc/common.php <<'PHP'
@@ -100,21 +101,21 @@ link_or_copy() {
   fi
 }
 
-link_or_copy "$SRC_ROOT/ext-mgr.php" /var/www/extensions/ext-mgr.php 0644
-link_or_copy "$SRC_ROOT/ext-mgr-api.php" /var/www/extensions/ext-mgr-api.php 0644
-link_or_copy "$SRC_ROOT/ext-mgr.meta.json" /var/www/extensions/ext-mgr.meta.json 0644
-link_or_copy "$SRC_ROOT/ext-mgr.release.json" /var/www/extensions/ext-mgr.release.json 0644
-link_or_copy "$SRC_ROOT/ext-mgr.version" /var/www/extensions/ext-mgr.version 0644
-link_or_copy "$SRC_ROOT/ext-mgr.integrity.json" /var/www/extensions/ext-mgr.integrity.json 0644
-link_or_copy "$SRC_ROOT/assets/js/ext-mgr.js" /var/www/extensions/assets/js/ext-mgr.js 0644
-link_or_copy "$SRC_ROOT/assets/js/ext-mgr-modal-fix.js" /var/www/extensions/assets/js/ext-mgr-modal-fix.js 0644
-link_or_copy "$SRC_ROOT/assets/js/ext-mgr-hover-menu.js" /var/www/extensions/ext-mgr-hover-menu.js 0644
-link_or_copy "$SRC_ROOT/assets/css/ext-mgr.css" /var/www/extensions/assets/css/ext-mgr.css 0644
+link_or_copy "$SRC_ROOT/ext-mgr.php" /var/www/extensions/sys/ext-mgr.php 0644
+link_or_copy "$SRC_ROOT/ext-mgr-api.php" /var/www/extensions/sys/ext-mgr-api.php 0644
+link_or_copy "$SRC_ROOT/ext-mgr.meta.json" /var/www/extensions/sys/ext-mgr.meta.json 0644
+link_or_copy "$SRC_ROOT/ext-mgr.release.json" /var/www/extensions/sys/ext-mgr.release.json 0644
+link_or_copy "$SRC_ROOT/ext-mgr.version" /var/www/extensions/sys/ext-mgr.version 0644
+link_or_copy "$SRC_ROOT/ext-mgr.integrity.json" /var/www/extensions/sys/ext-mgr.integrity.json 0644
+link_or_copy "$SRC_ROOT/assets/js/ext-mgr.js" /var/www/extensions/sys/assets/js/ext-mgr.js 0644
+link_or_copy "$SRC_ROOT/assets/js/ext-mgr-modal-fix.js" /var/www/extensions/sys/assets/js/ext-mgr-modal-fix.js 0644
+link_or_copy "$SRC_ROOT/assets/js/ext-mgr-hover-menu.js" /var/www/extensions/sys/assets/js/ext-mgr-hover-menu.js 0644
+link_or_copy "$SRC_ROOT/assets/css/ext-mgr.css" /var/www/extensions/sys/assets/css/ext-mgr.css 0644
 
 if [[ -f "$SRC_ROOT/registry.json" ]]; then
-  install -m 0644 "$SRC_ROOT/registry.json" /var/www/extensions/registry.json
+  install -m 0644 "$SRC_ROOT/registry.json" /var/www/extensions/sys/registry.json
 else
-  cat > /var/www/extensions/registry.json <<'JSON'
+  cat > /var/www/extensions/sys/registry.json <<'JSON'
 {
   "generatedAt": "dev",
   "extensions": []
@@ -122,8 +123,8 @@ else
 JSON
 fi
 
-ln -sfn /var/www/extensions/ext-mgr.php /var/www/ext-mgr.php
-ln -sfn /var/www/extensions/ext-mgr-api.php /var/www/ext-mgr-api.php
+ln -sfn /var/www/extensions/sys/ext-mgr.php /var/www/ext-mgr.php
+ln -sfn /var/www/extensions/sys/ext-mgr-api.php /var/www/ext-mgr-api.php
 ln -sfn /var/www/extensions/installed/radio-browser/radio-browser.php /var/www/radio-browser.php
 
 exec "$@"

@@ -1,16 +1,16 @@
 {
   "schemaVersion": "1",
   "algorithm": "sha256",
-  "generatedAt": "2026-03-13T00:08:03",
+  "generatedAt": "2026-03-13T00:21:48",
   "files": {
-    "ext-mgr.php": "efde5b2909c3cb7c44ddc2f96f69e1eea522695d953beb43257baa1b73105928",
-    "ext-mgr-api.php": "4143193373309aab45df3c2989c75fa1e20b3c71ce5d6a6f6fea9daca234cb7e",
+    "ext-mgr.php": "4e7a227a7a35a530399e9b896ee18295c55f2e8a84a15d8a32ddf098fecc1c0c",
+    "ext-mgr-api.php": "ccd4d92ee070b1b7bd1c85431c490b267959cdeedf3c938edcae4d379443d2b8",
     "ext-mgr.meta.json": "700688652a94af1a22ff71e04499623f85a53912957add3a540e878bf70208bc",
     "ext-mgr.release.json": "a1edbed5223581653803359cf08035f9000631b1c6a8ddb46ae5a7f9c50818bf",
     "ext-mgr.version": "4c3dc68152f0f90abbc683925552458eb9a82f416719f84535fbe884a4fdb854",
     "assets/js/ext-mgr.js": "6d11d06f8cee59b5405f32208d21f5dc1ba38e7b1a33c26c048198e0709dfa34",
     "assets/css/ext-mgr.css": "4670ee72361a93e23a4934966904f8cf87fe480646274b1d41d4c1003b8e246a",
-    "scripts/ext-mgr-import-wizard.sh": "c882cd2de5d4a4cc3d2ecdeb27272164184074cd7bfb7c65ca8055565251f7ce",
+    "scripts/ext-mgr-import-wizard.sh": "4536f2adc82b0d059169628473cf7ce676633365b7f7216b47dccf8850d21f7e",
     "scripts/ext-mgr-registry-sync.sh": "fcb95a23246d652008f142e87336fa6994dad796ae74e4577557dfe012d5e545",
     "README.md": "329f71313bb4235a37f8f8ccce473d9cc1ff581eec9bb0775308e4341c124b15"
   }

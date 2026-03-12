@@ -3,10 +3,11 @@
 header('Content-Type: application/json; charset=utf-8');
 
 $action = $_REQUEST['action'] ?? 'list';
-$registryPath = __DIR__ . DIRECTORY_SEPARATOR . 'registry.json';
-$metaPath = __DIR__ . DIRECTORY_SEPARATOR . 'ext-mgr.meta.json';
-$versionPath = __DIR__ . DIRECTORY_SEPARATOR . 'ext-mgr.version';
-$releasePath = __DIR__ . DIRECTORY_SEPARATOR . 'ext-mgr.release.json';
+$baseDir = dirname((string)(realpath(__FILE__) ?: __FILE__));
+$registryPath = $baseDir . DIRECTORY_SEPARATOR . 'registry.json';
+$metaPath = $baseDir . DIRECTORY_SEPARATOR . 'ext-mgr.meta.json';
+$versionPath = $baseDir . DIRECTORY_SEPARATOR . 'ext-mgr.version';
+$releasePath = $baseDir . DIRECTORY_SEPARATOR . 'ext-mgr.release.json';
 $symlinkHelperPath = '/usr/local/sbin/ext-mgr-repair-symlink';
 
 function defaultMeta() {
