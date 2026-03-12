@@ -54,6 +54,13 @@ The update mechanism itself does not require git on the target host.
 - Provider fetch uses HTTP (`curl`, `wget` fallback, or PHP stream context).
 - Update apply uses managed file downloads from release tags.
 
+Troubleshooting bootstrap cache/noexec:
+- If you still see `Permission denied` from `/tmp/.../install.sh`, you likely fetched an older cached bootstrap script.
+- Force-refresh bootstrap URL:
+  - `wget -O- "https://raw.githubusercontent.com/rubatron/Moode-Extensions-Manager/main/scripts/bootstrap-moode.sh?ts=$(date +%s)" | sudo bash`
+- Or bypass bootstrap script completely:
+  - `tmp=$(mktemp -d) && wget -qO "$tmp/ext-mgr.tgz" "https://codeload.github.com/rubatron/Moode-Extensions-Manager/tar.gz/refs/heads/main" && tar -xzf "$tmp/ext-mgr.tgz" -C "$tmp" && sudo bash "$tmp/Moode-Extensions-Manager-main/install.sh"`
+
 Expected install targets:
 - `/var/www/extensions/ext-mgr.php`
 - `/var/www/extensions/ext-mgr-api.php`
