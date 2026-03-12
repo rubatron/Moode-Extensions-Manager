@@ -52,9 +52,9 @@ main() {
 
   echo "[3/4] Running installer from $extracted_dir"
   if [[ "${EUID}" -eq 0 ]]; then
-    "$extracted_dir/install.sh" "$@"
+    bash "$extracted_dir/install.sh" "$@"
   else
-    sudo "$extracted_dir/install.sh" "$@"
+    sudo bash "$extracted_dir/install.sh" "$@"
   fi
 
   echo "[4/4] Done. Open: http://<pi-ip>/ext-mgr.php"
