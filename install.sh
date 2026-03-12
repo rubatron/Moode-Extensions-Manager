@@ -19,6 +19,9 @@ TARGET_REGISTRY="$TARGET_EXT_DIR/registry.json"
 TARGET_JS="$TARGET_JS_DIR/ext-mgr.js"
 SYMLINK_HELPER="/usr/local/sbin/ext-mgr-repair-symlink"
 SYMLINK_SUDOERS="/etc/sudoers.d/ext-mgr"
+SECURITY_GROUP="moode-extmgr"
+SECURITY_USER="moode-extmgrusr"
+WEB_USER="www-data"
 
 HEADER_FILE="/var/www/header.php"
 RB_FILE="/var/www/extensions/installed/radio-browser/radio-browser.php"
@@ -84,6 +87,17 @@ $SUDO ln -sfn /var/www/extensions/ext-mgr.php /var/www/ext-mgr.php
 $SUDO ln -sfn /var/www/extensions/ext-mgr-api.php /var/www/ext-mgr-api.php
 
 echo "[4.1/8] Installing privileged symlink repair helper..."
+if ! getent group "$SECURITY_GROUP" >/dev/null 2>&1; then
+    $SUDO groupadd --system "$SECURITY_GROUP"
+fi
+
+if ! id -u "$SECURITY_USER" >/dev/null 2>&1; then
+    $SUDO useradd --system --no-create-home --shell /usr/sbin/nologin --gid "$SECURITY_GROUP" "$SECURITY_USER"
+fi
+
+$SUDO usermod -aG "$SECURITY_GROUP" "$WEB_USER" || true
+$SUDO usermod -aG "$WEB_USER" "$SECURITY_USER" || true
+
 cat <<'SH' | $SUDO tee "$SYMLINK_HELPER" > /dev/null
 #!/usr/bin/env bash
 set -euo pipefail
@@ -133,11 +147,11 @@ chown -h www-data:www-data "$LINK_PATH" 2>/dev/null || true
 echo "$LINK_PATH|$TARGET"
 SH
 
-$SUDO chown root:root "$SYMLINK_HELPER"
-$SUDO chmod 0755 "$SYMLINK_HELPER"
+$SUDO chown root:"$SECURITY_GROUP" "$SYMLINK_HELPER"
+$SUDO chmod 0750 "$SYMLINK_HELPER"
 
 cat <<EOF | $SUDO tee "$SYMLINK_SUDOERS" > /dev/null
-www-data ALL=(root) NOPASSWD: $SYMLINK_HELPER *
+%$SECURITY_GROUP ALL=(root) NOPASSWD: $SYMLINK_HELPER *
 EOF
 $SUDO chown root:root "$SYMLINK_SUDOERS"
 $SUDO chmod 0440 "$SYMLINK_SUDOERS"
