@@ -92,10 +92,28 @@ else
     $SUDO cp -a "$HEADER_FILE" "$HEADER_FILE.bak-module1-$STAMP"
     $SUDO cp -a "$RB_FILE" "$RB_FILE.bak-module1-$STAMP"
 
-    $SUDO sed -i "s/if (\$section == 'index')/if (\$section == 'index' || \$section == 'radio-browser')/" "$HEADER_FILE"
+    # Make header section patch tolerant to formatting/quote differences across moOde versions.
+    if ! grep -Eq "\$section\s*==\s*['\"]radio-browser['\"]" "$HEADER_FILE"; then
+        $SUDO php -r '
+$file=$argv[1];
+$src=file_get_contents($file);
+if($src===false){fwrite(STDERR,"read-failed\n"); exit(2);} 
+$patched=preg_replace("/if\s*\(\s*\\$section\s*==\s*([\"\'])index\\1\s*\)/", "if (\\$section == \'index\' || \\$section == \'radio-browser\')", $src, 1, $count);
+if($patched===null){fwrite(STDERR,"regex-failed\n"); exit(3);} 
+if($count===0){fwrite(STDERR,"no-index-section-condition-found\n"); exit(4);} 
+if(file_put_contents($file,$patched)===false){fwrite(STDERR,"write-failed\n"); exit(5);} 
+' "$HEADER_FILE" || {
+            echo "WARN: Could not patch header.php section condition automatically. Configure modal integration may be degraded." >&2
+        }
+    fi
 
     if ! grep -q "radio-browser-modal-fix.js" "$RB_FILE"; then
-        $SUDO sed -i '/radio-browser\.js" defer<\/script>/a echo '\''<script src="'\'' . $extAssetsPath . '\''/radio-browser-modal-fix.js" defer><\/script>'\'' . "\\n";' "$RB_FILE"
+        if grep -q 'radio-browser\.js" defer<\/script>' "$RB_FILE"; then
+            $SUDO sed -i '/radio-browser\.js" defer<\/script>/a echo '\''<script src="'\'' . $extAssetsPath . '\''/radio-browser-modal-fix.js" defer><\/script>'\'' . "\\n";' "$RB_FILE"
+        else
+            # Fallback for template variations: inject before footer include.
+            $SUDO sed -i "/include('\/var\/www\/footer\.min\.php');/i echo '<script src=\"' . \$extAssetsPath . '\/radio-browser-modal-fix.js\" defer><\/script>' . \"\\n\";" "$RB_FILE"
+        fi
     fi
 
     cat <<'JS' | $SUDO tee "$RB_JS_FILE" > /dev/null
@@ -107,7 +125,7 @@ else
             return;
         }
 
-        $(document).on('click.rbConfigureModalFix', 'a[href="#configure-modal"]', function (e) {
+        $(document).on('click.rbConfigureModalFix', 'a[href="#configure-modal"], a[href*="configure-modal"], [data-target="#configure-modal"]', function (e) {
             var $modal = $('#configure-modal');
             if (!$modal.length) {
                 return;
@@ -118,7 +136,7 @@ else
             $modal.removeClass('hide').modal('show');
         });
 
-        if (window.location.hash === '#configure-modal') {
+        if (window.location.hash === '#configure-modal' || window.location.hash.indexOf('configure-modal') !== -1) {
             setTimeout(function () {
                 var $modal = $('#configure-modal');
                 if ($modal.length) {
