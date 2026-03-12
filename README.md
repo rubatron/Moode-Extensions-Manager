@@ -37,6 +37,9 @@ Use this flow on a fresh or existing moOde host.
 2. Fast install without git clone (recommended).
   - `wget -qO- https://raw.githubusercontent.com/rubatron/Moode-Extensions-Manager/main/scripts/bootstrap-moode.sh | sudo bash`
   - ext-mgr only: `wget -qO- https://raw.githubusercontent.com/rubatron/Moode-Extensions-Manager/main/scripts/bootstrap-moode.sh | sudo bash -s -- --skip-module1`
+  - If the repository is private, this URL returns `404` without authentication.
+  - Private repo variant (requires a PAT with read access to repository contents):
+    - `wget --header="Authorization: Bearer <GITHUB_TOKEN>" -qO- https://raw.githubusercontent.com/rubatron/Moode-Extensions-Manager/main/scripts/bootstrap-moode.sh | sudo bash`
 3. Alternative install with git clone.
   - `sudo apt-get install -y git`
   - `git clone https://github.com/rubatron/Moode-Extensions-Manager.git`
