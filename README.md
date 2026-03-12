@@ -2,7 +2,7 @@
 
 Lightweight workspace to continue development of the moOde extension manager with a clean split:
 - `ext-mgr.php`: page shell and initial bootstrap data
-- `ext-mgr-api.php`: JSON API for list, refresh, and pin actions
+- `ext-mgr-api.php`: JSON API for status, registry sync, repair, update, and visibility actions
 - `assets/js/ext-mgr.js`: client-side UI/state logic
 - `assets/css/ext-mgr.css`: moOde-aligned page styles for ext-mgr
 
@@ -15,52 +15,30 @@ Lightweight workspace to continue development of the moOde extension manager wit
 - `ext-mgr.php`
 - `ext-mgr-api.php`
 - `ext-mgr.meta.json`
+- `ext-mgr.release.json`
+- `ext-mgr.version`
+- `registry.json`
 - `assets/css/ext-mgr.css`
 - `assets/js/ext-mgr.js`
 - `assets/js/ext-mgr-modal-fix.js`
 - `assets/js/ext-mgr-hover-menu.js`
+- `install.sh`
+- `scripts/bootstrap-moode.sh`
+- `scripts/ext-mgr-import-wizard.sh`
+- `scripts/ext-mgr-registry-sync.sh`
 - `docs/ARCHITECTURE.md`
 - `docs/MIGRATION-PLAN.md`
 - `docs/MOODE-OS-CONTEXT.md`
 - `docs/LOCAL-VM-HYPERV.md`
-- `scripts/dev-smoke.ps1`
-- `scripts/bootstrap-moode.sh`
-- `scripts/hyperv-enable.ps1`
-- `scripts/hyperv-create-moode-dev-vm.ps1`
-- `scripts/publish-github.ps1`
-- `tests/api-smoke.ps1`
+- `docs/PROJECT.md`
+- `docs/PROJECT-ROADMAP.md`
+- `docs/PROJECT-TODO.md`
 - `ext-mgr.integrity.json`
 
 ## Local Development
-1. Copy or symlink these files into a moOde test instance under `/var/www/extensions/`.
+1. Copy these files into a moOde test instance under `/var/www/extensions/sys/`.
 2. Open `/ext-mgr.php` in browser.
 3. Use browser devtools to validate API calls and UI state transitions.
-
-## Local Moode-like Development (Docker)
-This workspace includes a `moode-dev` compose service with a minimal `/var/www` shell so menu/modal integration can be tested without a Pi.
-
-1. Start the dev container:
-  - `docker compose up --build`
-2. Open local endpoints:
-  - `http://localhost:8080/index.php`
-  - `http://localhost:8080/ext-mgr.php`
-  - `http://localhost:8080/radio-browser.php`
-3. Optional smoke check:
-  - `powershell -ExecutionPolicy Bypass -File tests/api-smoke.ps1 -BaseUrl http://localhost:8080`
-
-Notes:
-- Container generates minimal moOde-like files (`header.php`, `footer.min.php`, `templates/indextpl.min.html`) at startup.
-- ext-mgr files are linked from your workspace so edits are reflected immediately on refresh.
-
-## Local Packaging Build (Hyper-V VM)
-For package/build pipeline work, use a Linux VM (Hyper-V) instead of Docker.
-
-1. Enable Hyper-V (elevated PowerShell):
-  - `powershell -ExecutionPolicy Bypass -File scripts/hyperv-enable.ps1`
-2. Create lightweight VM profile:
-  - `powershell -ExecutionPolicy Bypass -File scripts/hyperv-create-moode-dev-vm.ps1 -Preset pi4-2gb -IsoPath "D:\ISO\ubuntu-24.04-live-server-amd64.iso"`
-3. Follow full runbook:
-  - `docs/LOCAL-VM-HYPERV.md`
 
 ## Install On Raspberry Pi (moOde)
 Use this flow on a fresh or existing moOde host.
@@ -96,14 +74,19 @@ Troubleshooting bootstrap cache/noexec:
   - `tmp=$(mktemp -d) && wget -qO "$tmp/ext-mgr.tgz" "https://codeload.github.com/rubatron/Moode-Extensions-Manager/tar.gz/refs/heads/main" && tar -xzf "$tmp/ext-mgr.tgz" -C "$tmp" && sudo bash "$tmp/Moode-Extensions-Manager-main/install.sh"`
 
 Expected install targets:
-- `/var/www/extensions/ext-mgr.php`
-- `/var/www/extensions/ext-mgr-api.php`
-- `/var/www/extensions/assets/js/ext-mgr.js`
-- `/var/www/extensions/assets/js/ext-mgr-modal-fix.js`
-- `/var/www/extensions/ext-mgr-hover-menu.js`
-- `/var/www/extensions/assets/css/ext-mgr.css`
-- `/var/www/extensions/ext-mgr.meta.json`
-- `/var/www/extensions/registry.json`
+- `/var/www/extensions/sys/ext-mgr.php`
+- `/var/www/extensions/sys/ext-mgr-api.php`
+- `/var/www/extensions/sys/assets/js/ext-mgr.js`
+- `/var/www/extensions/sys/assets/js/ext-mgr-modal-fix.js`
+- `/var/www/extensions/sys/assets/js/ext-mgr-hover-menu.js`
+- `/var/www/extensions/sys/assets/css/ext-mgr.css`
+- `/var/www/extensions/sys/ext-mgr.meta.json`
+- `/var/www/extensions/sys/ext-mgr.release.json`
+- `/var/www/extensions/sys/ext-mgr.version`
+- `/var/www/extensions/sys/ext-mgr.integrity.json`
+- `/var/www/extensions/sys/registry.json`
+- `/var/www/extensions/sys/scripts/ext-mgr-import-wizard.sh`
+- `/var/www/extensions/sys/scripts/ext-mgr-registry-sync.sh`
 
 Created shortcuts:
 - `/var/www/ext-mgr.php`
@@ -127,7 +110,7 @@ Import is centralized through the wizard script and updates the registry automat
 Import side effects:
 - Installs to `/var/www/extensions/installed/<extension-id>`.
 - Creates canonical symlink `/var/www/<extension-id>.php`.
-- Updates `/var/www/extensions/registry.json` with enabled/state/version fields.
+- Updates `/var/www/extensions/sys/registry.json` with enabled/state/version fields.
 - Applies ext-mgr security principal, DB ACL policy, and watchdog service setup.
 
 ## Validation
@@ -135,7 +118,8 @@ Import side effects:
   - `php -l ext-mgr.php`
   - `php -l ext-mgr-api.php`
 - Basic API smoke checks:
-  - Run `tests/api-smoke.ps1` with a target base URL.
+  - `curl -s -X POST http://localhost/ext-mgr-api.php -d 'action=status'`
+  - `curl -s -X POST http://localhost/ext-mgr-api.php -d 'action=list'`
 
 ## Coding Conventions
 - Keep API responses JSON with explicit `ok` boolean and `error` message on failures.
@@ -158,17 +142,11 @@ Import side effects:
 - Integrity manifest path and algorithm are controlled by `integrityManifestPath` and `checksumAlgorithm` in `ext-mgr.release.json`.
 - Repair normalizes registry structure and updates maintenance timestamps.
 
-## GitHub Publish
-1. Install Git CLI and ensure `git` is available in PATH.
-2. Run:
-   - `powershell -ExecutionPolicy Bypass -File scripts/publish-github.ps1 -RemoteUrl https://github.com/<owner>/<repo>.git`
-3. The script initializes `.git` if needed, commits current changes, configures `origin`, and pushes to the selected branch.
-
 ## Repository Tracking Policy
-Why `.github`, `.vscode`, and `1. inspiration` are currently committed:
-- `.github`: repository automation/instruction files that belong to the project.
-- `.vscode`: shared task configuration (`ext-mgr: smoke`) used by contributors.
-- `1. inspiration`: intentionally stored reference material for architecture and migration context.
+This repository tracks runtime and installer sources only.
 
-If you want those folders local-only for your own workflow, add them to `.gitignore` and remove them from tracking with:
-- `git rm -r --cached .vscode .github "1. inspiration"`
+Ignored local-only artifacts include:
+- `docker/`
+- `1. inspiration/`
+- `*.ps1`
+- local editor/runtime artifacts from `.gitignore`
