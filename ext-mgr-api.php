@@ -7,6 +7,7 @@ $registryPath = __DIR__ . DIRECTORY_SEPARATOR . 'registry.json';
 $metaPath = __DIR__ . DIRECTORY_SEPARATOR . 'ext-mgr.meta.json';
 $versionPath = __DIR__ . DIRECTORY_SEPARATOR . 'ext-mgr.version';
 $releasePath = __DIR__ . DIRECTORY_SEPARATOR . 'ext-mgr.release.json';
+$symlinkHelperPath = '/usr/local/sbin/ext-mgr-repair-symlink';
 
 function defaultMeta() {
     return [
@@ -1022,13 +1023,71 @@ function repairExtensionSymlink($extId, $entryPath, &$error) {
     }
 
     if (!@symlink($targetFile, $linkPath)) {
-        $error = 'Failed to create symlink ' . $linkPath . ' -> ' . $targetFile . '. Check filesystem permissions.';
+        $helperResult = runPrivilegedSymlinkRepair($extId, $entryPath, $helperError);
+        if (is_array($helperResult)) {
+            return $helperResult;
+        }
+
+        $error = 'Failed to create symlink ' . $linkPath . ' -> ' . $targetFile . '. Check filesystem permissions. Helper fallback: ' . $helperError;
         return null;
     }
 
     return [
         'linkPath' => $linkPath,
         'targetPath' => $targetFile,
+    ];
+}
+
+function runPrivilegedSymlinkRepair($extId, $entryPath, &$error) {
+    global $symlinkHelperPath;
+    $error = '';
+
+    if (!isPhpFunctionEnabled('exec')) {
+        $error = 'exec() disabled; cannot invoke privileged helper.';
+        return null;
+    }
+
+    if (!is_file($symlinkHelperPath)) {
+        $error = 'Symlink helper not installed at ' . $symlinkHelperPath . '. Re-run install.sh.';
+        return null;
+    }
+
+    $entryRelative = ltrim(trim((string)$entryPath), '/');
+    if (!isSafeRelativeSubPath($entryRelative)) {
+        $entryRelative = '';
+    }
+
+    $cmd = 'sudo -n '
+        . escapeshellarg($symlinkHelperPath)
+        . ' '
+        . escapeshellarg($extId)
+        . ' '
+        . escapeshellarg($entryRelative)
+        . ' 2>&1';
+
+    $output = [];
+    $exitCode = 0;
+    @exec($cmd, $output, $exitCode);
+    if ($exitCode !== 0) {
+        $error = 'sudo helper failed: ' . trim(implode("\n", $output));
+        return null;
+    }
+
+    $line = trim((string)($output[0] ?? ''));
+    $parts = explode('|', $line, 2);
+    $linkPath = trim((string)($parts[0] ?? ('/var/www/' . $extId . '.php')));
+    $targetPath = trim((string)($parts[1] ?? ''));
+
+    if ($targetPath === '' && is_link($linkPath)) {
+        $resolved = @readlink($linkPath);
+        if (is_string($resolved) && $resolved !== '') {
+            $targetPath = $resolved;
+        }
+    }
+
+    return [
+        'linkPath' => $linkPath,
+        'targetPath' => $targetPath,
     ];
 }
 

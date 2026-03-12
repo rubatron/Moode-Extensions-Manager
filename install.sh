@@ -17,6 +17,8 @@ TARGET_API="$TARGET_EXT_DIR/ext-mgr-api.php"
 TARGET_META="$TARGET_EXT_DIR/ext-mgr.meta.json"
 TARGET_REGISTRY="$TARGET_EXT_DIR/registry.json"
 TARGET_JS="$TARGET_JS_DIR/ext-mgr.js"
+SYMLINK_HELPER="/usr/local/sbin/ext-mgr-repair-symlink"
+SYMLINK_SUDOERS="/etc/sudoers.d/ext-mgr"
 
 HEADER_FILE="/var/www/header.php"
 RB_FILE="/var/www/extensions/installed/radio-browser/radio-browser.php"
@@ -80,6 +82,65 @@ $SUDO install -o www-data -g www-data -m 0644 "$SRC_JS" "$TARGET_JS"
 echo "[4/8] Creating root shortcuts..."
 $SUDO ln -sfn /var/www/extensions/ext-mgr.php /var/www/ext-mgr.php
 $SUDO ln -sfn /var/www/extensions/ext-mgr-api.php /var/www/ext-mgr-api.php
+
+echo "[4.1/8] Installing privileged symlink repair helper..."
+cat <<'SH' | $SUDO tee "$SYMLINK_HELPER" > /dev/null
+#!/usr/bin/env bash
+set -euo pipefail
+
+EXT_ID="${1:-}"
+ENTRY_HINT="${2:-}"
+
+if [[ -z "$EXT_ID" || ! "$EXT_ID" =~ ^[a-zA-Z0-9._-]+$ ]]; then
+    echo "invalid-extension-id" >&2
+    exit 2
+fi
+
+is_safe_rel() {
+    local p="$1"
+    [[ -n "$p" && "$p" != /* && "$p" != *..* ]]
+}
+
+INSTALLED_DIR="/var/www/extensions/installed/${EXT_ID}"
+if [[ ! -d "$INSTALLED_DIR" ]]; then
+    echo "installed-dir-not-found" >&2
+    exit 3
+fi
+
+MANIFEST_MAIN=""
+if [[ -f "$INSTALLED_DIR/manifest.json" ]]; then
+    MANIFEST_MAIN="$(php -r '$j=json_decode(@file_get_contents($argv[1]), true); if(is_array($j) && isset($j["main"]) && is_string($j["main"])) echo trim($j["main"]);' "$INSTALLED_DIR/manifest.json" 2>/dev/null || true)"
+fi
+
+TARGET=""
+if is_safe_rel "$MANIFEST_MAIN" && [[ -f "$INSTALLED_DIR/$MANIFEST_MAIN" ]]; then
+    TARGET="$INSTALLED_DIR/$MANIFEST_MAIN"
+elif is_safe_rel "$ENTRY_HINT" && [[ -f "$INSTALLED_DIR/$ENTRY_HINT" ]]; then
+    TARGET="$INSTALLED_DIR/$ENTRY_HINT"
+elif [[ -f "$INSTALLED_DIR/${EXT_ID}.php" ]]; then
+    TARGET="$INSTALLED_DIR/${EXT_ID}.php"
+elif [[ -f "$INSTALLED_DIR/index.php" ]]; then
+    TARGET="$INSTALLED_DIR/index.php"
+else
+    echo "entry-not-found" >&2
+    exit 4
+fi
+
+LINK_PATH="/var/www/${EXT_ID}.php"
+ln -sfn "$TARGET" "$LINK_PATH"
+chown -h www-data:www-data "$LINK_PATH" 2>/dev/null || true
+
+echo "$LINK_PATH|$TARGET"
+SH
+
+$SUDO chown root:root "$SYMLINK_HELPER"
+$SUDO chmod 0755 "$SYMLINK_HELPER"
+
+cat <<EOF | $SUDO tee "$SYMLINK_SUDOERS" > /dev/null
+www-data ALL=(root) NOPASSWD: $SYMLINK_HELPER *
+EOF
+$SUDO chown root:root "$SYMLINK_SUDOERS"
+$SUDO chmod 0440 "$SYMLINK_SUDOERS"
 
 echo "[5/8] Validating ext-mgr syntax..."
 php -l "$TARGET_PAGE"
