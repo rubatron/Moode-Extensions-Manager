@@ -92,19 +92,14 @@ else
     $SUDO cp -a "$HEADER_FILE" "$HEADER_FILE.bak-module1-$STAMP"
     $SUDO cp -a "$RB_FILE" "$RB_FILE.bak-module1-$STAMP"
 
-    # Make header section patch tolerant to formatting/quote differences across moOde versions.
-    if ! grep -Eq "\$section\s*==\s*['\"]radio-browser['\"]" "$HEADER_FILE"; then
-        $SUDO php -r '
-$file=$argv[1];
-$src=file_get_contents($file);
-if($src===false){fwrite(STDERR,"read-failed\n"); exit(2);} 
-$patched=preg_replace("/if\s*\(\s*\\$section\s*==\s*([\"\'])index\\1\s*\)/", "if (\\$section == \'index\' || \\$section == \'radio-browser\')", $src, 1, $count);
-if($patched===null){fwrite(STDERR,"regex-failed\n"); exit(3);} 
-if($count===0){fwrite(STDERR,"no-index-section-condition-found\n"); exit(4);} 
-if(file_put_contents($file,$patched)===false){fwrite(STDERR,"write-failed\n"); exit(5);} 
-' "$HEADER_FILE" || {
+    # Make header section patch tolerant to quote-style differences across moOde versions.
+    if ! grep -Eq "\$section[[:space:]]*==[[:space:]]*['\"]radio-browser['\"]" "$HEADER_FILE"; then
+        $SUDO sed -i "s/if (\\$section == 'index')/if (\\$section == 'index' || \\$section == 'radio-browser')/" "$HEADER_FILE" || true
+        $SUDO sed -i 's/if (\$section == "index")/if (\$section == "index" || \$section == "radio-browser")/' "$HEADER_FILE" || true
+
+        if ! grep -Eq "\$section[[:space:]]*==[[:space:]]*['\"]radio-browser['\"]" "$HEADER_FILE"; then
             echo "WARN: Could not patch header.php section condition automatically. Configure modal integration may be degraded." >&2
-        }
+        fi
     fi
 
     if ! grep -q "radio-browser-modal-fix.js" "$RB_FILE"; then
