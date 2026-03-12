@@ -252,6 +252,6 @@ $init = [
     <script>
         window.__EXT_MGR_INIT__ = <?php echo json_encode($init, JSON_UNESCAPED_SLASHES); ?>;
     </script>
-    <script src="assets/js/ext-mgr.js"></script>
+    <script src="/extensions/assets/js/ext-mgr.js"></script>
 </body>
 </html>
