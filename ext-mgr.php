@@ -241,6 +241,10 @@ $init = [
                     <div class="faq-q">Can this manage service-based extensions?</div>
                     <div class="faq-a">Yes, import wizard supports extension service metadata and enable/disable lifecycle hooks.</div>
                 </div>
+                <div class="faq-item">
+                    <div class="faq-q">Can I choose where an extension is visible?</div>
+                    <div class="faq-a">Yes. Each extension now has independent visibility toggles for M menu and Library menu.</div>
+                </div>
             </div>
         </section>
     </div>

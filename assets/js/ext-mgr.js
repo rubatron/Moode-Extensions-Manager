@@ -179,6 +179,26 @@
       .replace(/'/g, '&#39;');
   }
 
+  function getVisibility(item, key) {
+    var visibility = item && item.menuVisibility;
+    if (!visibility || typeof visibility !== 'object') {
+      return true;
+    }
+    return !!visibility[key];
+  }
+
+  function setVisibility(item, key, value) {
+    if (!item.menuVisibility || typeof item.menuVisibility !== 'object') {
+      item.menuVisibility = { m: true, library: true };
+    }
+    item.menuVisibility[key] = !!value;
+  }
+
+  function visibilityLabel(target, visible) {
+    var name = target === 'm' ? 'M menu' : 'Library';
+    return name + ': ' + (visible ? 'On' : 'Off');
+  }
+
   function applyListControls(items) {
     var result = Array.isArray(items) ? items.slice() : [];
     var filter = (listFilterEl && listFilterEl.value) || 'all';
@@ -245,12 +265,16 @@
       var row = document.createElement('div');
       row.className = 'list-item';
 
+      var showInM = getVisibility(item, 'm');
+      var showInLibrary = getVisibility(item, 'library');
+
       var left = document.createElement('div');
       var stateClass = item.enabled ? 'active' : 'inactive';
       var stateLabel = item.enabled ? 'active' : 'inactive';
       left.innerHTML =
         '<div class="list-top"><div class="list-name">' + escapeHtml(item.name || item.id || 'Unnamed extension') + '</div><span class="badge ' + stateClass + '">' + stateLabel + '</span></div>' +
-        '<div class="list-sub">' + escapeHtml(item.path || '#') + '</div>';
+        '<div class="list-sub">' + escapeHtml(item.path || '#') + '</div>' +
+        '<div class="list-sub">Visibility: ' + escapeHtml(visibilityLabel('m', showInM)) + ' | ' + escapeHtml(visibilityLabel('library', showInLibrary)) + '</div>';
 
       var rightWrap = document.createElement('div');
       rightWrap.className = 'item-actions';
@@ -302,9 +326,53 @@
           });
       });
 
+      var menuMBtn = document.createElement('button');
+      menuMBtn.type = 'button';
+      menuMBtn.className = 'btn-muted';
+      menuMBtn.textContent = visibilityLabel('m', showInM);
+      menuMBtn.addEventListener('click', function () {
+        var next = getVisibility(item, 'm') ? '0' : '1';
+        menuMBtn.disabled = true;
+        api({ action: 'set_menu_visibility', id: item.id, menu: 'm', value: next })
+          .then(function () {
+            setVisibility(item, 'm', next === '1');
+            setStatus('M menu visibility updated for ' + (item.name || item.id) + '.', 'ok');
+            runRefresh();
+          })
+          .catch(function (err) {
+            setStatus(err.message, 'error');
+          })
+          .finally(function () {
+            menuMBtn.disabled = false;
+          });
+      });
+
+      var menuLibraryBtn = document.createElement('button');
+      menuLibraryBtn.type = 'button';
+      menuLibraryBtn.className = 'btn-muted';
+      menuLibraryBtn.textContent = visibilityLabel('library', showInLibrary);
+      menuLibraryBtn.addEventListener('click', function () {
+        var next = getVisibility(item, 'library') ? '0' : '1';
+        menuLibraryBtn.disabled = true;
+        api({ action: 'set_menu_visibility', id: item.id, menu: 'library', value: next })
+          .then(function () {
+            setVisibility(item, 'library', next === '1');
+            setStatus('Library visibility updated for ' + (item.name || item.id) + '.', 'ok');
+            runRefresh();
+          })
+          .catch(function (err) {
+            setStatus(err.message, 'error');
+          })
+          .finally(function () {
+            menuLibraryBtn.disabled = false;
+          });
+      });
+
       row.appendChild(left);
       rightWrap.appendChild(pinBtn);
       rightWrap.appendChild(enableBtn);
+      rightWrap.appendChild(menuMBtn);
+      rightWrap.appendChild(menuLibraryBtn);
       row.appendChild(rightWrap);
       listEl.appendChild(row);
     });

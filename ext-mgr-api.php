@@ -876,9 +876,28 @@ function normalizeRegistry($registry) {
         if (!isset($ext['state']) || $ext['state'] === '') {
             $ext['state'] = !empty($ext['enabled']) ? 'active' : 'inactive';
         }
+
+        $legacyM = isset($ext['showInMMenu']) ? (bool)$ext['showInMMenu'] : null;
+        $legacyLibrary = isset($ext['showInLibrary']) ? (bool)$ext['showInLibrary'] : null;
+        if (!isset($ext['menuVisibility']) || !is_array($ext['menuVisibility'])) {
+            $ext['menuVisibility'] = [];
+        }
+        if (!array_key_exists('m', $ext['menuVisibility'])) {
+            $ext['menuVisibility']['m'] = $legacyM !== null ? $legacyM : true;
+        }
+        if (!array_key_exists('library', $ext['menuVisibility'])) {
+            $ext['menuVisibility']['library'] = $legacyLibrary !== null ? $legacyLibrary : true;
+        }
+
         $ext['pinned'] = (bool)$ext['pinned'];
         $ext['enabled'] = (bool)$ext['enabled'];
         $ext['state'] = $ext['enabled'] ? 'active' : 'inactive';
+        $ext['menuVisibility']['m'] = (bool)$ext['menuVisibility']['m'];
+        $ext['menuVisibility']['library'] = (bool)$ext['menuVisibility']['library'];
+
+        // Keep flat compatibility fields for downstream scripts.
+        $ext['showInMMenu'] = $ext['menuVisibility']['m'];
+        $ext['showInLibrary'] = $ext['menuVisibility']['library'];
     }
     unset($ext);
 
@@ -1251,6 +1270,64 @@ if ($action === 'set_enabled') {
     }
 
     echo json_encode(['ok' => true, 'data' => ['id' => $id, 'enabled' => $enabled]], JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+if ($action === 'set_menu_visibility') {
+    $id = (string)($_REQUEST['id'] ?? '');
+    $menu = strtolower(trim((string)($_REQUEST['menu'] ?? '')));
+    $value = (string)($_REQUEST['value'] ?? '1');
+
+    if ($id === '') {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'Missing id']);
+        exit;
+    }
+
+    if ($menu !== 'm' && $menu !== 'library') {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'Invalid menu target. Use m or library.']);
+        exit;
+    }
+
+    $registry = normalizeRegistry(readRegistry($registryPath));
+    $updated = false;
+    $visible = ($value === '1' || strtolower($value) === 'true');
+
+    foreach ($registry['extensions'] as &$ext) {
+        if (($ext['id'] ?? '') === $id) {
+            if (!isset($ext['menuVisibility']) || !is_array($ext['menuVisibility'])) {
+                $ext['menuVisibility'] = ['m' => true, 'library' => true];
+            }
+            $ext['menuVisibility'][$menu] = $visible;
+            $ext['showInMMenu'] = (bool)$ext['menuVisibility']['m'];
+            $ext['showInLibrary'] = (bool)$ext['menuVisibility']['library'];
+            $updated = true;
+            break;
+        }
+    }
+    unset($ext);
+
+    if (!$updated) {
+        http_response_code(404);
+        echo json_encode(['ok' => false, 'error' => 'Extension not found']);
+        exit;
+    }
+
+    if (!writeJsonFile($registryPath, $registry)) {
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'error' => 'Failed to write registry']);
+        exit;
+    }
+
+    echo json_encode([
+        'ok' => true,
+        'data' => [
+            'id' => $id,
+            'menu' => $menu,
+            'visible' => $visible,
+        ],
+    ], JSON_UNESCAPED_SLASHES);
     exit;
 }
 
