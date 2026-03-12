@@ -368,11 +368,32 @@
           });
       });
 
+      var repairSymlinkBtn = document.createElement('button');
+      repairSymlinkBtn.type = 'button';
+      repairSymlinkBtn.className = 'btn-danger';
+      repairSymlinkBtn.textContent = 'Repair Symlink';
+      repairSymlinkBtn.addEventListener('click', function () {
+        repairSymlinkBtn.disabled = true;
+        api({ action: 'repair_symlink', id: item.id })
+          .then(function (data) {
+            var payload = (data && data.data) || {};
+            setStatus('Symlink repaired for ' + (item.name || item.id) + ': ' + (payload.linkPath || 'n/a') + ' -> ' + (payload.targetPath || 'n/a'), 'ok');
+            runRefresh();
+          })
+          .catch(function (err) {
+            setStatus(err.message, 'error');
+          })
+          .finally(function () {
+            repairSymlinkBtn.disabled = false;
+          });
+      });
+
       row.appendChild(left);
       rightWrap.appendChild(pinBtn);
       rightWrap.appendChild(enableBtn);
       rightWrap.appendChild(menuMBtn);
       rightWrap.appendChild(menuLibraryBtn);
+      rightWrap.appendChild(repairSymlinkBtn);
       row.appendChild(rightWrap);
       listEl.appendChild(row);
     });

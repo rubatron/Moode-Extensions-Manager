@@ -936,6 +936,102 @@ function responseData($registryPath, $metaPath, $versionPath, $releasePath) {
     ];
 }
 
+function isValidExtensionId($id) {
+    return is_string($id) && preg_match('/^[a-zA-Z0-9._-]+$/', $id) === 1;
+}
+
+function isSafeRelativeSubPath($path) {
+    if (!is_string($path)) {
+        return false;
+    }
+    $clean = trim(str_replace('\\', '/', $path));
+    if ($clean === '' || substr($clean, 0, 1) === '/' || strpos($clean, '..') !== false) {
+        return false;
+    }
+    return true;
+}
+
+function resolveExtensionEntryFile($extId, $entryPath, &$error) {
+    $error = '';
+    $installedDir = '/var/www/extensions/installed/' . $extId;
+    if (!is_dir($installedDir)) {
+        $error = 'Installed extension directory not found: ' . $installedDir;
+        return null;
+    }
+
+    $candidates = [];
+
+    $manifestPath = $installedDir . '/manifest.json';
+    $manifest = readJsonFile($manifestPath, []);
+    if (is_array($manifest) && isset($manifest['main']) && is_string($manifest['main']) && $manifest['main'] !== '') {
+        $candidates[] = $manifest['main'];
+    }
+
+    if (is_string($entryPath) && trim($entryPath) !== '') {
+        $entryRelative = ltrim(trim(str_replace('\\', '/', $entryPath)), '/');
+        if ($entryRelative !== '') {
+            $candidates[] = $entryRelative;
+            $candidates[] = basename($entryRelative);
+        }
+    }
+
+    $candidates[] = $extId . '.php';
+    $candidates[] = 'index.php';
+
+    $seen = [];
+    foreach ($candidates as $candidate) {
+        $candidate = trim((string)$candidate);
+        if ($candidate === '' || isset($seen[$candidate])) {
+            continue;
+        }
+        $seen[$candidate] = true;
+
+        if (!isSafeRelativeSubPath($candidate)) {
+            continue;
+        }
+
+        $fullPath = $installedDir . '/' . $candidate;
+        if (is_file($fullPath)) {
+            return $fullPath;
+        }
+    }
+
+    $error = 'No entry file found for extension ' . $extId . ' under ' . $installedDir;
+    return null;
+}
+
+function repairExtensionSymlink($extId, $entryPath, &$error) {
+    $error = '';
+    if (!isValidExtensionId($extId)) {
+        $error = 'Invalid extension id.';
+        return null;
+    }
+
+    $targetFile = resolveExtensionEntryFile($extId, $entryPath, $resolveError);
+    if (!is_string($targetFile) || $targetFile === '') {
+        $error = $resolveError;
+        return null;
+    }
+
+    $linkPath = '/var/www/' . $extId . '.php';
+    if (file_exists($linkPath) || is_link($linkPath)) {
+        if (!@unlink($linkPath)) {
+            $error = 'Unable to replace existing link/file at ' . $linkPath;
+            return null;
+        }
+    }
+
+    if (!@symlink($targetFile, $linkPath)) {
+        $error = 'Failed to create symlink ' . $linkPath . ' -> ' . $targetFile . '. Check filesystem permissions.';
+        return null;
+    }
+
+    return [
+        'linkPath' => $linkPath,
+        'targetPath' => $targetFile,
+    ];
+}
+
 if ($action === 'list' || $action === 'refresh') {
     $data = responseData($registryPath, $metaPath, $versionPath, $releasePath);
     echo json_encode(['ok' => true, 'data' => $data], JSON_UNESCAPED_SLASHES);
@@ -1270,6 +1366,51 @@ if ($action === 'set_enabled') {
     }
 
     echo json_encode(['ok' => true, 'data' => ['id' => $id, 'enabled' => $enabled]], JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+if ($action === 'repair_symlink') {
+    $id = (string)($_REQUEST['id'] ?? '');
+    if ($id === '') {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'Missing id']);
+        exit;
+    }
+
+    $registry = normalizeRegistry(readRegistry($registryPath));
+    $entryPath = '';
+    $found = false;
+
+    foreach ($registry['extensions'] as $ext) {
+        if (($ext['id'] ?? '') === $id) {
+            $entryPath = (string)($ext['entry'] ?? '');
+            $found = true;
+            break;
+        }
+    }
+
+    if (!$found) {
+        http_response_code(404);
+        echo json_encode(['ok' => false, 'error' => 'Extension not found']);
+        exit;
+    }
+
+    $repairError = '';
+    $result = repairExtensionSymlink($id, $entryPath, $repairError);
+    if (!is_array($result)) {
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'error' => $repairError !== '' ? $repairError : 'Failed to repair symlink']);
+        exit;
+    }
+
+    echo json_encode([
+        'ok' => true,
+        'data' => [
+            'id' => $id,
+            'linkPath' => $result['linkPath'],
+            'targetPath' => $result['targetPath'],
+        ],
+    ], JSON_UNESCAPED_SLASHES);
     exit;
 }
 
