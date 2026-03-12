@@ -55,13 +55,17 @@ RB_JS_FILE="/var/www/extensions/installed/radio-browser/assets/radio-browser-mod
 
 ACTION="install"
 REPAIR_FROM_MAIN=0
-SKIP_MODULE1=0
+SKIP_MODULE1=1
 REPAIR_TMP_DIR=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --skip-module1)
             SKIP_MODULE1=1
+            shift
+            ;;
+        --with-radio-browser-integration)
+            SKIP_MODULE1=0
             shift
             ;;
         --action)
@@ -226,6 +230,8 @@ Options:
   --repair               Repair local installation using workspace files
   --repair-from-main     Repair installation using files fetched from main branch
   --uninstall            Remove ext-mgr files/symlinks and helpers
+    --with-radio-browser-integration
+                                                 Enable optional radio-browser compatibility patching
   --skip-module1         Skip radio-browser specific module patching
   --help, -h             Show this help
 EOF
@@ -393,23 +399,23 @@ if 'extensions-manager-btn' not in s:
 elif 'extmgr-hover-menu' not in s:
     s = s.replace(ext_btn, '<span class="extmgr-hover-menu" style="position:relative;display:block;width:100%;">' + ext_btn.replace('class="btn extensions-manager-btn menu-separator"', 'class="btn extensions-manager-btn menu-separator" style="width:100%;"') + '<div id="extmgr-hover-panel" style="display:none;position:static;min-width:0;z-index:auto;background:transparent;border:none;box-shadow:none;padding:0 0 4px 0;border-radius:0;"><div id="extmgr-hover-list"></div></div></span>', 1)
 
-# Keep Extensions as second item in Library list: right after Radio.
-radio_start = s.find('<button aria-label="Radio" class="btn radio-view-btn"')
+# Keep Extensions as second item in Library list (after first primary item).
 ext_start = s.find('<span class="extmgr-hover-menu"')
-if radio_start != -1 and ext_start != -1 and ext_start < radio_start:
-    radio_end = s.find('</button>', radio_start)
-    if radio_end != -1:
-        radio_end += len('</button>')
-        ext_end = s.find('</span>', ext_start)
-        if ext_end != -1:
-            ext_end += len('</span>')
+if ext_start != -1:
+    ext_end = s.find('</span>', ext_start)
+    first_button_start = s.find('<button aria-label=')
+    if ext_end != -1 and first_button_start != -1:
+        ext_end += len('</span>')
+        first_button_end = s.find('</button>', first_button_start)
+        if first_button_end != -1:
+            first_button_end += len('</button>')
             ext_block = s[ext_start:ext_end]
             s = s[:ext_start] + s[ext_end:]
-            radio_start = s.find('<button aria-label="Radio" class="btn radio-view-btn"')
-            radio_end = s.find('</button>', radio_start)
-            if radio_end != -1:
-                radio_end += len('</button>')
-                s = s[:radio_end] + ' ' + ext_block + s[radio_end:]
+            first_button_start = s.find('<button aria-label=')
+            first_button_end = s.find('</button>', first_button_start)
+            if first_button_end != -1:
+                first_button_end += len('</button>')
+                s = s[:first_button_end] + ' ' + ext_block + s[first_button_end:]
 
 script_tag = '<script src="/extensions/ext-mgr-hover-menu.js" defer></script>'
 if script_tag not in s:
@@ -658,7 +664,7 @@ if [[ "$SKIP_MODULE1" -eq 1 ]]; then
     if [[ -n "$MODULE1_REASON" ]]; then
         echo "Skipped Module 1 integration: $MODULE1_REASON"
     else
-        echo "Skipped Module 1 integration due to --skip-module1"
+        echo "Skipped Module 1 integration (radio-browser compatibility is out of scope by default)."
     fi
 else
     $SUDO cp -a "$HEADER_FILE" "$HEADER_FILE.bak-module1-$STAMP"

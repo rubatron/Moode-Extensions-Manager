@@ -18,6 +18,7 @@
 - [ ] Remove/retire legacy pin API endpoint after compatibility window.
 - [ ] Add migration command to normalize old registry records in-place.
 - [ ] Add extension health badges (symlink ok, entry exists, info found).
+- [ ] Long-term: add certified marketplace view and Store tab in ext-mgr (planning only, no current implementation).
 
 ## Notes
 - Active registry booleans:

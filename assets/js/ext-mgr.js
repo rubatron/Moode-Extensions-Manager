@@ -133,6 +133,19 @@
     setText(settingsCardCountEl, String(health.settingsCardCount || 0));
   }
 
+  function providerStatusFromPolicy(policy) {
+    var p = policy || {};
+    return {
+      updateTrack: p.updateTrack || 'channel',
+      channel: p.channel || 'dev',
+      branch: p.branch || 'main',
+      availableBranches: p.availableBranches || ['main', 'dev'],
+      signatureVerification: p.signatureVerification || 'planned',
+      checksumAlgorithm: p.checksumAlgorithm || 'sha256',
+      integrityManifestPath: p.integrityManifestPath || 'ext-mgr.integrity.json'
+    };
+  }
+
   function buildIntegrityText(integrity, providerStatus) {
     var mode = (providerStatus && providerStatus.signatureVerification) || (integrity && integrity.mode) || 'n/a';
     var algorithm = (providerStatus && providerStatus.checksumAlgorithm) || (integrity && integrity.algorithm) || 'n/a';
@@ -401,9 +414,10 @@
 
       var enableBtn = document.createElement('button');
       enableBtn.type = 'button';
+      enableBtn.className = 'btn btn-small';
       enableBtn.textContent = item.enabled ? 'Disable' : 'Enable';
       if (!item.enabled) {
-        enableBtn.className = 'btn-accent';
+        enableBtn.className += ' btn-primary';
       }
       enableBtn.addEventListener('click', function () {
         if (item.enabled) {
@@ -430,6 +444,7 @@
 
       var menuMBtn = document.createElement('button');
       menuMBtn.type = 'button';
+      menuMBtn.className = 'btn btn-small';
       applyVisibilityButtonState(menuMBtn, 'm', showInM);
       menuMBtn.addEventListener('click', function () {
         var next = getVisibility(item, 'm') ? '0' : '1';
@@ -451,6 +466,7 @@
 
       var menuLibraryBtn = document.createElement('button');
       menuLibraryBtn.type = 'button';
+      menuLibraryBtn.className = 'btn btn-small';
       applyVisibilityButtonState(menuLibraryBtn, 'library', showInLibrary);
       menuLibraryBtn.addEventListener('click', function () {
         var next = getVisibility(item, 'library') ? '0' : '1';
@@ -472,6 +488,7 @@
 
       var settingsCardBtn = document.createElement('button');
       settingsCardBtn.type = 'button';
+      settingsCardBtn.className = 'btn btn-small';
       applySettingsCardButtonState(settingsCardBtn, getSettingsCardOnly(item));
       settingsCardBtn.addEventListener('click', function () {
         var next = getSettingsCardOnly(item) ? '0' : '1';
@@ -493,7 +510,7 @@
 
       var repairSymlinkBtn = document.createElement('button');
       repairSymlinkBtn.type = 'button';
-      repairSymlinkBtn.className = 'btn-danger';
+      repairSymlinkBtn.className = 'btn btn-small btn-danger';
       repairSymlinkBtn.textContent = 'Repair Symlink';
       repairSymlinkBtn.addEventListener('click', function () {
         repairSymlinkBtn.disabled = true;
@@ -528,6 +545,7 @@
       .then(function (data) {
         renderMeta(data.data.meta || {});
         renderHealth(data.data.health || {});
+        renderAdvancedUpdateControls(providerStatusFromPolicy(data.data.releasePolicy || {}), null);
         allItems = (data.data && data.data.extensions) || [];
         renderItems(allItems);
         setStatus('Loaded manager status and ' + allItems.length + ' extension(s).', 'ok');
@@ -543,6 +561,7 @@
       .then(function (data) {
         renderMeta(data.data.meta || {});
         renderHealth(data.data.health || {});
+        renderAdvancedUpdateControls(providerStatusFromPolicy(data.data.releasePolicy || {}), null);
         allItems = (data.data && data.data.extensions) || [];
         renderItems(allItems);
         setStatus('Refresh complete.', 'ok');
@@ -733,8 +752,19 @@
     renderItems(allItems);
   });
 
+  document.querySelectorAll('.extmgr-collapse').forEach(function (detailsEl) {
+    var summary = detailsEl.querySelector('summary');
+    if (!summary) {
+      return;
+    }
+    summary.addEventListener('click', function (evt) {
+      evt.preventDefault();
+      detailsEl.open = !detailsEl.open;
+    });
+  });
+
   loadStatusAndList().then(function () {
     setRunUpdateButtonState();
-    runCheckUpdate();
+    setStatus('Ready. Click Check Update when needed.', 'ok');
   });
 })();

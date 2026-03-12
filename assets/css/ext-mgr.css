@@ -49,6 +49,7 @@
 }
 
 .extmgr-collapse summary {
+  display: list-item !important;
   cursor: pointer;
   color: #b9c0c9;
   font-size: 0.86rem;
@@ -220,11 +221,7 @@
 }
 
 .visibility-toggle {
-  border: 1px solid rgba(128, 128, 128, 0.35);
-  border-radius: 4px;
-  padding: 0.2rem 0.55rem;
-  font-size: 0.8rem;
-  line-height: 1.5;
+  min-width: 132px;
 }
 
 .visibility-toggle.is-on {
