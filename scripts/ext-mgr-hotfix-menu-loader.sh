@@ -11,6 +11,12 @@ INDEX_TEMPLATE_FILE="/var/www/templates/indextpl.min.html"
 HEADER_FILE="/var/www/header.php"
 FOOTER_MIN_FILE="/var/www/footer.min.php"
 FOOTER_FILE="/var/www/footer.php"
+INDEX_PHP_FILE="/var/www/index.php"
+ALT_INDEX_TEMPLATE_FILE="/var/local/www/templates/indextpl.min.html"
+ALT_HEADER_FILE="/var/local/www/header.php"
+ALT_FOOTER_MIN_FILE="/var/local/www/footer.min.php"
+ALT_FOOTER_FILE="/var/local/www/footer.php"
+ALT_INDEX_PHP_FILE="/var/local/www/index.php"
 GUARD_JS="/var/www/extensions/sys/assets/js/ext-mgr-configure-modal-guard.js"
 HOVER_SCRIPT_TAG='<script src="/extensions/sys/assets/js/ext-mgr-hover-menu.js" defer></script>'
 GUARD_SCRIPT_TAG='<script src="/extensions/sys/assets/js/ext-mgr-configure-modal-guard.js" defer></script>'
@@ -116,12 +122,24 @@ restore_latest_hotfix_backup_if_present "$INDEX_TEMPLATE_FILE"
 restore_latest_hotfix_backup_if_present "$HEADER_FILE"
 restore_latest_hotfix_backup_if_present "$FOOTER_MIN_FILE"
 restore_latest_hotfix_backup_if_present "$FOOTER_FILE"
+restore_latest_hotfix_backup_if_present "$INDEX_PHP_FILE"
+restore_latest_hotfix_backup_if_present "$ALT_INDEX_TEMPLATE_FILE"
+restore_latest_hotfix_backup_if_present "$ALT_HEADER_FILE"
+restore_latest_hotfix_backup_if_present "$ALT_FOOTER_MIN_FILE"
+restore_latest_hotfix_backup_if_present "$ALT_FOOTER_FILE"
+restore_latest_hotfix_backup_if_present "$ALT_INDEX_PHP_FILE"
 
 echo "[2/6] backup current files"
 backup_if_exists "$INDEX_TEMPLATE_FILE"
 backup_if_exists "$HEADER_FILE"
 backup_if_exists "$FOOTER_MIN_FILE"
 backup_if_exists "$FOOTER_FILE"
+backup_if_exists "$INDEX_PHP_FILE"
+backup_if_exists "$ALT_INDEX_TEMPLATE_FILE"
+backup_if_exists "$ALT_HEADER_FILE"
+backup_if_exists "$ALT_FOOTER_MIN_FILE"
+backup_if_exists "$ALT_FOOTER_FILE"
+backup_if_exists "$ALT_INDEX_PHP_FILE"
 
 echo "[3/6] write configure modal guard js"
 write_configure_guard_js
@@ -131,6 +149,24 @@ inject_scripts_safe "$INDEX_TEMPLATE_FILE"
 inject_scripts_safe "$HEADER_FILE"
 inject_scripts_safe "$FOOTER_MIN_FILE"
 inject_scripts_safe "$FOOTER_FILE"
+inject_scripts_safe "$INDEX_PHP_FILE"
+inject_scripts_safe "$ALT_INDEX_TEMPLATE_FILE"
+inject_scripts_safe "$ALT_HEADER_FILE"
+inject_scripts_safe "$ALT_FOOTER_MIN_FILE"
+inject_scripts_safe "$ALT_FOOTER_FILE"
+inject_scripts_safe "$ALT_INDEX_PHP_FILE"
+
+if command -v systemctl >/dev/null 2>&1; then
+  $SUDO systemctl reload nginx 2>/dev/null || true
+  $SUDO systemctl reload apache2 2>/dev/null || true
+fi
+
+if command -v php >/dev/null 2>&1; then
+  $SUDO systemctl reload php8.3-fpm 2>/dev/null || true
+  $SUDO systemctl reload php8.2-fpm 2>/dev/null || true
+  $SUDO systemctl reload php8.1-fpm 2>/dev/null || true
+  $SUDO systemctl reload php-fpm 2>/dev/null || true
+fi
 
 echo "[5/6] quick verify"
 if command -v curl >/dev/null 2>&1; then
@@ -145,6 +181,15 @@ if command -v curl >/dev/null 2>&1; then
   else
     echo "WARN: configure modal guard script not visible in homepage output"
   fi
+
+  echo "debug: files containing moOde Player marker"
+  grep -RIl "moOde Player" /var/www /var/local/www 2>/dev/null | head -n 10 || true
+
+  echo "debug: files containing injected hover helper"
+  grep -RIl "ext-mgr-hover-menu.js" /var/www /var/local/www 2>/dev/null | head -n 20 || true
+
+  echo "debug: active homepage script hits"
+  curl -s http://localhost/ | grep -n "ext-mgr-hover-menu.js\|ext-mgr-configure-modal-guard.js\|configure-modal" | head -n 20 || true
 else
   echo "INFO: curl not available, skipped HTTP verify"
 fi
