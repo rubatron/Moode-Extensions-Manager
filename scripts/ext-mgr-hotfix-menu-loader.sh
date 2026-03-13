@@ -11,7 +11,9 @@ INDEX_TEMPLATE_FILE="/var/www/templates/indextpl.min.html"
 HEADER_FILE="/var/www/header.php"
 FOOTER_MIN_FILE="/var/www/footer.min.php"
 FOOTER_FILE="/var/www/footer.php"
-SCRIPT_TAG='<script src="/extensions/sys/assets/js/ext-mgr-hover-menu.js" defer></script>'
+GUARD_JS="/var/www/extensions/sys/assets/js/ext-mgr-configure-modal-guard.js"
+HOVER_SCRIPT_TAG='<script src="/extensions/sys/assets/js/ext-mgr-hover-menu.js" defer></script>'
+GUARD_SCRIPT_TAG='<script src="/extensions/sys/assets/js/ext-mgr-configure-modal-guard.js" defer></script>'
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
 backup_if_exists() {
@@ -21,16 +23,66 @@ backup_if_exists() {
   fi
 }
 
-patch_with_python() {
+restore_latest_hotfix_backup_if_present() {
+  local f="$1"
+  local latest
+  latest="$(ls -1t "$f".bak-extmgr-hotfix-* 2>/dev/null | head -n 1 || true)"
+  if [[ -n "$latest" && -f "$latest" ]]; then
+    echo "restoring latest backup for $f from $latest"
+    $SUDO cp -a "$latest" "$f"
+  fi
+}
+
+write_configure_guard_js() {
+  $SUDO mkdir -p "$(dirname "$GUARD_JS")"
+  cat <<'JS' | $SUDO tee "$GUARD_JS" >/dev/null
+(function (window, document) {
+  'use strict';
+
+  function openConfigureModal(e) {
+    var modal = document.getElementById('configure-modal');
+    if (!modal) {
+      return;
+    }
+
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    if (window.jQuery && window.jQuery.fn && window.jQuery.fn.modal) {
+      window.jQuery(modal).removeClass('hide').modal('show');
+      return;
+    }
+
+    modal.classList.remove('hide');
+    modal.style.display = 'block';
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('modal-open');
+  }
+
+  document.addEventListener('click', function (e) {
+    var t = e.target && e.target.closest
+      ? e.target.closest('a[href="#configure-modal"], a[href*="configure-modal"], [data-target="#configure-modal"], [href*="open-configure"]')
+      : null;
+    if (!t) {
+      return;
+    }
+    openConfigureModal(e);
+  }, true);
+})(window, document);
+JS
+  $SUDO chmod 0644 "$GUARD_JS"
+}
+
+inject_scripts_safe() {
   local target="$1"
-  local mode="$2"
-  $SUDO python3 - "$target" "$mode" "$SCRIPT_TAG" <<'PY'
+  $SUDO python3 - "$target" "$HOVER_SCRIPT_TAG" "$GUARD_SCRIPT_TAG" <<'PY'
 from pathlib import Path
 import sys
 
 path = Path(sys.argv[1])
-mode = sys.argv[2]
-script_tag = sys.argv[3]
+tags = [sys.argv[2], sys.argv[3]]
 
 if not path.exists():
     print(f"skip missing: {path}")
@@ -39,34 +91,17 @@ if not path.exists():
 s = path.read_text(encoding='utf-8', errors='ignore')
 orig = s
 
-if mode == 'index':
-    if script_tag not in s:
-        anchor = '</span> <button aria-label="Folder" class="btn folder-view-btn" href="#library-panel">'
-        if anchor in s:
-            s = s.replace(anchor, '</span> ' + script_tag + ' <button aria-label="Folder" class="btn folder-view-btn" href="#library-panel">', 1)
-        elif '</body>' in s:
-            s = s.replace('</body>', script_tag + '\n</body>', 1)
-        else:
-            s += '\n' + script_tag + '\n'
-elif mode == 'header':
-    if script_tag not in s:
-        nav_anchor = '</div><!--main-menu-->'
-        if nav_anchor in s:
-            s = s.replace(nav_anchor, script_tag + '\n' + nav_anchor, 1)
-        elif '</head>' in s:
-            s = s.replace('</head>', script_tag + '\n</head>', 1)
-        elif '</body>' in s:
-            s = s.replace('</body>', script_tag + '\n</body>', 1)
-        else:
-            s += '\n' + script_tag + '\n'
-elif mode == 'footer':
-    if script_tag not in s:
-        if '</body>' in s:
-            s = s.replace('</body>', script_tag + '\n</body>', 1)
-        elif '</html>' in s:
-            s = s.replace('</html>', script_tag + '\n</html>', 1)
-        else:
-            s += '\n' + script_tag + '\n'
+for tag in tags:
+    if tag in s:
+        continue
+    if '</body>' in s:
+        s = s.replace('</body>', tag + '\n</body>', 1)
+    elif '</html>' in s:
+        s = s.replace('</html>', tag + '\n</html>', 1)
+    elif '</head>' in s:
+        s = s.replace('</head>', tag + '\n</head>', 1)
+    else:
+        s += '\n' + tag + '\n'
 
 if s != orig:
     path.write_text(s, encoding='utf-8')
@@ -76,31 +111,42 @@ else:
 PY
 }
 
-echo "[1/5] backup relevant files"
+echo "[1/6] restore prior hotfix backup where available (safe rollback)"
+restore_latest_hotfix_backup_if_present "$INDEX_TEMPLATE_FILE"
+restore_latest_hotfix_backup_if_present "$HEADER_FILE"
+restore_latest_hotfix_backup_if_present "$FOOTER_MIN_FILE"
+restore_latest_hotfix_backup_if_present "$FOOTER_FILE"
+
+echo "[2/6] backup current files"
 backup_if_exists "$INDEX_TEMPLATE_FILE"
 backup_if_exists "$HEADER_FILE"
 backup_if_exists "$FOOTER_MIN_FILE"
 backup_if_exists "$FOOTER_FILE"
 
-echo "[2/5] patch index template"
-patch_with_python "$INDEX_TEMPLATE_FILE" "index"
+echo "[3/6] write configure modal guard js"
+write_configure_guard_js
 
-echo "[3/5] patch header"
-patch_with_python "$HEADER_FILE" "header"
+echo "[4/6] inject helper scripts safely into shell files"
+inject_scripts_safe "$INDEX_TEMPLATE_FILE"
+inject_scripts_safe "$HEADER_FILE"
+inject_scripts_safe "$FOOTER_MIN_FILE"
+inject_scripts_safe "$FOOTER_FILE"
 
-echo "[4/5] patch footers"
-patch_with_python "$FOOTER_MIN_FILE" "footer"
-patch_with_python "$FOOTER_FILE" "footer"
-
-echo "[5/5] quick verify"
+echo "[5/6] quick verify"
 if command -v curl >/dev/null 2>&1; then
   if curl -s http://localhost/ | grep -q 'ext-mgr-hover-menu.js'; then
-    echo "OK: helper script visible in homepage output"
+    echo "OK: hover helper script visible in homepage output"
   else
-    echo "WARN: helper script not found in homepage output yet (cache or moode variant)"
+    echo "WARN: hover helper script still not visible in homepage output"
+  fi
+
+  if curl -s http://localhost/ | grep -q 'ext-mgr-configure-modal-guard.js'; then
+    echo "OK: configure modal guard script visible in homepage output"
+  else
+    echo "WARN: configure modal guard script not visible in homepage output"
   fi
 else
   echo "INFO: curl not available, skipped HTTP verify"
 fi
 
-echo "done"
+echo "[6/6] done"
