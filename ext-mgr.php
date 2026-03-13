@@ -174,8 +174,71 @@ if (file_exists('/var/www/header.php')) {
                             <div class="extmgr-text-row"><span class="extmgr-text-label">Inactive</span><span id="inactive-count" class="extmgr-text-value">-</span></div>
                             <div class="extmgr-text-row"><span class="extmgr-text-label">M Menu Visible</span><span id="m-visible-count" class="extmgr-text-value">-</span></div>
                             <div class="extmgr-text-row"><span class="extmgr-text-label">Library Visible</span><span id="library-visible-count" class="extmgr-text-value">-</span></div>
+                            <div class="extmgr-text-row"><span class="extmgr-text-label">System Menu Visible</span><span id="system-visible-count" class="extmgr-text-value">-</span></div>
                             <div class="extmgr-text-row"><span class="extmgr-text-label">Settings Card Mode</span><span id="settings-card-count" class="extmgr-text-value">-</span></div>
                             <div class="extmgr-text-row"><span class="extmgr-text-label">ext-mgr RAM %</span><span id="service-mem-pct" class="extmgr-text-value">-</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="extmgr-submenu" id="submenu-system-resources">
+                    <button class="extmgr-submenu-header" type="button" data-submenu-toggle aria-expanded="false">
+                        <span>System Resources</span>
+                        <i class="fa-solid fa-angle-down" aria-hidden="true"></i>
+                    </button>
+                    <div class="extmgr-submenu-body">
+                        <div class="extmgr-text-list">
+                            <div class="extmgr-text-row"><span class="extmgr-text-label">CPU Usage (sampled)</span><span id="resource-cpu-usage" class="extmgr-text-value">-</span></div>
+                            <div class="extmgr-text-row"><span class="extmgr-text-label">Load Average (1/5/15)</span><span id="resource-load-avg" class="extmgr-text-value">-</span></div>
+                            <div class="extmgr-text-row"><span class="extmgr-text-label">Memory Used</span><span id="resource-memory-used" class="extmgr-text-value">-</span></div>
+                            <div class="extmgr-text-row"><span class="extmgr-text-label">Memory Available</span><span id="resource-memory-available" class="extmgr-text-value">-</span></div>
+                            <div class="extmgr-text-row"><span class="extmgr-text-label">Disk / (used / total)</span><span id="resource-disk-root" class="extmgr-text-value">-</span></div>
+                            <div class="extmgr-text-row"><span class="extmgr-text-label">Disk /var/www/extensions</span><span id="resource-disk-extensions" class="extmgr-text-value">-</span></div>
+                            <div class="extmgr-text-row"><span class="extmgr-text-label">ext-mgr Process Memory</span><span id="resource-extmgr-mem" class="extmgr-text-value">-</span></div>
+                            <div class="extmgr-text-row"><span class="extmgr-text-label">Extensions Runtime Memory</span><span id="resource-extensions-mem" class="extmgr-text-value">-</span></div>
+                            <div class="extmgr-text-row"><span class="extmgr-text-label">Extensions Storage Footprint</span><span id="resource-extensions-storage" class="extmgr-text-value">-</span></div>
+                        </div>
+                        <div id="resource-extension-top" class="extmgr-note">Top extension memory consumers: loading...</div>
+                        <div id="resource-requirements-note" class="extmgr-note">Requirements: collecting...</div>
+                        <div class="extmgr-actions">
+                            <button id="refresh-resources-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-gauge"></i> Refresh Resources</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="extmgr-submenu" id="submenu-maintenance-storage">
+                    <button class="extmgr-submenu-header" type="button" data-submenu-toggle aria-expanded="false">
+                        <span>Maintenance and Storage</span>
+                        <i class="fa-solid fa-angle-down" aria-hidden="true"></i>
+                    </button>
+                    <div class="extmgr-submenu-body">
+                        <div class="extmgr-text-list">
+                            <div class="extmgr-text-row"><span class="extmgr-text-label">Cache Directory</span><span id="cache-dir-path" class="extmgr-text-value">-</span></div>
+                            <div class="extmgr-text-row"><span class="extmgr-text-label">Cache Usage</span><span id="cache-dir-usage" class="extmgr-text-value">-</span></div>
+                            <div class="extmgr-text-row"><span class="extmgr-text-label">Backup Directory</span><span id="backup-dir-path" class="extmgr-text-value">-</span></div>
+                            <div class="extmgr-text-row"><span class="extmgr-text-label">Backup Snapshots</span><span id="backup-dir-count" class="extmgr-text-value">-</span></div>
+                            <div class="extmgr-text-row"><span class="extmgr-text-label">Latest Backup</span><span id="backup-latest" class="extmgr-text-value">-</span></div>
+                        </div>
+                        <div class="extmgr-actions">
+                            <button id="create-backup-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-box-archive"></i> Create Backup Snapshot</button>
+                            <button id="clear-cache-btn" class="btn btn-small btn-danger" type="button"><i class="fa-solid fa-sharp fa-trash"></i> Clear Cache Folder</button>
+                        </div>
+                        <div id="maintenance-storage-note" class="extmgr-note">Cache path: /var/www/extensions/cache. Backups are stored in /var/www/extensions/sys/backup.</div>
+
+                        <div class="extmgr-submenu" id="submenu-manager-visibility">
+                            <button class="extmgr-submenu-header" type="button" data-submenu-toggle aria-expanded="false">
+                                <span>Extension Manager Visibility</span>
+                                <i class="fa-solid fa-angle-down" aria-hidden="true"></i>
+                            </button>
+                            <div class="extmgr-submenu-body">
+                                <p class="config-help-static extmgr-help">Hide/unhide ext-mgr itself in moOde menu areas without disabling the API endpoint.</p>
+                                <div class="extmgr-actions">
+                                    <button id="manager-visibility-header-btn" class="btn btn-small visibility-toggle" type="button">Header: Visible</button>
+                                    <button id="manager-visibility-library-btn" class="btn btn-small visibility-toggle" type="button">Library: Visible</button>
+                                    <button id="manager-visibility-system-btn" class="btn btn-small visibility-toggle" type="button">System: Visible</button>
+                                </div>
+                                <div id="manager-visibility-note" class="extmgr-note">Changes apply on next menu render and page refresh.</div>
+                            </div>
                         </div>
                     </div>
                 </div>

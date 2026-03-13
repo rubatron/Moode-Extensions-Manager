@@ -13,8 +13,30 @@
   var inactiveCountEl = document.getElementById('inactive-count');
   var mVisibleCountEl = document.getElementById('m-visible-count');
   var libraryVisibleCountEl = document.getElementById('library-visible-count');
+  var systemVisibleCountEl = document.getElementById('system-visible-count');
   var settingsCardCountEl = document.getElementById('settings-card-count');
   var serviceMemPctEl = document.getElementById('service-mem-pct');
+  var resourceCpuUsageEl = document.getElementById('resource-cpu-usage');
+  var resourceLoadAvgEl = document.getElementById('resource-load-avg');
+  var resourceMemoryUsedEl = document.getElementById('resource-memory-used');
+  var resourceMemoryAvailableEl = document.getElementById('resource-memory-available');
+  var resourceDiskRootEl = document.getElementById('resource-disk-root');
+  var resourceDiskExtensionsEl = document.getElementById('resource-disk-extensions');
+  var resourceExtmgrMemEl = document.getElementById('resource-extmgr-mem');
+  var resourceExtensionsMemEl = document.getElementById('resource-extensions-mem');
+  var resourceExtensionsStorageEl = document.getElementById('resource-extensions-storage');
+  var resourceExtensionTopEl = document.getElementById('resource-extension-top');
+  var resourceRequirementsNoteEl = document.getElementById('resource-requirements-note');
+  var cacheDirPathEl = document.getElementById('cache-dir-path');
+  var cacheDirUsageEl = document.getElementById('cache-dir-usage');
+  var backupDirPathEl = document.getElementById('backup-dir-path');
+  var backupDirCountEl = document.getElementById('backup-dir-count');
+  var backupLatestEl = document.getElementById('backup-latest');
+  var maintenanceStorageNoteEl = document.getElementById('maintenance-storage-note');
+  var managerVisibilityHeaderBtn = document.getElementById('manager-visibility-header-btn');
+  var managerVisibilityLibraryBtn = document.getElementById('manager-visibility-library-btn');
+  var managerVisibilitySystemBtn = document.getElementById('manager-visibility-system-btn');
+  var managerVisibilityNoteEl = document.getElementById('manager-visibility-note');
 
   var metaVersionEl = document.getElementById('meta-version');
   var metaCreatorEl = document.getElementById('meta-creator');
@@ -35,6 +57,9 @@
   var runUpdateBtn = document.getElementById('run-update-btn');
   var systemUpdateBtn = document.getElementById('system-update-btn');
   var repairBtn = document.getElementById('repair-btn');
+  var refreshResourcesBtn = document.getElementById('refresh-resources-btn');
+  var createBackupBtn = document.getElementById('create-backup-btn');
+  var clearCacheBtn = document.getElementById('clear-cache-btn');
   var syncRegistryBtn = document.getElementById('sync-registry-btn');
   var importExtensionFileEl = document.getElementById('import-extension-file');
   var importExtensionFileNameEl = document.getElementById('import-extension-file-name');
@@ -61,6 +86,11 @@
   var advancedUpdateState = {
     mode: 'main',
     customUrl: ''
+  };
+  var managerVisibilityState = {
+    header: true,
+    library: true,
+    system: true
   };
   var currentProviderStatus = {
     provider: 'github',
@@ -202,6 +232,111 @@
     el.textContent = value;
   }
 
+  function asMiB(value) {
+    if (typeof value !== 'number' || !isFinite(value)) {
+      return 'n/a';
+    }
+    return value.toFixed(2) + ' MiB';
+  }
+
+  function asPercent(value) {
+    if (typeof value !== 'number' || !isFinite(value)) {
+      return 'n/a';
+    }
+    return value.toFixed(2) + '%';
+  }
+
+  function asBytes(value) {
+    if (typeof value !== 'number' || !isFinite(value) || value < 0) {
+      return 'n/a';
+    }
+    var units = ['B', 'KiB', 'MiB', 'GiB', 'TiB'];
+    var size = value;
+    var idx = 0;
+    while (size >= 1024 && idx < units.length - 1) {
+      size /= 1024;
+      idx += 1;
+    }
+    return size.toFixed(idx === 0 ? 0 : 2) + ' ' + units[idx];
+  }
+
+  function applyManagerVisibilityButtonState(button, area, visible) {
+    if (!button) {
+      return;
+    }
+    button.classList.remove('is-on', 'is-off');
+    button.classList.add(visible ? 'is-on' : 'is-off');
+    button.textContent = area + ': ' + (visible ? 'Visible' : 'Hidden');
+  }
+
+  function renderManagerVisibility(visibility) {
+    var v = visibility || {};
+    managerVisibilityState.header = v.header !== false;
+    managerVisibilityState.library = v.library !== false;
+    managerVisibilityState.system = v.system !== false;
+
+    applyManagerVisibilityButtonState(managerVisibilityHeaderBtn, 'Header', managerVisibilityState.header);
+    applyManagerVisibilityButtonState(managerVisibilityLibraryBtn, 'Library', managerVisibilityState.library);
+    applyManagerVisibilityButtonState(managerVisibilitySystemBtn, 'System', managerVisibilityState.system);
+  }
+
+  function renderMaintenanceStatus(maintenance) {
+    var m = maintenance || {};
+    var cache = m.cache || {};
+    var backup = m.backup || {};
+
+    setText(cacheDirPathEl, cache.path || '/var/www/extensions/cache');
+    setText(cacheDirUsageEl, asBytes(cache.bytes || 0) + ' in ' + String(cache.fileCount || 0) + ' files');
+    setText(backupDirPathEl, backup.path || '/var/www/extensions/sys/backup');
+    setText(backupDirCountEl, String(backup.snapshotCount || 0));
+    setText(backupLatestEl, backup.latest || 'none');
+  }
+
+  function renderSystemResources(resources) {
+    var r = resources || {};
+    var cpu = r.cpu || {};
+    var load = r.load || {};
+    var memory = r.memory || {};
+    var disk = r.disk || {};
+    var extmgr = r.extMgr || {};
+    var extensions = r.extensions || {};
+    var runtime = extensions.runtimeMemory || {};
+    var top = Array.isArray(runtime.topConsumers) ? runtime.topConsumers : [];
+
+    setText(resourceCpuUsageEl, asPercent(cpu.usagePct));
+    setText(resourceLoadAvgEl, (typeof load.one === 'number' ? load.one.toFixed(2) : 'n/a') + ' / ' + (typeof load.five === 'number' ? load.five.toFixed(2) : 'n/a') + ' / ' + (typeof load.fifteen === 'number' ? load.fifteen.toFixed(2) : 'n/a'));
+    setText(resourceMemoryUsedEl, asMiB(memory.usedMiB) + ' (' + asPercent(memory.usedPct) + ')');
+    setText(resourceMemoryAvailableEl, asMiB(memory.availableMiB));
+
+    var rootDisk = disk.root || {};
+    var extDisk = disk.extensions || {};
+    setText(resourceDiskRootEl, asBytes(rootDisk.usedBytes) + ' / ' + asBytes(rootDisk.totalBytes) + ' (' + asPercent(rootDisk.usedPct) + ')');
+    setText(resourceDiskExtensionsEl, asBytes(extDisk.usedBytes) + ' / ' + asBytes(extDisk.totalBytes) + ' (' + asPercent(extDisk.usedPct) + ')');
+
+    setText(resourceExtmgrMemEl, asMiB(extmgr.memoryMiB) + ' (' + asPercent(extmgr.memoryPctOfSystem) + ')');
+    setText(resourceExtensionsMemEl, asMiB(runtime.totalMiB) + ' via ' + String(runtime.method || 'n/a'));
+
+    var storage = extensions.storage || {};
+    setText(resourceExtensionsStorageEl, asBytes(storage.totalBytes) + ' across ' + String(storage.extensionCount || 0) + ' extension(s)');
+
+    if (resourceExtensionTopEl) {
+      if (top.length === 0) {
+        resourceExtensionTopEl.textContent = 'Top extension memory consumers: no runtime processes detected.';
+      } else {
+        resourceExtensionTopEl.textContent = 'Top extension memory consumers: ' + top.map(function (row) {
+          return String(row.id || 'unknown') + ' (' + asMiB(row.memoryMiB) + ')';
+        }).join(', ');
+      }
+    }
+
+    if (resourceRequirementsNoteEl) {
+      var req = runtime.requirements || [];
+      resourceRequirementsNoteEl.textContent = req.length
+        ? ('Requirements for accurate per-extension memory: ' + req.join(' | '))
+        : 'Runtime process matching is active.';
+    }
+  }
+
   function renderMeta(meta) {
     if (!meta) {
       return;
@@ -219,6 +354,7 @@
     var srcVersion = src.currentVersionFile || 'n/a';
     var srcRelease = src.releasePolicyFile || 'n/a';
     setText(maintenanceLogEl, 'lastAction=' + lastAction + '\nlastResult=' + lastResult + '\nlastRunAt=' + lastRun + '\nversionSource=' + srcVersion + '\nreleaseSource=' + srcRelease);
+    renderManagerVisibility(meta.managerVisibility || {});
   }
 
   function renderHealth(health) {
@@ -232,6 +368,7 @@
     setText(inactiveCountEl, String(health.inactiveCount || 0));
     setText(mVisibleCountEl, String(health.mVisibleCount || 0));
     setText(libraryVisibleCountEl, String(health.libraryVisibleCount || 0));
+    setText(systemVisibleCountEl, String(health.systemVisibleCount || 0));
     setText(settingsCardCountEl, String(health.settingsCardCount || 0));
     if (serviceMemPctEl) {
       var memPct = health.serviceMemoryPctOfSystem;
@@ -592,18 +729,21 @@
     if (!visibility || typeof visibility !== 'object') {
       return true;
     }
+    if (!Object.prototype.hasOwnProperty.call(visibility, key)) {
+      return true;
+    }
     return !!visibility[key];
   }
 
   function setVisibility(item, key, value) {
     if (!item.menuVisibility || typeof item.menuVisibility !== 'object') {
-      item.menuVisibility = { m: true, library: true };
+      item.menuVisibility = { m: true, library: true, system: true };
     }
     item.menuVisibility[key] = !!value;
   }
 
   function visibilityLabel(target, visible) {
-    var name = target === 'm' ? 'M menu' : 'Library menu';
+    var name = target === 'm' ? 'M menu' : (target === 'library' ? 'Library menu' : 'System menu');
     return name + ': ' + (visible ? 'Visible' : 'Hidden');
   }
 
@@ -682,8 +822,8 @@
       });
     } else if (sort === 'visibility') {
       result.sort(function (a, b) {
-        var scoreA = (getVisibility(a, 'm') ? 1 : 0) + (getVisibility(a, 'library') ? 1 : 0);
-        var scoreB = (getVisibility(b, 'm') ? 1 : 0) + (getVisibility(b, 'library') ? 1 : 0);
+        var scoreA = (getVisibility(a, 'm') ? 1 : 0) + (getVisibility(a, 'library') ? 1 : 0) + (getVisibility(a, 'system') ? 1 : 0);
+        var scoreB = (getVisibility(b, 'm') ? 1 : 0) + (getVisibility(b, 'library') ? 1 : 0) + (getVisibility(b, 'system') ? 1 : 0);
         if (scoreA === scoreB) {
           return String(a.name || a.id).localeCompare(String(b.name || b.id));
         }
@@ -722,6 +862,7 @@
 
       var showInM = getVisibility(item, 'm');
       var showInLibrary = getVisibility(item, 'library');
+      var showInSystem = getVisibility(item, 'system');
 
       var left = document.createElement('div');
       var stateClass = item.enabled ? 'active' : 'inactive';
@@ -729,7 +870,7 @@
       left.innerHTML =
         '<div class="list-top"><div class="list-name">' + escapeHtml(item.name || item.id || 'Unnamed extension') + '</div><span class="badge ' + stateClass + '">' + stateLabel + '</span></div>' +
         '<div class="list-sub">' + escapeHtml(item.path || '#') + '</div>' +
-        '<div class="list-sub">Visibility: ' + escapeHtml(visibilityLabel('m', showInM)) + ' | ' + escapeHtml(visibilityLabel('library', showInLibrary)) + '</div>' +
+        '<div class="list-sub">Visibility: ' + escapeHtml(visibilityLabel('m', showInM)) + ' | ' + escapeHtml(visibilityLabel('library', showInLibrary)) + ' | ' + escapeHtml(visibilityLabel('system', showInSystem)) + '</div>' +
         '<div class="list-sub">' + escapeHtml(extensionInfoSummary(item)) + '</div>' +
         '<div class="list-sub">' + escapeHtml(extensionDescription(item)) + '</div>';
 
@@ -819,6 +960,28 @@
           });
       });
 
+      var menuSystemBtn = document.createElement('button');
+      menuSystemBtn.type = 'button';
+      menuSystemBtn.className = 'btn btn-small';
+      applyVisibilityButtonState(menuSystemBtn, 'system', showInSystem);
+      menuSystemBtn.addEventListener('click', function () {
+        var next = getVisibility(item, 'system') ? '0' : '1';
+        menuSystemBtn.disabled = true;
+        api({ action: 'set_menu_visibility', id: item.id, menu: 'system', value: next })
+          .then(function () {
+            setVisibility(item, 'system', next === '1');
+            applyVisibilityButtonState(menuSystemBtn, 'system', getVisibility(item, 'system'));
+            setStatus('System menu visibility updated for ' + (item.name || item.id) + '.', 'ok');
+            runRefresh();
+          })
+          .catch(function (err) {
+            setStatus(err.message + (err.message.indexOf('Failed to write registry') !== -1 ? ' Check ext-mgr permissions and restart php-fpm.' : ''), 'error');
+          })
+          .finally(function () {
+            menuSystemBtn.disabled = false;
+          });
+      });
+
       var settingsCardBtn = document.createElement('button');
       settingsCardBtn.type = 'button';
       settingsCardBtn.className = 'btn btn-small';
@@ -865,6 +1028,7 @@
       rightWrap.appendChild(enableBtn);
       rightWrap.appendChild(menuMBtn);
       rightWrap.appendChild(menuLibraryBtn);
+      rightWrap.appendChild(menuSystemBtn);
       rightWrap.appendChild(settingsCardBtn);
       rightWrap.appendChild(repairSymlinkBtn);
       row.appendChild(rightWrap);
@@ -890,8 +1054,10 @@
         renderHealth(data.data.health || {});
         renderGuidanceDocs(data.data.guidance || {});
         renderAdvancedUpdateControls(providerStatusFromPolicy(data.data.releasePolicy || {}), null, null);
+        renderMaintenanceStatus(data.data.maintenance || {});
         allItems = (data.data && data.data.extensions) || [];
         renderItems(allItems);
+        runSystemResources(true);
         if (!silent) {
           setStatus('Loaded manager status and ' + allItems.length + ' extension(s).', 'ok');
         }
@@ -909,12 +1075,128 @@
         renderHealth(data.data.health || {});
         renderGuidanceDocs(data.data.guidance || {});
         renderAdvancedUpdateControls(providerStatusFromPolicy(data.data.releasePolicy || {}), null, null);
+        renderMaintenanceStatus(data.data.maintenance || {});
         allItems = (data.data && data.data.extensions) || [];
         renderItems(allItems);
+        runSystemResources(true);
         setStatus('Refresh complete.', 'ok');
       })
       .catch(function (err) {
         setStatus(err.message, 'error');
+      });
+  }
+
+  function runSystemResources(silent) {
+    if (!silent) {
+      setStatus('Collecting system resources...', null);
+    }
+    return api({ action: 'system_resources' })
+      .then(function (data) {
+        var payload = (data && data.data) || {};
+        renderSystemResources(payload.resources || {});
+        renderMaintenanceStatus(payload.maintenance || {});
+        if (!silent) {
+          setStatus('System resources refreshed.', 'ok');
+        }
+      })
+      .catch(function (err) {
+        if (!silent) {
+          setStatus(err.message, 'error');
+        }
+      });
+  }
+
+  function runCreateBackup() {
+    if (!createBackupBtn) {
+      return;
+    }
+    createBackupBtn.disabled = true;
+    setStatus('Creating ext-mgr backup snapshot...', null);
+    api({ action: 'create_backup_snapshot' })
+      .then(function (data) {
+        var payload = (data && data.data) || {};
+        if (maintenanceStorageNoteEl) {
+          maintenanceStorageNoteEl.textContent = 'Backup created: ' + String(payload.snapshotPath || 'n/a') + ' (' + String(payload.copiedItems || 0) + ' item(s)).';
+          maintenanceStorageNoteEl.classList.remove('error');
+          maintenanceStorageNoteEl.classList.add('ok');
+        }
+        runSystemResources(true);
+        setStatus('Backup snapshot created.', 'ok');
+      })
+      .catch(function (err) {
+        if (maintenanceStorageNoteEl) {
+          maintenanceStorageNoteEl.textContent = err.message;
+          maintenanceStorageNoteEl.classList.remove('ok');
+          maintenanceStorageNoteEl.classList.add('error');
+        }
+        setStatus(err.message, 'error');
+      })
+      .finally(function () {
+        createBackupBtn.disabled = false;
+      });
+  }
+
+  function runClearCache() {
+    if (!clearCacheBtn) {
+      return;
+    }
+    var confirmed = window.confirm('Clear /var/www/extensions/cache now? This removes temporary ext-mgr files only.');
+    if (!confirmed) {
+      return;
+    }
+
+    clearCacheBtn.disabled = true;
+    setStatus('Clearing cache folder...', null);
+    api({ action: 'clear_cache' })
+      .then(function (data) {
+        var payload = (data && data.data) || {};
+        if (maintenanceStorageNoteEl) {
+          maintenanceStorageNoteEl.textContent = 'Cache cleared: removed ' + String(payload.removedEntries || 0) + ' item(s), freed ' + asBytes(payload.freedBytes || 0) + '.';
+          maintenanceStorageNoteEl.classList.remove('error');
+          maintenanceStorageNoteEl.classList.add('ok');
+        }
+        runSystemResources(true);
+        setStatus('Cache folder cleared.', 'ok');
+      })
+      .catch(function (err) {
+        if (maintenanceStorageNoteEl) {
+          maintenanceStorageNoteEl.textContent = err.message;
+          maintenanceStorageNoteEl.classList.remove('ok');
+          maintenanceStorageNoteEl.classList.add('error');
+        }
+        setStatus(err.message, 'error');
+      })
+      .finally(function () {
+        clearCacheBtn.disabled = false;
+      });
+  }
+
+  function setManagerVisibility(area, visible, button) {
+    if (!button) {
+      return;
+    }
+    button.disabled = true;
+    api({ action: 'set_manager_visibility', area: area, value: visible ? '1' : '0' })
+      .then(function (data) {
+        var payload = (data && data.data) || {};
+        renderManagerVisibility(payload.visibility || {});
+        if (managerVisibilityNoteEl) {
+          managerVisibilityNoteEl.textContent = 'Manager visibility updated for ' + area + '.';
+          managerVisibilityNoteEl.classList.remove('error');
+          managerVisibilityNoteEl.classList.add('ok');
+        }
+        setStatus('Manager visibility updated.', 'ok');
+      })
+      .catch(function (err) {
+        if (managerVisibilityNoteEl) {
+          managerVisibilityNoteEl.textContent = err.message;
+          managerVisibilityNoteEl.classList.remove('ok');
+          managerVisibilityNoteEl.classList.add('error');
+        }
+        setStatus(err.message, 'error');
+      })
+      .finally(function () {
+        button.disabled = false;
       });
   }
 
@@ -1035,7 +1317,21 @@
   bindIfPresent(checkUpdateBtn, 'click', runCheckUpdate);
   bindIfPresent(runUpdateBtn, 'click', runUpdate);
   bindIfPresent(repairBtn, 'click', runRepair);
+  bindIfPresent(refreshResourcesBtn, 'click', function () {
+    runSystemResources(false);
+  });
+  bindIfPresent(createBackupBtn, 'click', runCreateBackup);
+  bindIfPresent(clearCacheBtn, 'click', runClearCache);
   bindIfPresent(syncRegistryBtn, 'click', runRegistrySync);
+  bindIfPresent(managerVisibilityHeaderBtn, 'click', function () {
+    setManagerVisibility('header', !managerVisibilityState.header, managerVisibilityHeaderBtn);
+  });
+  bindIfPresent(managerVisibilityLibraryBtn, 'click', function () {
+    setManagerVisibility('library', !managerVisibilityState.library, managerVisibilityLibraryBtn);
+  });
+  bindIfPresent(managerVisibilitySystemBtn, 'click', function () {
+    setManagerVisibility('system', !managerVisibilityState.system, managerVisibilitySystemBtn);
+  });
   bindIfPresent(importExtensionFileEl, 'change', function () {
     if (!importExtensionFileNameEl) {
       return;

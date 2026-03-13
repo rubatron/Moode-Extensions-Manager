@@ -39,14 +39,45 @@
     return pinned.concat(rest);
   }
 
-  var EXTENSIONS_CACHE = null;
-  var EXTENSIONS_CACHE_AT = 0;
-  var EXTENSIONS_CACHE_TTL_MS = 10000;
+  var PAYLOAD_CACHE = null;
+  var PAYLOAD_CACHE_AT = 0;
+  var PAYLOAD_CACHE_TTL_MS = 10000;
 
-  function fetchExtensions() {
+  function toBool(value, fallback) {
+    if (typeof value === 'boolean') {
+      return value;
+    }
+    return !!fallback;
+  }
+
+  function applyManagerVisibility(meta, refs) {
+    var managerVisibility = (meta && meta.managerVisibility) || {};
+    var showHeader = toBool(managerVisibility.header, true);
+    var showLibrary = toBool(managerVisibility.library, true);
+    var showSystem = toBool(managerVisibility.system, true);
+
+    var headerBtn = document.getElementById('ext-mgr-btn');
+    if (headerBtn) {
+      headerBtn.style.display = showHeader ? '' : 'none';
+    }
+
+    if (refs && refs.wrap) {
+      refs.wrap.style.display = showLibrary ? '' : 'none';
+    }
+
+    var systemLinks = document.querySelectorAll(
+      '#context-menu a[href="/ext-mgr.php"], #context-menu a[href="ext-mgr.php"], #sys-cmds a[href="/ext-mgr.php"], #sys-cmds a[href="ext-mgr.php"], #configure-modal a[href="/ext-mgr.php"], #configure-modal a[href="ext-mgr.php"]'
+    );
+    var i;
+    for (i = 0; i < systemLinks.length; i += 1) {
+      systemLinks[i].style.display = showSystem ? '' : 'none';
+    }
+  }
+
+  function fetchState() {
     var now = Date.now();
-    if (Array.isArray(EXTENSIONS_CACHE) && (now - EXTENSIONS_CACHE_AT) < EXTENSIONS_CACHE_TTL_MS) {
-      return Promise.resolve(EXTENSIONS_CACHE);
+    if (PAYLOAD_CACHE && (now - PAYLOAD_CACHE_AT) < PAYLOAD_CACHE_TTL_MS) {
+      return Promise.resolve(PAYLOAD_CACHE);
     }
 
     return fetch('/ext-mgr-api.php', {
@@ -58,12 +89,15 @@
     })
       .then(function (res) { return res.json(); })
       .then(function (data) {
-        EXTENSIONS_CACHE = (data && data.data && data.data.extensions) || [];
-        EXTENSIONS_CACHE_AT = Date.now();
-        return EXTENSIONS_CACHE;
+        PAYLOAD_CACHE = (data && data.data) || {};
+        if (!Array.isArray(PAYLOAD_CACHE.extensions)) {
+          PAYLOAD_CACHE.extensions = [];
+        }
+        PAYLOAD_CACHE_AT = Date.now();
+        return PAYLOAD_CACHE;
       })
       .catch(function () {
-        return [];
+        return { extensions: [], meta: {} };
       });
   }
 
@@ -210,6 +244,77 @@
     }
   }
 
+  function removeExistingSystemMenuInjected(container) {
+    var existing = container.querySelectorAll('.extmgr-system-divider, .extmgr-system-header, .extmgr-system-entry');
+    var i;
+    for (i = 0; i < existing.length; i += 1) {
+      if (existing[i] && existing[i].parentNode) {
+        existing[i].parentNode.removeChild(existing[i]);
+      }
+    }
+  }
+
+  function findSystemMenuContainer() {
+    return document.querySelector('#context-menu ul, #sys-cmds ul, #configure-modal ul.dropdown-menu, .modal #context-menu ul');
+  }
+
+  function renderSystemMenu(items) {
+    var container = findSystemMenuContainer();
+    if (!container) {
+      return;
+    }
+
+    removeExistingSystemMenuInjected(container);
+
+    var visible = [];
+    var i;
+    for (i = 0; i < items.length; i += 1) {
+      var item = items[i] || {};
+      if (!item.enabled || !item.menuVisibility || !item.menuVisibility.system) {
+        continue;
+      }
+      visible.push(item);
+    }
+
+    if (visible.length === 0) {
+      return;
+    }
+
+    var divider = document.createElement('li');
+    divider.className = 'extmgr-system-divider';
+    divider.style.listStyle = 'none';
+    divider.style.borderTop = '1px solid rgba(128,128,128,.25)';
+    divider.style.margin = '6px 0';
+    container.appendChild(divider);
+
+    var header = document.createElement('li');
+    header.className = 'extmgr-system-header';
+    header.style.listStyle = 'none';
+    header.style.padding = '4px 12px';
+    header.style.fontSize = '0.8em';
+    header.style.opacity = '0.8';
+    header.textContent = 'Extensions';
+    container.appendChild(header);
+
+    for (i = 0; i < visible.length; i += 1) {
+      var ext = visible[i] || {};
+      var id = String(ext.id || '');
+      var name = String(ext.name || id || 'Extension');
+      var entry = ext.menuEntry || ext.entry || ('/' + id + '.php');
+
+      var li = document.createElement('li');
+      li.className = 'extmgr-system-entry';
+      li.style.listStyle = 'none';
+
+      var link = document.createElement('a');
+      link.href = entry;
+      link.className = 'btn btn-large';
+      link.innerHTML = '<i class="fa-solid fa-sharp fa-puzzle-piece"></i><br>' + esc(name);
+      li.appendChild(link);
+      container.appendChild(li);
+    }
+  }
+
   function ensureHostElements() {
     var wrap = document.querySelector('.extmgr-hover-menu');
     var panel = document.getElementById('extmgr-hover-panel');
@@ -265,9 +370,11 @@
   }
 
   function loadExtensions(host) {
-    fetchExtensions().then(function (items) {
+    fetchState().then(function (payload) {
+      var items = payload.extensions || [];
       renderList(host, items);
       renderMMenu(items);
+      renderSystemMenu(items);
     });
   }
 
@@ -282,8 +389,10 @@
         window.clearTimeout(timer);
       }
       timer = window.setTimeout(function () {
-        fetchExtensions().then(function (items) {
+        fetchState().then(function (payload) {
+          var items = payload.extensions || [];
           renderMMenu(items);
+          renderSystemMenu(items);
         });
       }, 120);
     });
@@ -310,8 +419,11 @@
       panel.style.display = 'none';
     });
 
-    fetchExtensions().then(function (items) {
+    fetchState().then(function (payload) {
+      var items = payload.extensions || [];
       renderMMenu(items);
+      renderSystemMenu(items);
+      applyManagerVisibility(payload.meta || {}, refs);
     });
     observeMMenu();
   });

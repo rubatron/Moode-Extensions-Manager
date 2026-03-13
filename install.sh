@@ -42,6 +42,8 @@ TARGET_IMPORT_WIZARD_SCRIPT="$TARGET_SCRIPT_DIR/ext-mgr-import-wizard.sh"
 TARGET_GUIDANCE_MD="$TARGET_CONTENT_DIR/guidance.md"
 TARGET_REQUIREMENTS_MD="$TARGET_CONTENT_DIR/developer-requirements.md"
 TARGET_FAQ_MD="$TARGET_CONTENT_DIR/faq.md"
+TARGET_CACHE_DIR="$TARGET_EXT_DIR/cache"
+TARGET_BACKUP_DIR="$TARGET_SYS_DIR/backup"
 TARGET_INSTALLED_ROOT="$TARGET_EXT_DIR/installed"
 TARGET_RUNTIME_ROOT="$TARGET_SYS_DIR/.ext-mgr"
 TARGET_RUNTIME_CACHE="$TARGET_RUNTIME_ROOT/cache"
@@ -171,6 +173,8 @@ ensure_extmgr_structure_permissions() {
         "$TARGET_CSS_DIR"
         "$TARGET_CONTENT_DIR"
         "$TARGET_SCRIPT_DIR"
+        "$TARGET_CACHE_DIR"
+        "$TARGET_BACKUP_DIR"
         "$TARGET_INSTALLED_ROOT"
         "$TARGET_RUNTIME_ROOT"
         "$TARGET_RUNTIME_CACHE"
@@ -374,11 +378,18 @@ trap cleanup_tmp_dir EXIT
 run_uninstall() {
     local stamp
     stamp="$(date +%Y%m%d-%H%M%S)"
+    local uninstall_backup_dir="$TARGET_BACKUP_DIR/uninstall-$stamp"
+    $SUDO mkdir -p "$uninstall_backup_dir"
 
     echo "[uninstall] Backing up core files where present..."
     for f in "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_RELEASE" "$TARGET_VERSION" "$TARGET_INTEGRITY" "$TARGET_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_REGISTRY" "$TARGET_REGISTRY_SYNC_SCRIPT" "$TARGET_IMPORT_WIZARD_SCRIPT"; do
         if [[ -f "$f" ]]; then
-            $SUDO cp -a "$f" "$f.bak-uninstall-$stamp"
+            rel="${f#/var/www/extensions/sys/}"
+            if [[ "$rel" == "$f" ]]; then
+                rel="$(basename "$f")"
+            fi
+            $SUDO mkdir -p "$uninstall_backup_dir/$(dirname "$rel")"
+            $SUDO cp -a "$f" "$uninstall_backup_dir/$rel"
         fi
     done
 
@@ -578,12 +589,19 @@ PRIMARY_USER="$(detect_primary_user || true)"
 sync_security_user_groups "$PRIMARY_USER"
 
 echo "[1/10] Preparing target directories..."
-$SUDO mkdir -p "$TARGET_EXT_DIR" "$TARGET_SYS_DIR" "$TARGET_ASSETS_DIR" "$TARGET_JS_DIR" "$TARGET_CSS_DIR" "$TARGET_CONTENT_DIR" "$TARGET_SCRIPT_DIR" "$TARGET_INSTALLED_ROOT" "$TARGET_RUNTIME_CACHE" "$TARGET_RUNTIME_DATA" "$TARGET_RUNTIME_LOGS"
+$SUDO mkdir -p "$TARGET_EXT_DIR" "$TARGET_SYS_DIR" "$TARGET_ASSETS_DIR" "$TARGET_JS_DIR" "$TARGET_CSS_DIR" "$TARGET_CONTENT_DIR" "$TARGET_SCRIPT_DIR" "$TARGET_CACHE_DIR" "$TARGET_BACKUP_DIR" "$TARGET_INSTALLED_ROOT" "$TARGET_RUNTIME_CACHE" "$TARGET_RUNTIME_DATA" "$TARGET_RUNTIME_LOGS"
 
 echo "[2/10] Backing up existing ext-mgr files (if present)..."
+BACKUP_SNAPSHOT_DIR="$TARGET_BACKUP_DIR/install-$STAMP"
+$SUDO mkdir -p "$BACKUP_SNAPSHOT_DIR"
 for f in "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_REGISTRY" "$TARGET_RELEASE" "$TARGET_VERSION" "$TARGET_INTEGRITY" "$TARGET_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_REGISTRY_SYNC_SCRIPT" "$TARGET_IMPORT_WIZARD_SCRIPT" "$TARGET_GUIDANCE_MD" "$TARGET_REQUIREMENTS_MD" "$TARGET_FAQ_MD"; do
     if [[ -f "$f" ]]; then
-        $SUDO cp -a "$f" "$f.bak-extmgr-$STAMP"
+        rel="${f#/var/www/extensions/sys/}"
+        if [[ "$rel" == "$f" ]]; then
+            rel="$(basename "$f")"
+        fi
+        $SUDO mkdir -p "$BACKUP_SNAPSHOT_DIR/$(dirname "$rel")"
+        $SUDO cp -a "$f" "$BACKUP_SNAPSHOT_DIR/$rel"
     fi
 done
 

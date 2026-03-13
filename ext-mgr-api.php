@@ -11,6 +11,10 @@ $metaPath = $baseDir . DIRECTORY_SEPARATOR . 'ext-mgr.meta.json';
 $versionPath = $baseDir . DIRECTORY_SEPARATOR . 'ext-mgr.version';
 $releasePath = $baseDir . DIRECTORY_SEPARATOR . 'ext-mgr.release.json';
 $symlinkHelperPath = '/usr/local/sbin/ext-mgr-repair-symlink';
+$extensionsRootPath = '/var/www/extensions';
+$extensionsInstalledPath = $extensionsRootPath . '/installed';
+$extensionsCachePath = $extensionsRootPath . '/cache';
+$extensionsBackupPath = $baseDir . DIRECTORY_SEPARATOR . 'backup';
 
 function defaultMeta() {
     return [
@@ -33,6 +37,11 @@ function defaultMeta() {
             'lastAction' => 'none',
             'lastResult' => 'n/a',
             'lastRunAt' => null,
+        ],
+        'managerVisibility' => [
+            'header' => true,
+            'library' => true,
+            'system' => true,
         ],
     ];
 }
@@ -328,6 +337,521 @@ function buildRuntimeMemoryHealth() {
         'serviceMemoryMiB' => round($currentMiB, 2),
         'systemMemoryMiB' => is_float($totalMiB) ? round($totalMiB, 2) : null,
         'serviceMemoryPctOfSystem' => is_float($pct) ? round($pct, 4) : null,
+    ];
+}
+
+function ensureDirectory($path, $mode = 0775) {
+    if (!is_string($path) || $path === '') {
+        return false;
+    }
+    if (is_dir($path)) {
+        return true;
+    }
+    return mkdir($path, $mode, true) || is_dir($path);
+}
+
+function removePathRecursiveWithStats($path, &$removedEntries, &$freedBytes) {
+    if (!is_string($path) || $path === '' || !file_exists($path)) {
+        return;
+    }
+
+    if (is_file($path) || is_link($path)) {
+        $size = @filesize($path);
+        if (is_int($size) || is_float($size)) {
+            $freedBytes += max(0, (int)$size);
+        }
+        if (@unlink($path)) {
+            $removedEntries++;
+        }
+        return;
+    }
+
+    $items = scandir($path);
+    if (!is_array($items)) {
+        return;
+    }
+
+    foreach ($items as $item) {
+        if ($item === '.' || $item === '..') {
+            continue;
+        }
+        removePathRecursiveWithStats($path . DIRECTORY_SEPARATOR . $item, $removedEntries, $freedBytes);
+    }
+
+    if (@rmdir($path)) {
+        $removedEntries++;
+    }
+}
+
+function clearDirectoryContents($dir, &$removedEntries, &$freedBytes, &$error) {
+    $removedEntries = 0;
+    $freedBytes = 0;
+    $error = '';
+
+    if (!ensureDirectory($dir)) {
+        $error = 'Failed to create cache directory: ' . $dir;
+        return false;
+    }
+
+    $items = scandir($dir);
+    if (!is_array($items)) {
+        $error = 'Failed to read directory: ' . $dir;
+        return false;
+    }
+
+    foreach ($items as $item) {
+        if ($item === '.' || $item === '..') {
+            continue;
+        }
+        removePathRecursiveWithStats($dir . DIRECTORY_SEPARATOR . $item, $removedEntries, $freedBytes);
+    }
+
+    return true;
+}
+
+function computeDirectorySizeBytes($path) {
+    if (!is_string($path) || $path === '' || !file_exists($path)) {
+        return 0;
+    }
+    if (is_file($path) || is_link($path)) {
+        $size = @filesize($path);
+        return (is_int($size) || is_float($size)) ? max(0, (int)$size) : 0;
+    }
+
+    $total = 0;
+    $iterator = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::SELF_FIRST
+    );
+
+    foreach ($iterator as $item) {
+        if ($item->isFile()) {
+            $total += max(0, (int)$item->getSize());
+        }
+    }
+    return $total;
+}
+
+function computeDirectoryEntryCount($path) {
+    if (!is_dir($path)) {
+        return 0;
+    }
+
+    $count = 0;
+    $iterator = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::SELF_FIRST
+    );
+    foreach ($iterator as $item) {
+        $count++;
+    }
+    return $count;
+}
+
+function copyPathRecursive($sourcePath, $targetPath, &$copiedItems, &$error) {
+    if (is_link($sourcePath) || is_file($sourcePath)) {
+        $targetDir = dirname($targetPath);
+        if (!ensureDirectory($targetDir)) {
+            $error = 'Failed to create backup directory: ' . $targetDir;
+            return false;
+        }
+        if (!@copy($sourcePath, $targetPath)) {
+            $error = 'Failed to backup file: ' . $sourcePath;
+            return false;
+        }
+        $copiedItems++;
+        return true;
+    }
+
+    if (!is_dir($sourcePath)) {
+        return true;
+    }
+
+    if (!ensureDirectory($targetPath)) {
+        $error = 'Failed to create backup directory: ' . $targetPath;
+        return false;
+    }
+
+    $items = scandir($sourcePath);
+    if (!is_array($items)) {
+        $error = 'Failed to read source directory: ' . $sourcePath;
+        return false;
+    }
+
+    foreach ($items as $item) {
+        if ($item === '.' || $item === '..') {
+            continue;
+        }
+        if (!copyPathRecursive($sourcePath . DIRECTORY_SEPARATOR . $item, $targetPath . DIRECTORY_SEPARATOR . $item, $copiedItems, $error)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+function createExtMgrBackupSnapshot($baseDir, $backupRoot, &$snapshotPath, &$copiedItems, &$error) {
+    $snapshotPath = '';
+    $copiedItems = 0;
+    $error = '';
+
+    if (!ensureDirectory($backupRoot)) {
+        $error = 'Failed to create backup root: ' . $backupRoot;
+        return false;
+    }
+
+    $snapshotName = 'snapshot-' . date('Ymd-His');
+    $snapshotPath = $backupRoot . DIRECTORY_SEPARATOR . $snapshotName;
+    if (!ensureDirectory($snapshotPath)) {
+        $error = 'Failed to create backup snapshot folder: ' . $snapshotPath;
+        return false;
+    }
+
+    $items = [
+        'ext-mgr.php',
+        'ext-mgr-api.php',
+        'ext-mgr.meta.json',
+        'ext-mgr.release.json',
+        'ext-mgr.version',
+        'ext-mgr.integrity.json',
+        'registry.json',
+        'assets',
+        'scripts',
+        'content',
+    ];
+
+    foreach ($items as $relative) {
+        $sourcePath = $baseDir . DIRECTORY_SEPARATOR . $relative;
+        if (!file_exists($sourcePath)) {
+            continue;
+        }
+        $targetPath = $snapshotPath . DIRECTORY_SEPARATOR . $relative;
+        if (!copyPathRecursive($sourcePath, $targetPath, $copiedItems, $error)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+function readCpuUsageSamplePct() {
+    $statPath = '/proc/stat';
+    if (!is_readable($statPath)) {
+        return null;
+    }
+
+    $sample = static function () use ($statPath) {
+        $line = @fgets(@fopen($statPath, 'r'));
+        if (!is_string($line) || strpos($line, 'cpu ') !== 0) {
+            return null;
+        }
+        $parts = preg_split('/\s+/', trim($line));
+        if (!is_array($parts) || count($parts) < 8) {
+            return null;
+        }
+        $vals = [];
+        foreach (array_slice($parts, 1) as $p) {
+            $vals[] = (float)$p;
+        }
+        $idle = ($vals[3] ?? 0) + ($vals[4] ?? 0);
+        $total = array_sum($vals);
+        return ['idle' => $idle, 'total' => $total];
+    };
+
+    $a = $sample();
+    if (!is_array($a)) {
+        return null;
+    }
+    usleep(120000);
+    $b = $sample();
+    if (!is_array($b)) {
+        return null;
+    }
+
+    $deltaTotal = $b['total'] - $a['total'];
+    $deltaIdle = $b['idle'] - $a['idle'];
+    if ($deltaTotal <= 0) {
+        return null;
+    }
+
+    return round(max(0.0, min(100.0, (($deltaTotal - $deltaIdle) / $deltaTotal) * 100.0)), 2);
+}
+
+function readMemoryOverview() {
+    $memTotal = null;
+    $memAvailable = null;
+    $meminfoPath = '/proc/meminfo';
+    if (is_readable($meminfoPath)) {
+        $contents = @file_get_contents($meminfoPath);
+        if (is_string($contents) && $contents !== '') {
+            if (preg_match('/^MemTotal:\s+([0-9]+)\s+kB/im', $contents, $mTotal) === 1) {
+                $memTotal = ((float)$mTotal[1]) / 1024.0;
+            }
+            if (preg_match('/^MemAvailable:\s+([0-9]+)\s+kB/im', $contents, $mAvail) === 1) {
+                $memAvailable = ((float)$mAvail[1]) / 1024.0;
+            }
+        }
+    }
+
+    $memUsed = null;
+    $usedPct = null;
+    if (is_float($memTotal) && is_float($memAvailable)) {
+        $memUsed = max(0.0, $memTotal - $memAvailable);
+        if ($memTotal > 0) {
+            $usedPct = ($memUsed / $memTotal) * 100.0;
+        }
+    }
+
+    return [
+        'totalMiB' => is_float($memTotal) ? round($memTotal, 2) : null,
+        'availableMiB' => is_float($memAvailable) ? round($memAvailable, 2) : null,
+        'usedMiB' => is_float($memUsed) ? round($memUsed, 2) : null,
+        'usedPct' => is_float($usedPct) ? round($usedPct, 2) : null,
+    ];
+}
+
+function diskUsageForPath($path) {
+    if (!is_string($path) || $path === '' || !file_exists($path)) {
+        return [
+            'path' => $path,
+            'totalBytes' => null,
+            'freeBytes' => null,
+            'usedBytes' => null,
+            'usedPct' => null,
+        ];
+    }
+
+    $total = @disk_total_space($path);
+    $free = @disk_free_space($path);
+    $used = null;
+    $pct = null;
+    if (is_float($total) || is_int($total)) {
+        if (is_float($free) || is_int($free)) {
+            $used = (float)$total - (float)$free;
+            if ((float)$total > 0) {
+                $pct = ((float)$used / (float)$total) * 100.0;
+            }
+        }
+    }
+
+    return [
+        'path' => $path,
+        'totalBytes' => (is_float($total) || is_int($total)) ? (int)$total : null,
+        'freeBytes' => (is_float($free) || is_int($free)) ? (int)$free : null,
+        'usedBytes' => (is_float($used) || is_int($used)) ? (int)$used : null,
+        'usedPct' => is_float($pct) ? round($pct, 2) : null,
+    ];
+}
+
+function readProcessRssMiBFromProc($pid) {
+    $statusPath = '/proc/' . $pid . '/status';
+    if (!is_readable($statusPath)) {
+        return null;
+    }
+    $contents = @file_get_contents($statusPath);
+    if (!is_string($contents) || $contents === '') {
+        return null;
+    }
+    if (preg_match('/^VmRSS:\s+([0-9]+)\s+kB/im', $contents, $m) !== 1) {
+        return null;
+    }
+    return ((float)$m[1]) / 1024.0;
+}
+
+function estimateExtensionRuntimeMemory($extensions) {
+    $totals = [];
+    $requirements = [];
+    $scanPath = '/proc';
+    $matchedAny = false;
+
+    if (!is_dir($scanPath)) {
+        return [
+            'method' => 'unavailable',
+            'totalMiB' => 0.0,
+            'topConsumers' => [],
+            'requirements' => ['Linux /proc access is required.'],
+        ];
+    }
+
+    $extensionIds = [];
+    foreach ((array)$extensions as $ext) {
+        if (!is_array($ext)) {
+            continue;
+        }
+        $id = (string)($ext['id'] ?? '');
+        if ($id === '') {
+            continue;
+        }
+        $extensionIds[] = $id;
+        $totals[$id] = 0.0;
+    }
+
+    $procEntries = @scandir($scanPath);
+    if (!is_array($procEntries)) {
+        return [
+            'method' => 'degraded',
+            'totalMiB' => 0.0,
+            'topConsumers' => [],
+            'requirements' => ['Unable to enumerate /proc entries.'],
+        ];
+    }
+
+    foreach ($procEntries as $pid) {
+        if (!preg_match('/^[0-9]+$/', $pid)) {
+            continue;
+        }
+
+        $cmdline = @file_get_contents('/proc/' . $pid . '/cmdline');
+        if (!is_string($cmdline) || $cmdline === '') {
+            continue;
+        }
+        $cmdline = str_replace("\0", ' ', $cmdline);
+
+        foreach ($extensionIds as $id) {
+            if (strpos($cmdline, '/extensions/installed/' . $id . '/') === false
+                && strpos($cmdline, $id . '.service') === false
+                && strpos($cmdline, 'ext-mgr-' . $id) === false) {
+                continue;
+            }
+
+            $rssMiB = readProcessRssMiBFromProc($pid);
+            if (!is_float($rssMiB)) {
+                continue;
+            }
+
+            $matchedAny = true;
+            $totals[$id] += $rssMiB;
+            break;
+        }
+    }
+
+    $rows = [];
+    $sum = 0.0;
+    foreach ($totals as $id => $miB) {
+        if ($miB <= 0) {
+            continue;
+        }
+        $rows[] = ['id' => $id, 'memoryMiB' => round($miB, 2)];
+        $sum += $miB;
+    }
+
+    usort($rows, static function ($a, $b) {
+        return ($b['memoryMiB'] <=> $a['memoryMiB']);
+    });
+
+    if (!$matchedAny) {
+        $requirements[] = 'Run each extension as a named systemd service (for example ext-mgr-ext1.service).';
+        $requirements[] = 'Include extension id in process command line or service unit name.';
+        $requirements[] = 'Optional: add extension watchdog logging for memory samples.';
+    }
+
+    return [
+        'method' => $matchedAny ? 'proc-cmdline-match' : 'heuristic-no-match',
+        'totalMiB' => round($sum, 2),
+        'topConsumers' => array_slice($rows, 0, 5),
+        'requirements' => $requirements,
+    ];
+}
+
+function buildExtensionsStorageSummary($extensionsInstalledPath, $registryExtensions) {
+    $total = 0;
+    $count = 0;
+    foreach ((array)$registryExtensions as $ext) {
+        $id = (string)($ext['id'] ?? '');
+        if ($id === '') {
+            continue;
+        }
+        $path = $extensionsInstalledPath . DIRECTORY_SEPARATOR . $id;
+        if (!is_dir($path)) {
+            continue;
+        }
+        $total += computeDirectorySizeBytes($path);
+        $count++;
+    }
+
+    return [
+        'totalBytes' => (int)$total,
+        'extensionCount' => $count,
+    ];
+}
+
+function readBackupSnapshotInfo($backupRoot) {
+    if (!ensureDirectory($backupRoot)) {
+        return [
+            'path' => $backupRoot,
+            'snapshotCount' => 0,
+            'latest' => null,
+        ];
+    }
+
+    $entries = scandir($backupRoot);
+    if (!is_array($entries)) {
+        return [
+            'path' => $backupRoot,
+            'snapshotCount' => 0,
+            'latest' => null,
+        ];
+    }
+
+    $snapshots = [];
+    foreach ($entries as $entry) {
+        if ($entry === '.' || $entry === '..') {
+            continue;
+        }
+        if (is_dir($backupRoot . DIRECTORY_SEPARATOR . $entry)) {
+            $snapshots[] = $entry;
+        }
+    }
+
+    rsort($snapshots, SORT_STRING);
+
+    return [
+        'path' => $backupRoot,
+        'snapshotCount' => count($snapshots),
+        'latest' => $snapshots[0] ?? null,
+    ];
+}
+
+function buildMaintenanceStatus($cacheDir, $backupRoot) {
+    ensureDirectory($cacheDir);
+    ensureDirectory($backupRoot);
+
+    return [
+        'cache' => [
+            'path' => $cacheDir,
+            'bytes' => computeDirectorySizeBytes($cacheDir),
+            'fileCount' => computeDirectoryEntryCount($cacheDir),
+        ],
+        'backup' => readBackupSnapshotInfo($backupRoot),
+    ];
+}
+
+function buildSystemResourceSnapshot($registryExtensions, $extensionsInstalledPath) {
+    $memory = readMemoryOverview();
+    $load = sys_getloadavg();
+    $runtimeMemory = buildRuntimeMemoryHealth();
+
+    return [
+        'cpu' => [
+            'usagePct' => readCpuUsageSamplePct(),
+        ],
+        'load' => [
+            'one' => is_array($load) ? (float)($load[0] ?? 0.0) : null,
+            'five' => is_array($load) ? (float)($load[1] ?? 0.0) : null,
+            'fifteen' => is_array($load) ? (float)($load[2] ?? 0.0) : null,
+        ],
+        'memory' => $memory,
+        'disk' => [
+            'root' => diskUsageForPath('/'),
+            'extensions' => diskUsageForPath('/var/www/extensions'),
+        ],
+        'extMgr' => [
+            'memoryMiB' => $runtimeMemory['serviceMemoryMiB'],
+            'memoryPctOfSystem' => $runtimeMemory['serviceMemoryPctOfSystem'],
+        ],
+        'extensions' => [
+            'runtimeMemory' => estimateExtensionRuntimeMemory($registryExtensions),
+            'storage' => buildExtensionsStorageSummary($extensionsInstalledPath, $registryExtensions),
+        ],
     ];
 }
 
@@ -1817,6 +2341,9 @@ function normalizeRegistry($registry) {
         if (!array_key_exists('library', $ext['menuVisibility'])) {
             $ext['menuVisibility']['library'] = $legacyLibrary !== null ? $legacyLibrary : true;
         }
+        if (!array_key_exists('system', $ext['menuVisibility'])) {
+            $ext['menuVisibility']['system'] = true;
+        }
 
         $ext['pinned'] = (bool)$ext['pinned'];
         $ext['enabled'] = (bool)$ext['enabled'];
@@ -1824,6 +2351,7 @@ function normalizeRegistry($registry) {
         $ext['state'] = $ext['enabled'] ? 'active' : 'inactive';
         $ext['menuVisibility']['m'] = (bool)$ext['menuVisibility']['m'];
         $ext['menuVisibility']['library'] = (bool)$ext['menuVisibility']['library'];
+        $ext['menuVisibility']['system'] = (bool)$ext['menuVisibility']['system'];
         $ext['extensionInfo'] = loadExtensionInfo(
             (string)$ext['id'],
             (string)$ext['entry'],
@@ -1871,10 +2399,11 @@ function applyImportedExtensionDefaults($registryPath, $extId) {
         }
 
         if (!isset($ext['menuVisibility']) || !is_array($ext['menuVisibility'])) {
-            $ext['menuVisibility'] = ['m' => false, 'library' => false];
+            $ext['menuVisibility'] = ['m' => false, 'library' => false, 'system' => false];
         }
         $ext['menuVisibility']['m'] = false;
         $ext['menuVisibility']['library'] = false;
+        $ext['menuVisibility']['system'] = false;
         $ext['showInMMenu'] = false;
         $ext['showInLibrary'] = false;
         if (!isset($ext['settingsCardOnly'])) {
@@ -1894,6 +2423,8 @@ function applyImportedExtensionDefaults($registryPath, $extId) {
 }
 
 function responseData($registryPath, $metaPath, $versionPath, $releasePath) {
+    global $extensionsCachePath, $extensionsBackupPath;
+
     $registry = normalizeRegistry(readRegistry($registryPath));
     [$meta, $policy] = buildMeta($metaPath, $versionPath, $releasePath);
     $guidance = readGuidanceDocs(dirname($registryPath));
@@ -1901,6 +2432,7 @@ function responseData($registryPath, $metaPath, $versionPath, $releasePath) {
     $inactiveCount = 0;
     $mVisibleCount = 0;
     $libraryVisibleCount = 0;
+    $systemVisibleCount = 0;
     $settingsCardCount = 0;
     foreach ($registry['extensions'] as $ext) {
         if (!empty($ext['enabled'])) {
@@ -1913,6 +2445,9 @@ function responseData($registryPath, $metaPath, $versionPath, $releasePath) {
         }
         if (!empty($ext['menuVisibility']['library'])) {
             $libraryVisibleCount++;
+        }
+        if (!empty($ext['menuVisibility']['system'])) {
+            $systemVisibleCount++;
         }
         if (!empty($ext['settingsCardOnly'])) {
             $settingsCardCount++;
@@ -1934,11 +2469,13 @@ function responseData($registryPath, $metaPath, $versionPath, $releasePath) {
             'inactiveCount' => $inactiveCount,
             'mVisibleCount' => $mVisibleCount,
             'libraryVisibleCount' => $libraryVisibleCount,
+            'systemVisibleCount' => $systemVisibleCount,
             'settingsCardCount' => $settingsCardCount,
             'serviceMemoryPctOfSystem' => $runtimeMemory['serviceMemoryPctOfSystem'],
             'serviceMemoryMiB' => $runtimeMemory['serviceMemoryMiB'],
             'systemMemoryMiB' => $runtimeMemory['systemMemoryMiB'],
         ],
+        'maintenance' => buildMaintenanceStatus($extensionsCachePath, $extensionsBackupPath),
     ];
 }
 
@@ -2720,6 +3257,112 @@ if ($action === 'repair_symlink') {
     exit;
 }
 
+if ($action === 'system_resources') {
+    $registry = normalizeRegistry(readRegistry($registryPath));
+
+    echo json_encode([
+        'ok' => true,
+        'data' => [
+            'resources' => buildSystemResourceSnapshot($registry['extensions'], $extensionsInstalledPath),
+            'maintenance' => buildMaintenanceStatus($extensionsCachePath, $extensionsBackupPath),
+        ],
+    ], JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+if ($action === 'clear_cache') {
+    $removedEntries = 0;
+    $freedBytes = 0;
+    $clearError = '';
+    if (!clearDirectoryContents($extensionsCachePath, $removedEntries, $freedBytes, $clearError)) {
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'error' => $clearError]);
+        exit;
+    }
+
+    $meta = readMeta($metaPath);
+    $meta = markMetaMaintenance($meta, 'clear_cache', 'success');
+    writeJsonFile($metaPath, $meta);
+
+    echo json_encode([
+        'ok' => true,
+        'data' => [
+            'path' => $extensionsCachePath,
+            'removedEntries' => $removedEntries,
+            'freedBytes' => $freedBytes,
+        ],
+    ], JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+if ($action === 'create_backup_snapshot') {
+    $snapshotPath = '';
+    $copiedItems = 0;
+    $backupError = '';
+
+    if (!createExtMgrBackupSnapshot($baseDir, $extensionsBackupPath, $snapshotPath, $copiedItems, $backupError)) {
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'error' => $backupError]);
+        exit;
+    }
+
+    $meta = readMeta($metaPath);
+    $meta = markMetaMaintenance($meta, 'create_backup_snapshot', 'success');
+    writeJsonFile($metaPath, $meta);
+
+    echo json_encode([
+        'ok' => true,
+        'data' => [
+            'snapshotPath' => $snapshotPath,
+            'copiedItems' => $copiedItems,
+            'backup' => readBackupSnapshotInfo($extensionsBackupPath),
+        ],
+    ], JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+if ($action === 'set_manager_visibility') {
+    $area = strtolower(trim((string)($_REQUEST['area'] ?? '')));
+    $value = (string)($_REQUEST['value'] ?? '1');
+    $allowed = ['header', 'library', 'system'];
+
+    if (!in_array($area, $allowed, true)) {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'Invalid area. Use header, library, or system.']);
+        exit;
+    }
+
+    $visible = ($value === '1' || strtolower($value) === 'true');
+    $meta = readMeta($metaPath);
+    if (!isset($meta['managerVisibility']) || !is_array($meta['managerVisibility'])) {
+        $meta['managerVisibility'] = ['header' => true, 'library' => true, 'system' => true];
+    }
+
+    $meta['managerVisibility'][$area] = $visible;
+    foreach ($allowed as $entry) {
+        if (!array_key_exists($entry, $meta['managerVisibility'])) {
+            $meta['managerVisibility'][$entry] = true;
+        }
+        $meta['managerVisibility'][$entry] = (bool)$meta['managerVisibility'][$entry];
+    }
+
+    if (!writeJsonFile($metaPath, $meta)) {
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'error' => formatWriteFailure($metaPath, 'meta')]);
+        exit;
+    }
+
+    echo json_encode([
+        'ok' => true,
+        'data' => [
+            'area' => $area,
+            'visible' => $visible,
+            'visibility' => $meta['managerVisibility'],
+        ],
+    ], JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
 if ($action === 'set_menu_visibility') {
     $id = (string)($_REQUEST['id'] ?? '');
     $menu = strtolower(trim((string)($_REQUEST['menu'] ?? '')));
@@ -2731,9 +3374,9 @@ if ($action === 'set_menu_visibility') {
         exit;
     }
 
-    if ($menu !== 'm' && $menu !== 'library') {
+    if ($menu !== 'm' && $menu !== 'library' && $menu !== 'system') {
         http_response_code(400);
-        echo json_encode(['ok' => false, 'error' => 'Invalid menu target. Use m or library.']);
+        echo json_encode(['ok' => false, 'error' => 'Invalid menu target. Use m, library, or system.']);
         exit;
     }
 
@@ -2744,7 +3387,7 @@ if ($action === 'set_menu_visibility') {
     foreach ($registry['extensions'] as &$ext) {
         if (($ext['id'] ?? '') === $id) {
             if (!isset($ext['menuVisibility']) || !is_array($ext['menuVisibility'])) {
-                $ext['menuVisibility'] = ['m' => true, 'library' => true];
+                $ext['menuVisibility'] = ['m' => true, 'library' => true, 'system' => true];
             }
             $ext['menuVisibility'][$menu] = $visible;
             $ext['showInMMenu'] = (bool)$ext['menuVisibility']['m'];
