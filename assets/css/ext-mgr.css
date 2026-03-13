@@ -40,8 +40,15 @@
   margin-bottom: 0.95rem;
 }
 
+.extmgr-static-heading {
+  margin: 0 0 0.3rem;
+  padding: 0;
+  color: #c2cad3;
+  font-size: 0.95rem;
+  font-weight: 400;
+}
+
 .extmgr-section {
-  border-top: 1px solid rgba(128, 128, 128, 0.22);
   padding-top: 0.25rem;
 }
 
@@ -56,7 +63,7 @@
   background: transparent;
   color: #c2cad3;
   font-size: 0.95rem;
-  font-weight: 600;
+  font-weight: 400;
   text-align: left;
   padding: 0.35rem 0;
   cursor: pointer;
@@ -82,36 +89,6 @@
 
 .extmgr-section:not(.is-open) .extmgr-menu-header i {
   transform: rotate(-90deg);
-}
-
-.extmgr-local-menu {
-  margin: 0.2rem 0 0.85rem;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-}
-
-.extmgr-local-menu-item {
-  appearance: none;
-  border: 1px solid rgba(128, 128, 128, 0.28);
-  background: rgba(0, 0, 0, 0.16);
-  color: #b7bec7;
-  font-size: 0.82rem;
-  line-height: 1.3;
-  border-radius: 4px;
-  padding: 0.2rem 0.5rem;
-  cursor: pointer;
-}
-
-.extmgr-local-menu-item:hover {
-  border-color: rgba(175, 183, 191, 0.5);
-  color: #d0d6dd;
-}
-
-.extmgr-local-menu-item.is-active {
-  border-color: rgba(112, 145, 178, 0.6);
-  color: #d6dde5;
-  background: rgba(67, 89, 109, 0.35);
 }
 
 .extmgr-grid-meta {
@@ -142,12 +119,11 @@
 .extmgr-text-value {
   color: #d0d6dd;
   font-size: 0.84rem;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .extmgr-submenu {
   margin-top: 0.5rem;
-  border-top: 1px solid rgba(128, 128, 128, 0.16);
   padding-top: 0.15rem;
 }
 
@@ -161,7 +137,7 @@
   background: transparent;
   color: #b7bfc8;
   font-size: 0.86rem;
-  font-weight: 600;
+  font-weight: 400;
   text-align: left;
   padding: 0.32rem 0;
   cursor: pointer;
@@ -249,6 +225,7 @@
   line-height: 1.2;
   padding: 0.26rem 0.54rem;
   cursor: pointer;
+  font-weight: 400;
 }
 
 .extmgr-mode-btn:hover {
@@ -285,13 +262,40 @@
 
 .extmgr-advanced-source-link {
   color: #b9c2cc;
-  text-decoration: none;
   overflow-wrap: anywhere;
   font-size: 0.82rem;
 }
 
-.extmgr-advanced-source-link:hover {
-  text-decoration: underline;
+.extmgr-advanced-source-icons {
+  display: inline-flex;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+.extmgr-icon-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid rgba(128, 128, 128, 0.32);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.18);
+  color: #b7c0ca;
+  text-decoration: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.extmgr-icon-btn:hover {
+  color: #d0d8e1;
+  border-color: rgba(175, 183, 191, 0.5);
+}
+
+.extmgr-icon-btn[aria-disabled='true'] {
+  opacity: 0.5;
+  pointer-events: none;
 }
 
 .extmgr-grid {
@@ -324,6 +328,12 @@
   flex-wrap: wrap;
   gap: 0.45rem;
   margin-top: 0.8rem;
+}
+
+.extmgr-actions .btn.btn-small {
+  font-size: 0.8rem;
+  padding: 0.22rem 0.56rem;
+  line-height: 1.2;
 }
 
 .extmgr-actions select,

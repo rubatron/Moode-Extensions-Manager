@@ -595,7 +595,14 @@ function resolveRemoteBranchCandidate($repository, $branch, &$error) {
     $networkError = '';
     $payload = httpGet($apiUrl, $networkError);
     if ($payload === null) {
-        $error = $networkError;
+        $tagError = '';
+        $tagCandidate = resolveRemoteTagCandidate($repository, $channel, $tagError);
+        if (is_array($tagCandidate)) {
+            $error = '';
+            return $tagCandidate;
+        }
+
+        $error = $networkError . ' | tag fallback failed: ' . $tagError;
         return null;
     }
 
@@ -2022,7 +2029,7 @@ if ($action === 'system_update_hook') {
             'releasePolicy' => $policy,
             'hook' => [
                 'status' => is_array($candidate) ? 'ready' : 'degraded',
-                'description' => 'System Settings integration uses provider metadata and managed-file apply flow.',
+                'description' => 'Sync Extensions uses provider metadata and managed-file apply flow.',
                 'lastError' => $candidate === null ? $resolveError : null,
                 'candidate' => $candidate,
                 'nextSteps' => [

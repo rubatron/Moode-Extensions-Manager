@@ -23,6 +23,7 @@
   var advancedModeButtons = document.querySelectorAll('[data-advanced-mode]');
   var advancedCustomUrlEl = document.getElementById('advanced-custom-url');
   var advancedSourceLinkEl = document.getElementById('advanced-source-link');
+  var openAdvancedSourceBtn = document.getElementById('open-advanced-source-btn');
   var copyAdvancedSourceBtn = document.getElementById('copy-advanced-source-btn');
   var saveAdvancedUpdateBtn = document.getElementById('save-advanced-update-btn');
   var advancedUpdateNoteEl = document.getElementById('advanced-update-note');
@@ -41,7 +42,6 @@
   var guidanceDocEl = document.getElementById('guidance-doc');
   var requirementsDocEl = document.getElementById('requirements-doc');
   var faqDocEl = document.getElementById('faq-doc');
-  var localMenuItems = document.querySelectorAll('.extmgr-local-menu-item');
   var menuToggleButtons = document.querySelectorAll('[data-menu-toggle]');
   var submenuToggleButtons = document.querySelectorAll('[data-submenu-toggle]');
 
@@ -246,9 +246,14 @@
     }
 
     advancedSourceLinkEl.textContent = display;
-    advancedSourceLinkEl.href = resolveUrl || '#';
     advancedSourceLinkEl.setAttribute('data-source-url', resolveUrl || '');
     advancedSourceLinkEl.setAttribute('data-raw-base-url', rawBase || '');
+
+    if (openAdvancedSourceBtn) {
+      openAdvancedSourceBtn.href = resolveUrl || '#';
+      openAdvancedSourceBtn.setAttribute('aria-disabled', resolveUrl ? 'false' : 'true');
+      openAdvancedSourceBtn.tabIndex = resolveUrl ? 0 : -1;
+    }
   }
 
   function buildIntegrityText(integrity, providerStatus) {
@@ -888,11 +893,11 @@
   bindIfPresent(repairBtn, 'click', runRepair);
   bindIfPresent(syncRegistryBtn, 'click', runRegistrySync);
   bindIfPresent(systemUpdateBtn, 'click', function () {
-    setStatus('Opening System Settings update hook...', null);
+    setStatus('Syncing extensions metadata...', null);
     api({ action: 'system_update_hook' })
       .then(function (data) {
         var hook = (data.data && data.data.hook) || {};
-        var desc = hook.description || 'System Settings hook placeholder.';
+        var desc = hook.description || 'Extensions sync hook placeholder.';
         setStatus(desc, 'ok');
       })
       .catch(function (err) {
@@ -1013,35 +1018,6 @@
   bindIfPresent(listSearchEl, 'input', function () {
     writePref('search', listSearchEl.value);
     renderItems(allItems);
-  });
-
-  function activateLocalMenuItem(activeButton) {
-    localMenuItems.forEach(function (btn) {
-      btn.classList.toggle('is-active', btn === activeButton);
-    });
-  }
-
-  function scrollToSection(sectionId) {
-    var target = document.getElementById(sectionId);
-    if (!target) {
-      return;
-    }
-
-    target.classList.add('is-open');
-    var targetMenuToggle = target.querySelector('[data-menu-toggle]');
-    if (targetMenuToggle) {
-      targetMenuToggle.setAttribute('aria-expanded', 'true');
-    }
-
-    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-
-  localMenuItems.forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      var sectionId = btn.getAttribute('data-target');
-      activateLocalMenuItem(btn);
-      scrollToSection(sectionId);
-    });
   });
 
   menuToggleButtons.forEach(function (toggleBtn) {
