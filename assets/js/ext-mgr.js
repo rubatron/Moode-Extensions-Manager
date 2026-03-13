@@ -21,6 +21,7 @@
   var metaLicenseEl = document.getElementById('meta-license');
   var updateNoteEl = document.getElementById('update-note');
   var advancedModeButtons = document.querySelectorAll('[data-advanced-mode]');
+  var advancedCustomWrapEl = document.getElementById('advanced-custom-wrap');
   var advancedCustomUrlEl = document.getElementById('advanced-custom-url');
   var advancedSourceLinkEl = document.getElementById('advanced-source-link');
   var openAdvancedSourceBtn = document.getElementById('open-advanced-source-btn');
@@ -404,6 +405,10 @@
       btn.classList.toggle('is-active', mode === advancedUpdateState.mode);
       btn.setAttribute('aria-pressed', mode === advancedUpdateState.mode ? 'true' : 'false');
     });
+
+    if (advancedCustomWrapEl) {
+      advancedCustomWrapEl.classList.toggle('is-visible', advancedUpdateState.mode === 'custom');
+    }
 
     if (advancedCustomUrlEl) {
       advancedCustomUrlEl.disabled = advancedUpdateState.mode !== 'custom';

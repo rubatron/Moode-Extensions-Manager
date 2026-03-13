@@ -415,14 +415,108 @@ function buildTemplatePackageFiles($extensionId) {
     ];
 }
 
-function writeTemplateZipArchive($zipPath, $extensionId, &$error) {
+function writeTemplateFilesToDirectory($rootDir, $files, &$error) {
     $error = '';
-    if (!class_exists('ZipArchive')) {
-        $error = 'ZipArchive extension is unavailable in PHP.';
+
+    foreach ($files as $relativePath => $content) {
+        $normalizedPath = trim(str_replace('\\', '/', (string)$relativePath), '/');
+        if ($normalizedPath === '') {
+            continue;
+        }
+
+        $targetPath = $rootDir . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $normalizedPath);
+        $targetDir = dirname($targetPath);
+        if (!is_dir($targetDir) && !mkdir($targetDir, 0775, true) && !is_dir($targetDir)) {
+            $error = 'Failed to create template directory: ' . $targetDir;
+            return false;
+        }
+
+        if (file_put_contents($targetPath, (string)$content) === false) {
+            $error = 'Failed to write template file: ' . $normalizedPath;
+            return false;
+        }
+    }
+
+    return true;
+}
+
+function writeTemplateZipViaCommand($zipPath, $extensionId, $files, &$error) {
+    $error = '';
+
+    if (!isPhpFunctionEnabled('exec')) {
+        $error = 'zip fallback unavailable: exec() is disabled.';
         return false;
     }
 
+    $whichOutput = [];
+    $whichCode = 0;
+    @exec('command -v zip 2>/dev/null', $whichOutput, $whichCode);
+    if ($whichCode !== 0 || !is_array($whichOutput) || count($whichOutput) === 0) {
+        $error = 'zip fallback unavailable: zip command not found.';
+        return false;
+    }
+
+    $zipBinary = trim((string)$whichOutput[0]);
+    if ($zipBinary === '') {
+        $error = 'zip fallback unavailable: invalid zip binary path.';
+        return false;
+    }
+
+    $buildRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'extmgr_tpl_build_' . uniqid('', true);
+    $packageRootName = $extensionId . '-template';
+    $packageRoot = $buildRoot . DIRECTORY_SEPARATOR . $packageRootName;
+
+    if (!mkdir($packageRoot, 0775, true) && !is_dir($packageRoot)) {
+        $error = 'Failed to prepare template build directory.';
+        return false;
+    }
+
+    $writeError = '';
+    if (!writeTemplateFilesToDirectory($packageRoot, $files, $writeError)) {
+        removePathRecursive($buildRoot);
+        $error = $writeError;
+        return false;
+    }
+
+    if (file_exists($zipPath)) {
+        @unlink($zipPath);
+    }
+
+    $cmd = 'cd ' . escapeshellarg($buildRoot)
+        . ' && '
+        . escapeshellarg($zipBinary)
+        . ' -rq '
+        . escapeshellarg($zipPath)
+        . ' '
+        . escapeshellarg($packageRootName)
+        . ' 2>&1';
+
+    $output = [];
+    $exitCode = 0;
+    @exec($cmd, $output, $exitCode);
+
+    removePathRecursive($buildRoot);
+
+    if ($exitCode !== 0 || !is_file($zipPath) || filesize($zipPath) <= 0) {
+        $error = 'zip command failed: ' . trim(implode("\n", $output));
+        return false;
+    }
+
+    return true;
+}
+
+function writeTemplateZipArchive($zipPath, $extensionId, &$error) {
+    $error = '';
     $files = buildTemplatePackageFiles($extensionId);
+
+    if (!class_exists('ZipArchive')) {
+        if (writeTemplateZipViaCommand($zipPath, $extensionId, $files, $error)) {
+            return true;
+        }
+        $error = 'ZipArchive extension is unavailable in PHP. ' . $error;
+        return false;
+    }
+
     $rootDir = $extensionId . '-template';
 
     $zip = new ZipArchive();

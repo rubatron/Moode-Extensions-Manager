@@ -132,8 +132,10 @@ if (file_exists('/var/www/header.php')) {
                                         <button type="button" class="extmgr-mode-btn" data-advanced-mode="custom">custom URL</button>
                                     </div>
 
-                                    <label for="advanced-custom-url">Custom URL</label>
-                                    <input id="advanced-custom-url" type="url" placeholder="https://example.com/ext-mgr" aria-label="Custom update source URL">
+                                    <div id="advanced-custom-wrap" class="extmgr-custom-url-row" aria-live="polite">
+                                        <label for="advanced-custom-url">Custom URL</label>
+                                        <input id="advanced-custom-url" type="url" placeholder="https://example.com/ext-mgr" aria-label="Custom update source URL">
+                                    </div>
                                 </div>
                                 <div class="extmgr-advanced-source">
                                     <span class="extmgr-advanced-source-label">Source</span>
@@ -184,7 +186,7 @@ if (file_exists('/var/www/header.php')) {
                     <div class="extmgr-submenu-body">
                         <p class="config-help-static extmgr-help">Use these tools to fix common ext-mgr installation issues.</p>
                         <div class="extmgr-actions">
-                            <button id="repair-btn" class="btn btn-small btn-danger" type="button"><i class="fa-solid fa-sharp fa-wrench"></i> Repair Installation</button>
+                            <button id="repair-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-wrench"></i> Repair Installation</button>
                         </div>
                         <div id="maintenance-log" class="extmgr-log">No maintenance actions executed.</div>
                     </div>
