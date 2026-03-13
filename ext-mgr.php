@@ -162,25 +162,10 @@ if (file_exists('/var/www/header.php')) {
 
             <details class="extmgr-collapse extmgr-submenu-section" open>
                 <summary>Developer Requirements and FAQ</summary>
-                <div class="extmgr-list-summary">Target release focus: ext-mgr 1.2. GitHub-backed update retrieval is active; signature verification policy is still configurable/planned.</div>
-                <div class="config-help-static extmgr-help">Minimum requirements for ext-mgr import compatibility.</div>
-                <div class="extmgr-list-summary">Required: manifest.json, info.json, extension entry PHP file, and optional service metadata under ext_mgr.service.</div>
-                <div class="extmgr-faq-item">
-                    <div class="extmgr-faq-q">How does disable work?</div>
-                    <div class="extmgr-faq-a">Disable marks extension as inactive in registry and menu integrations can hide it or show it as unavailable.</div>
-                </div>
-                <div class="extmgr-faq-item">
-                    <div class="extmgr-faq-q">What does repair do?</div>
-                    <div class="extmgr-faq-a">Repair normalizes registry structure and refreshes maintenance timestamps and health metadata.</div>
-                </div>
-                <div class="extmgr-faq-item">
-                    <div class="extmgr-faq-q">Can this manage service-based extensions?</div>
-                    <div class="extmgr-faq-a">Yes, import wizard supports extension service metadata and enable/disable lifecycle hooks.</div>
-                </div>
-                <div class="extmgr-faq-item">
-                    <div class="extmgr-faq-q">Can I choose where an extension is visible?</div>
-                    <div class="extmgr-faq-a">Yes. Each extension has independent visibility toggles for M menu and Library menu.</div>
-                </div>
+                <div class="extmgr-md-meta">Editable content files: guidance.md, developer-requirements.md, faq.md</div>
+                <div id="guidance-doc" class="extmgr-md-block">Loading guidance...</div>
+                <div id="requirements-doc" class="extmgr-md-block">Loading developer requirements...</div>
+                <div id="faq-doc" class="extmgr-md-block">Loading FAQ...</div>
             </details>
             </details>
         </fieldset>

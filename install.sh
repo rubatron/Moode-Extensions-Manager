@@ -17,12 +17,16 @@ SRC_HOVER_MENU_JS=""
 SRC_CSS=""
 SRC_REGISTRY_SYNC_SCRIPT=""
 SRC_IMPORT_WIZARD_SCRIPT=""
+SRC_GUIDANCE_MD=""
+SRC_REQUIREMENTS_MD=""
+SRC_FAQ_MD=""
 
 TARGET_EXT_DIR="/var/www/extensions"
 TARGET_SYS_DIR="$TARGET_EXT_DIR/sys"
 TARGET_ASSETS_DIR="$TARGET_SYS_DIR/assets"
 TARGET_JS_DIR="$TARGET_ASSETS_DIR/js"
 TARGET_CSS_DIR="$TARGET_ASSETS_DIR/css"
+TARGET_CONTENT_DIR="$TARGET_SYS_DIR/content"
 TARGET_PAGE="$TARGET_SYS_DIR/ext-mgr.php"
 TARGET_API="$TARGET_SYS_DIR/ext-mgr-api.php"
 TARGET_META="$TARGET_SYS_DIR/ext-mgr.meta.json"
@@ -37,6 +41,9 @@ TARGET_HOVER_MENU_JS="$TARGET_JS_DIR/ext-mgr-hover-menu.js"
 TARGET_SCRIPT_DIR="$TARGET_SYS_DIR/scripts"
 TARGET_REGISTRY_SYNC_SCRIPT="$TARGET_SCRIPT_DIR/ext-mgr-registry-sync.sh"
 TARGET_IMPORT_WIZARD_SCRIPT="$TARGET_SCRIPT_DIR/ext-mgr-import-wizard.sh"
+TARGET_GUIDANCE_MD="$TARGET_CONTENT_DIR/guidance.md"
+TARGET_REQUIREMENTS_MD="$TARGET_CONTENT_DIR/developer-requirements.md"
+TARGET_FAQ_MD="$TARGET_CONTENT_DIR/faq.md"
 TARGET_INSTALLED_ROOT="$TARGET_EXT_DIR/installed"
 TARGET_RUNTIME_ROOT="$TARGET_SYS_DIR/.ext-mgr"
 TARGET_RUNTIME_CACHE="$TARGET_RUNTIME_ROOT/cache"
@@ -125,6 +132,9 @@ set_source_root() {
     SRC_CSS="$root/assets/css/ext-mgr.css"
     SRC_REGISTRY_SYNC_SCRIPT="$root/scripts/ext-mgr-registry-sync.sh"
     SRC_IMPORT_WIZARD_SCRIPT="$root/scripts/ext-mgr-import-wizard.sh"
+    SRC_GUIDANCE_MD="$root/content/guidance.md"
+    SRC_REQUIREMENTS_MD="$root/content/developer-requirements.md"
+    SRC_FAQ_MD="$root/content/faq.md"
 }
 
 set_source_root "$PROJECT_ROOT"
@@ -162,6 +172,7 @@ ensure_extmgr_structure_permissions() {
         "$TARGET_ASSETS_DIR"
         "$TARGET_JS_DIR"
         "$TARGET_CSS_DIR"
+        "$TARGET_CONTENT_DIR"
         "$TARGET_SCRIPT_DIR"
         "$TARGET_INSTALLED_ROOT"
         "$TARGET_RUNTIME_ROOT"
@@ -315,6 +326,9 @@ fetch_from_main_branch() {
         "assets/js/ext-mgr-modal-fix.js"
         "assets/js/ext-mgr-hover-menu.js"
         "assets/css/ext-mgr.css"
+        "content/guidance.md"
+        "content/developer-requirements.md"
+        "content/faq.md"
         "scripts/ext-mgr-import-wizard.sh"
         "scripts/ext-mgr-registry-sync.sh"
     )
@@ -530,6 +544,9 @@ require_file "$SRC_HOVER_MENU_JS"
 require_file "$SRC_CSS"
 require_file "$SRC_REGISTRY_SYNC_SCRIPT"
 require_file "$SRC_IMPORT_WIZARD_SCRIPT"
+require_file "$SRC_GUIDANCE_MD"
+require_file "$SRC_REQUIREMENTS_MD"
+require_file "$SRC_FAQ_MD"
 
 print_version_warning
 
@@ -566,10 +583,10 @@ PRIMARY_USER="$(detect_primary_user || true)"
 sync_security_user_groups "$PRIMARY_USER"
 
 echo "[1/10] Preparing target directories..."
-$SUDO mkdir -p "$TARGET_EXT_DIR" "$TARGET_SYS_DIR" "$TARGET_ASSETS_DIR" "$TARGET_JS_DIR" "$TARGET_CSS_DIR" "$TARGET_SCRIPT_DIR" "$TARGET_INSTALLED_ROOT" "$TARGET_RUNTIME_CACHE" "$TARGET_RUNTIME_DATA" "$TARGET_RUNTIME_LOGS"
+$SUDO mkdir -p "$TARGET_EXT_DIR" "$TARGET_SYS_DIR" "$TARGET_ASSETS_DIR" "$TARGET_JS_DIR" "$TARGET_CSS_DIR" "$TARGET_CONTENT_DIR" "$TARGET_SCRIPT_DIR" "$TARGET_INSTALLED_ROOT" "$TARGET_RUNTIME_CACHE" "$TARGET_RUNTIME_DATA" "$TARGET_RUNTIME_LOGS"
 
 echo "[2/10] Backing up existing ext-mgr files (if present)..."
-for f in "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_REGISTRY" "$TARGET_RELEASE" "$TARGET_VERSION" "$TARGET_INTEGRITY" "$TARGET_JS" "$TARGET_MODAL_FIX_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_REGISTRY_SYNC_SCRIPT" "$TARGET_IMPORT_WIZARD_SCRIPT"; do
+for f in "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_REGISTRY" "$TARGET_RELEASE" "$TARGET_VERSION" "$TARGET_INTEGRITY" "$TARGET_JS" "$TARGET_MODAL_FIX_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_REGISTRY_SYNC_SCRIPT" "$TARGET_IMPORT_WIZARD_SCRIPT" "$TARGET_GUIDANCE_MD" "$TARGET_REQUIREMENTS_MD" "$TARGET_FAQ_MD"; do
     if [[ -f "$f" ]]; then
         $SUDO cp -a "$f" "$f.bak-extmgr-$STAMP"
     fi
@@ -586,6 +603,9 @@ $SUDO install -o www-data -g www-data -m 0644 "$SRC_JS" "$TARGET_JS"
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_MODAL_FIX_JS" "$TARGET_MODAL_FIX_JS"
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_CSS" "$TARGET_CSS"
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_HOVER_MENU_JS" "$TARGET_HOVER_MENU_JS"
+$SUDO install -o www-data -g www-data -m 0644 "$SRC_GUIDANCE_MD" "$TARGET_GUIDANCE_MD"
+$SUDO install -o www-data -g www-data -m 0644 "$SRC_REQUIREMENTS_MD" "$TARGET_REQUIREMENTS_MD"
+$SUDO install -o www-data -g www-data -m 0644 "$SRC_FAQ_MD" "$TARGET_FAQ_MD"
 $SUDO install -o root -g "$SECURITY_GROUP" -m 0750 "$SRC_REGISTRY_SYNC_SCRIPT" "$TARGET_REGISTRY_SYNC_SCRIPT"
 $SUDO install -o root -g "$SECURITY_GROUP" -m 0750 "$SRC_IMPORT_WIZARD_SCRIPT" "$TARGET_IMPORT_WIZARD_SCRIPT"
 

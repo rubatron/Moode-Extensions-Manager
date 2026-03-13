@@ -111,6 +111,34 @@
   color: #c0c8d0;
 }
 
+.extmgr-md-meta {
+  margin-top: 0.35rem;
+  color: #98a0aa;
+  font-size: 0.8rem;
+}
+
+.extmgr-md-block {
+  margin-top: 0.55rem;
+  border-top: 1px solid rgba(128, 128, 128, 0.2);
+  padding-top: 0.45rem;
+  color: #b7bec7;
+  font-size: 0.84rem;
+}
+
+.extmgr-md-block h4 {
+  margin: 0.35rem 0 0.3rem;
+  color: #d0d6dd;
+  font-size: 0.9rem;
+}
+
+.extmgr-md-block ul {
+  margin: 0.2rem 0 0.4rem 1rem;
+}
+
+.extmgr-md-block p {
+  margin: 0.2rem 0;
+}
+
 .extmgr-collapse {
   margin-top: 0.45rem;
   border: 1px solid rgba(128, 128, 128, 0.22);

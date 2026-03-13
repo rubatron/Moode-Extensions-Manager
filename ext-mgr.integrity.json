@@ -1,17 +1,20 @@
 {
   "schemaVersion": "1",
   "algorithm": "sha256",
-  "generatedAt": "2026-03-13T00:21:48",
+  "generatedAt": "2026-03-13T01:48:19",
   "files": {
-    "ext-mgr.php": "4e7a227a7a35a530399e9b896ee18295c55f2e8a84a15d8a32ddf098fecc1c0c",
-    "ext-mgr-api.php": "ccd4d92ee070b1b7bd1c85431c490b267959cdeedf3c938edcae4d379443d2b8",
+    "ext-mgr.php": "a6bf11b02466c536b1faa3ff0e551f150e0fded1cc6286282cc60c01837b51a0",
+    "ext-mgr-api.php": "3531f6612c4ee5681e2d7bb91b6ca22a8b4b5014d6bae357f444f99df9cd9254",
     "ext-mgr.meta.json": "700688652a94af1a22ff71e04499623f85a53912957add3a540e878bf70208bc",
-    "ext-mgr.release.json": "a1edbed5223581653803359cf08035f9000631b1c6a8ddb46ae5a7f9c50818bf",
-    "ext-mgr.version": "4c3dc68152f0f90abbc683925552458eb9a82f416719f84535fbe884a4fdb854",
-    "assets/js/ext-mgr.js": "6d11d06f8cee59b5405f32208d21f5dc1ba38e7b1a33c26c048198e0709dfa34",
-    "assets/css/ext-mgr.css": "4670ee72361a93e23a4934966904f8cf87fe480646274b1d41d4c1003b8e246a",
+    "ext-mgr.release.json": "742f45dfd2b80f19db7c4da0025bd1112400699b41276cb2a41cb64fd625dcca",
+    "ext-mgr.version": "a64708b010e2bcf628154ddc205ed49688a6347ef93a66a42492430f63f021b1",
+    "assets/js/ext-mgr.js": "c6540eae23b1dcc9bdc0770b3a2e9c2f23e39c3612a353a87f9dc8fb1f7cafd4",
+    "assets/css/ext-mgr.css": "3619d3ec70a6b2ccac901085e39fb6b8777b92c1fb9c8ce77cb047fd18866b17",
     "scripts/ext-mgr-import-wizard.sh": "4536f2adc82b0d059169628473cf7ce676633365b7f7216b47dccf8850d21f7e",
-    "scripts/ext-mgr-registry-sync.sh": "fcb95a23246d652008f142e87336fa6994dad796ae74e4577557dfe012d5e545",
-    "README.md": "329f71313bb4235a37f8f8ccce473d9cc1ff581eec9bb0775308e4341c124b15"
+    "scripts/ext-mgr-registry-sync.sh": "4bbfed8474e3458275c63e9e871ca42b7197ca91a0fd9bd64f432b658dd3ac06",
+    "content/guidance.md": "f4de442e617fa194a36b7f58f0824e27c1ffb846c9b2ba9807236dd58e470b03",
+    "content/developer-requirements.md": "639905fbe5f917eb41d32acb5be256484f6991e61ee7dfc38d44215f19b9966f",
+    "content/faq.md": "1884c4e010ec33d0d3c9d7ab4e8e3e2a994ef9b861da7be6c09f4100b5832545",
+    "README.md": "8dfb61693186ce642c1e44766ea28cf2bb31200818ccfbf03eb54ab83700940b"
   }
 }

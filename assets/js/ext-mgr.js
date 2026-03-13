@@ -39,6 +39,9 @@
   var listSortEl = document.getElementById('list-sort');
   var listSearchEl = document.getElementById('list-search');
   var listSummaryEl = document.getElementById('list-summary');
+  var guidanceDocEl = document.getElementById('guidance-doc');
+  var requirementsDocEl = document.getElementById('requirements-doc');
+  var faqDocEl = document.getElementById('faq-doc');
   var localMenuItems = document.querySelectorAll('.extmgr-local-menu-item');
   var systemRootDetailsEl = document.getElementById('system-root-details');
 
@@ -341,6 +344,70 @@
       .replace(/'/g, '&#39;');
   }
 
+  function markdownToHtml(markdown) {
+    var lines = String(markdown || '').split(/\r?\n/);
+    var html = [];
+    var inList = false;
+
+    function closeList() {
+      if (inList) {
+        html.push('</ul>');
+        inList = false;
+      }
+    }
+
+    lines.forEach(function (rawLine) {
+      var line = rawLine.trim();
+      if (!line) {
+        closeList();
+        return;
+      }
+
+      if (line.indexOf('## ') === 0) {
+        closeList();
+        html.push('<h4>' + escapeHtml(line.slice(3)) + '</h4>');
+        return;
+      }
+
+      if (line.indexOf('# ') === 0) {
+        closeList();
+        html.push('<h4>' + escapeHtml(line.slice(2)) + '</h4>');
+        return;
+      }
+
+      if (line.indexOf('- ') === 0) {
+        if (!inList) {
+          html.push('<ul>');
+          inList = true;
+        }
+        html.push('<li>' + escapeHtml(line.slice(2)) + '</li>');
+        return;
+      }
+
+      closeList();
+      html.push('<p>' + escapeHtml(line) + '</p>');
+    });
+
+    closeList();
+    return html.join('');
+  }
+
+  function renderGuidanceDocs(guidance) {
+    if (!guidance || typeof guidance !== 'object') {
+      return;
+    }
+
+    if (guidanceDocEl) {
+      guidanceDocEl.innerHTML = markdownToHtml(guidance.guidanceMarkdown || 'No guidance loaded.');
+    }
+    if (requirementsDocEl) {
+      requirementsDocEl.innerHTML = markdownToHtml(guidance.requirementsMarkdown || 'No requirements loaded.');
+    }
+    if (faqDocEl) {
+      faqDocEl.innerHTML = markdownToHtml(guidance.faqMarkdown || 'No FAQ loaded.');
+    }
+  }
+
   function getVisibility(item, key) {
     var visibility = item && item.menuVisibility;
     if (!visibility || typeof visibility !== 'object') {
@@ -632,6 +699,7 @@
       .then(function (data) {
         renderMeta(data.data.meta || {});
         renderHealth(data.data.health || {});
+        renderGuidanceDocs(data.data.guidance || {});
         renderAdvancedUpdateControls(providerStatusFromPolicy(data.data.releasePolicy || {}), null, null);
         allItems = (data.data && data.data.extensions) || [];
         renderItems(allItems);
@@ -648,6 +716,7 @@
       .then(function (data) {
         renderMeta(data.data.meta || {});
         renderHealth(data.data.health || {});
+        renderGuidanceDocs(data.data.guidance || {});
         renderAdvancedUpdateControls(providerStatusFromPolicy(data.data.releasePolicy || {}), null, null);
         allItems = (data.data && data.data.extensions) || [];
         renderItems(allItems);
@@ -719,6 +788,7 @@
     api({ action: 'repair' })
       .then(function (data) {
         renderMeta(data.data.meta || {});
+        renderGuidanceDocs(data.data.guidance || {});
         allItems = data.data.extensions || [];
         renderItems(allItems);
         setStatus('Repair completed successfully.', 'ok');
@@ -738,6 +808,7 @@
 
         renderMeta(state.meta || {});
         renderHealth(state.health || {});
+        renderGuidanceDocs(state.guidance || {});
         allItems = state.extensions || [];
         renderItems(allItems);
 

@@ -63,6 +63,9 @@ function defaultReleasePolicy() {
             'assets/css/ext-mgr.css',
             'scripts/ext-mgr-import-wizard.sh',
             'scripts/ext-mgr-registry-sync.sh',
+            'content/guidance.md',
+            'content/developer-requirements.md',
+            'content/faq.md',
             'README.md',
         ],
     ];
@@ -202,6 +205,42 @@ function readJsonFile($path, $fallback) {
         return $fallback;
     }
     return $data;
+}
+
+function readTextFile($path, $fallback) {
+    if (!is_string($path) || !file_exists($path) || !is_readable($path)) {
+        return $fallback;
+    }
+    $data = @file_get_contents($path);
+    if (!is_string($data) || trim($data) === '') {
+        return $fallback;
+    }
+    return $data;
+}
+
+function readGuidanceDocs($baseDir) {
+    $contentDir = rtrim((string)$baseDir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'content';
+
+    return [
+        'guidanceMarkdown' => readTextFile(
+            $contentDir . DIRECTORY_SEPARATOR . 'guidance.md',
+            "# Guidance\n\nNo guidance content found."
+        ),
+        'requirementsMarkdown' => readTextFile(
+            $contentDir . DIRECTORY_SEPARATOR . 'developer-requirements.md',
+            "# Developer Requirements\n\nNo requirements content found."
+        ),
+        'faqMarkdown' => readTextFile(
+            $contentDir . DIRECTORY_SEPARATOR . 'faq.md',
+            "# FAQ\n\nNo FAQ content found."
+        ),
+        'source' => [
+            'contentDir' => $contentDir,
+            'guidanceFile' => $contentDir . DIRECTORY_SEPARATOR . 'guidance.md',
+            'requirementsFile' => $contentDir . DIRECTORY_SEPARATOR . 'developer-requirements.md',
+            'faqFile' => $contentDir . DIRECTORY_SEPARATOR . 'faq.md',
+        ],
+    ];
 }
 
 function writeJsonFile($path, $data) {
@@ -1319,6 +1358,7 @@ function sanitizeRegistryForPersist($registry) {
 function responseData($registryPath, $metaPath, $versionPath, $releasePath) {
     $registry = normalizeRegistry(readRegistry($registryPath));
     [$meta, $policy] = buildMeta($metaPath, $versionPath, $releasePath);
+    $guidance = readGuidanceDocs(dirname($registryPath));
     $activeCount = 0;
     $inactiveCount = 0;
     $mVisibleCount = 0;
@@ -1347,6 +1387,7 @@ function responseData($registryPath, $metaPath, $versionPath, $releasePath) {
         'extensions' => $registry['extensions'],
         'meta' => $meta,
         'releasePolicy' => $policy,
+        'guidance' => $guidance,
         'health' => [
             'apiService' => 'online',
             'registry' => canWriteJsonPath($registryPath) ? 'writable' : 'read-only',
