@@ -381,6 +381,20 @@ run_restore_oobe() {
     echo "INFO: OOBE restore completed."
 }
 
+ensure_install_sources() {
+    if [[ "$ACTION" != "install" ]]; then
+        return 0
+    fi
+
+    # Support wget-only flow where only install.sh is downloaded.
+    if [[ -f "$SRC_PAGE" && -f "$SRC_API" && -f "$SRC_JS" && -f "$SRC_CSS" ]]; then
+        return 0
+    fi
+
+    echo "INFO: local install payload missing, fetching from main branch..."
+    fetch_from_main_branch
+}
+
 graceful_finalize_services() {
     local ready=0
     local i code
@@ -731,6 +745,8 @@ case "$ACTION" in
         exit 1
         ;;
 esac
+
+    ensure_install_sources
 
 require_file "$SRC_PAGE"
 require_file "$SRC_API"
