@@ -80,7 +80,7 @@ if (file_exists('/var/www/header.php')) {
             <summary>Open System Panels</summary>
 
             <div class="extmgr-system-cards">
-                <div class="extmgr-system-card">
+                <div class="extmgr-system-card extmgr-system-card-compact">
                     <h3 class="extmgr-system-card-title">API Status</h3>
                     <div class="extmgr-grid">
                         <div class="extmgr-metric"><div class="extmgr-metric-label">API Service</div><div id="api-service" class="extmgr-metric-value">-</div></div>
