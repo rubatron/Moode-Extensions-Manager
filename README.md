@@ -8,7 +8,7 @@ ext-mgr is the canonical extension manager for moOde with:
 - self-update and repair operations
 
 ## Runtime Map
-```mermaid
+```
 flowchart LR
   UI[ext-mgr.php + ext-mgr.js] --> API[ext-mgr-api.php]
   API --> REG[(registry.json)]
