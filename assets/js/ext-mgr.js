@@ -57,6 +57,18 @@
     mode: 'main',
     customUrl: ''
   };
+  var currentProviderStatus = {
+    provider: 'github',
+    repository: '',
+    updateTrack: 'branch',
+    channel: 'stable',
+    branch: 'main',
+    customBaseUrl: '',
+    availableBranches: ['main', 'dev'],
+    signatureVerification: 'planned',
+    checksumAlgorithm: 'sha256',
+    integrityManifestPath: 'ext-mgr.integrity.json'
+  };
 
   function setStatus(text, kind) {
     statusEl.textContent = text;
@@ -322,10 +334,27 @@
     }
   }
 
+  function mergeWithCurrentProviderStatus(overrides) {
+    var next = {};
+    var base = currentProviderStatus || {};
+    var patch = overrides || {};
+
+    Object.keys(base).forEach(function (key) {
+      next[key] = base[key];
+    });
+    Object.keys(patch).forEach(function (key) {
+      next[key] = patch[key];
+    });
+
+    return next;
+  }
+
   function renderAdvancedUpdateControls(providerStatus, payloadWarning, candidate) {
     if (!advancedModeButtons || advancedModeButtons.length === 0) {
       return;
     }
+
+    currentProviderStatus = providerStatusFromPolicy(providerStatus || {});
 
     advancedUpdateState.mode = getAdvancedModeFromStatus(providerStatus);
     advancedUpdateState.customUrl = String((providerStatus && providerStatus.customBaseUrl) || '').trim();
@@ -336,32 +365,32 @@
     renderAdvancedModeButtons();
     var previewStatus = providerStatus || {};
     if (advancedUpdateState.mode === 'custom') {
-      previewStatus = {
+      previewStatus = mergeWithCurrentProviderStatus({
         provider: 'custom',
         repository: '',
         updateTrack: 'custom',
         channel: 'stable',
         branch: 'main',
         customBaseUrl: advancedUpdateState.customUrl
-      };
+      });
     } else if (advancedUpdateState.mode === 'dev') {
-      previewStatus = {
-        provider: (providerStatus && providerStatus.provider) || 'github',
-        repository: (providerStatus && providerStatus.repository) || 'rubatron/Moode-Extensions-Manager',
+      previewStatus = mergeWithCurrentProviderStatus({
+        provider: (providerStatus && providerStatus.provider) || currentProviderStatus.provider || 'github',
+        repository: (providerStatus && providerStatus.repository) || currentProviderStatus.repository,
         updateTrack: 'branch',
         channel: 'dev',
         branch: 'dev',
         customBaseUrl: ''
-      };
+      });
     } else {
-      previewStatus = {
-        provider: (providerStatus && providerStatus.provider) || 'github',
-        repository: (providerStatus && providerStatus.repository) || 'rubatron/Moode-Extensions-Manager',
+      previewStatus = mergeWithCurrentProviderStatus({
+        provider: (providerStatus && providerStatus.provider) || currentProviderStatus.provider || 'github',
+        repository: (providerStatus && providerStatus.repository) || currentProviderStatus.repository,
         updateTrack: 'branch',
         channel: 'stable',
         branch: 'main',
         customBaseUrl: ''
-      };
+      });
     }
     renderAdvancedSource(previewStatus, candidate || null);
 
@@ -910,14 +939,14 @@
       var nextMode = btn.getAttribute('data-advanced-mode') || 'main';
       advancedUpdateState.mode = nextMode;
       renderAdvancedModeButtons();
-      renderAdvancedSource({
-        provider: 'github',
-        repository: 'rubatron/Moode-Extensions-Manager',
+      renderAdvancedSource(mergeWithCurrentProviderStatus({
+        provider: currentProviderStatus.provider || 'github',
+        repository: currentProviderStatus.repository,
         updateTrack: nextMode === 'custom' ? 'custom' : 'branch',
         channel: nextMode === 'dev' ? 'dev' : 'stable',
         branch: nextMode === 'dev' ? 'dev' : 'main',
         customBaseUrl: advancedCustomUrlEl ? advancedCustomUrlEl.value : ''
-      }, null);
+      }), null);
     });
   });
 
@@ -926,14 +955,14 @@
     if (advancedUpdateState.mode !== 'custom') {
       return;
     }
-    renderAdvancedSource({
+    renderAdvancedSource(mergeWithCurrentProviderStatus({
       provider: 'custom',
       repository: '',
       updateTrack: 'custom',
       channel: 'stable',
       branch: 'main',
       customBaseUrl: advancedUpdateState.customUrl
-    }, null);
+    }), null);
   });
 
   bindIfPresent(copyAdvancedSourceBtn, 'click', function () {
