@@ -17,9 +17,7 @@ ALT_HEADER_FILE="/var/local/www/header.php"
 ALT_FOOTER_MIN_FILE="/var/local/www/footer.min.php"
 ALT_FOOTER_FILE="/var/local/www/footer.php"
 ALT_INDEX_PHP_FILE="/var/local/www/index.php"
-GUARD_JS="/var/www/extensions/sys/assets/js/ext-mgr-configure-modal-guard.js"
 HOVER_SCRIPT_TAG='<script src="/extensions/sys/assets/js/ext-mgr-hover-menu.js" defer></script>'
-GUARD_SCRIPT_TAG='<script src="/extensions/sys/assets/js/ext-mgr-configure-modal-guard.js" defer></script>'
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
 backup_if_exists() {
@@ -39,104 +37,14 @@ restore_latest_hotfix_backup_if_present() {
   fi
 }
 
-write_configure_guard_js() {
-  $SUDO mkdir -p "$(dirname "$GUARD_JS")"
-  cat <<'JS' | $SUDO tee "$GUARD_JS" >/dev/null
-(function (window, document) {
-  'use strict';
-
-  function ensureBackdrop() {
-    var existing = document.querySelector('.modal-backdrop');
-    if (existing) {
-      return existing;
-    }
-    var backdrop = document.createElement('div');
-    backdrop.className = 'modal-backdrop in';
-    document.body.appendChild(backdrop);
-    return backdrop;
-  }
-
-  function closeConfigureModal() {
-    var modal = document.getElementById('configure-modal');
-    if (!modal) {
-      return;
-    }
-
-    modal.classList.add('hide');
-    modal.style.display = 'none';
-    modal.setAttribute('aria-hidden', 'true');
-    document.body.classList.remove('modal-open');
-
-    var backdrops = document.querySelectorAll('.modal-backdrop');
-    var i;
-    for (i = 0; i < backdrops.length; i += 1) {
-      if (backdrops[i] && backdrops[i].parentNode) {
-        backdrops[i].parentNode.removeChild(backdrops[i]);
-      }
-    }
-  }
-
-  function openConfigureModal(e) {
-    var modal = document.getElementById('configure-modal');
-    if (!modal) {
-      return;
-    }
-
-    if (e && typeof e.preventDefault === 'function') {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-
-    if (window.jQuery && window.jQuery.fn && window.jQuery.fn.modal) {
-      window.jQuery(modal).removeClass('hide').modal('show');
-      return;
-    }
-
-    modal.classList.remove('hide');
-    modal.style.display = 'block';
-    modal.setAttribute('aria-hidden', 'false');
-    document.body.classList.add('modal-open');
-    ensureBackdrop();
-  }
-
-  document.addEventListener('click', function (e) {
-    var t = e.target && e.target.closest
-      ? e.target.closest('a[href="#configure-modal"], a[href*="configure-modal"], [data-target="#configure-modal"], [href*="open-configure"]')
-      : null;
-    if (!t) {
-      return;
-    }
-    openConfigureModal(e);
-  }, true);
-
-  document.addEventListener('click', function (e) {
-    var closeTrigger = e.target && e.target.closest
-      ? e.target.closest('#configure-modal [data-dismiss="modal"], #configure-modal .close, .modal-backdrop')
-      : null;
-    if (!closeTrigger) {
-      return;
-    }
-    closeConfigureModal();
-  }, true);
-
-  if (window.location.hash === '#configure-modal' || window.location.hash.indexOf('configure-modal') !== -1) {
-    window.setTimeout(function () {
-      openConfigureModal();
-    }, 0);
-  }
-})(window, document);
-JS
-  $SUDO chmod 0644 "$GUARD_JS"
-}
-
 inject_scripts_safe() {
   local target="$1"
-  $SUDO python3 - "$target" "$HOVER_SCRIPT_TAG" "$GUARD_SCRIPT_TAG" <<'PY'
+  $SUDO python3 - "$target" "$HOVER_SCRIPT_TAG" <<'PY'
 from pathlib import Path
 import sys
 
 path = Path(sys.argv[1])
-tags = [sys.argv[2], sys.argv[3]]
+tags = [sys.argv[2]]
 
 if not path.exists():
     print(f"skip missing: {path}")
@@ -189,8 +97,7 @@ backup_if_exists "$ALT_FOOTER_MIN_FILE"
 backup_if_exists "$ALT_FOOTER_FILE"
 backup_if_exists "$ALT_INDEX_PHP_FILE"
 
-echo "[3/6] write configure modal guard js"
-write_configure_guard_js
+echo "[3/6] configure modal guard handled by ext-mgr-hover-menu.js"
 
 echo "[4/6] inject helper scripts safely into shell files"
 inject_scripts_safe "$INDEX_TEMPLATE_FILE"
@@ -224,12 +131,6 @@ if command -v curl >/dev/null 2>&1; then
     echo "WARN: hover helper script still not visible in homepage output"
   fi
 
-  if curl -s http://localhost/ | grep -q 'ext-mgr-configure-modal-guard.js'; then
-    echo "OK: configure modal guard script visible in homepage output"
-  else
-    echo "WARN: configure modal guard script not visible in homepage output"
-  fi
-
   echo "debug: files containing moOde Player marker"
   grep -RIl "moOde Player" /var/www /var/local/www 2>/dev/null | head -n 10 || true
 
@@ -237,7 +138,7 @@ if command -v curl >/dev/null 2>&1; then
   grep -RIl "ext-mgr-hover-menu.js" /var/www /var/local/www 2>/dev/null | head -n 20 || true
 
   echo "debug: active homepage script hits"
-  curl -s http://localhost/ | grep -n "ext-mgr-hover-menu.js\|ext-mgr-configure-modal-guard.js\|configure-modal" | head -n 20 || true
+  curl -s http://localhost/ | grep -n "ext-mgr-hover-menu.js\|configure-modal" | head -n 20 || true
 else
   echo "INFO: curl not available, skipped HTTP verify"
 fi
