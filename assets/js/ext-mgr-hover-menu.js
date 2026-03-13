@@ -42,6 +42,9 @@
   var PAYLOAD_CACHE = null;
   var PAYLOAD_CACHE_AT = 0;
   var PAYLOAD_CACHE_TTL_MS = 10000;
+  var LAST_LIBRARY_SIG = '';
+  var LAST_MMENU_SIG = '';
+  var LAST_SYSTEM_SIG = '';
 
   function toBool(value, fallback) {
     if (typeof value === 'boolean') {
@@ -170,10 +173,25 @@
       return;
     }
 
-    removeExistingLibraryInjected(container);
-
     var managerVisibility = (meta && meta.managerVisibility) || {};
     var showLibrary = managerVisibility.library !== false;
+    var visibleIds = [];
+    var i;
+    for (i = 0; i < items.length; i += 1) {
+      var candidate = items[i] || {};
+      if (!candidate.enabled || !candidate.menuVisibility || !candidate.menuVisibility.library) {
+        continue;
+      }
+      visibleIds.push(String(candidate.id || ''));
+    }
+    var sig = String(showLibrary) + '|' + visibleIds.join(',');
+    if (sig === LAST_LIBRARY_SIG) {
+      return;
+    }
+    LAST_LIBRARY_SIG = sig;
+
+    removeExistingLibraryInjected(container);
+
     if (!showLibrary) {
       return;
     }
@@ -209,7 +227,6 @@
       container.appendChild(managerBtn);
     }
 
-    var i;
     for (i = 0; i < items.length; i += 1) {
       var item = items[i] || {};
       if (!item.enabled || !item.menuVisibility || !item.menuVisibility.library) {
@@ -310,8 +327,6 @@
       return;
     }
 
-    removeExistingMMenuInjected(container);
-
     var visible = [];
     var i;
     for (i = 0; i < items.length; i += 1) {
@@ -323,8 +338,19 @@
     }
 
     if (visible.length === 0) {
+      if (LAST_MMENU_SIG !== 'empty') {
+        removeExistingMMenuInjected(container);
+        LAST_MMENU_SIG = 'empty';
+      }
       return;
     }
+
+    var nextSig = visible.map(function (row) { return String(row.id || ''); }).join(',');
+    if (nextSig === LAST_MMENU_SIG) {
+      return;
+    }
+    LAST_MMENU_SIG = nextSig;
+    removeExistingMMenuInjected(container);
 
     var useListItem = container.tagName === 'UL' || container.querySelector('li') !== null;
     if (useListItem) {
@@ -390,8 +416,6 @@
       return;
     }
 
-    removeExistingSystemMenuInjected(container);
-
     var visible = [];
     var i;
     for (i = 0; i < items.length; i += 1) {
@@ -403,8 +427,19 @@
     }
 
     if (visible.length === 0) {
+      if (LAST_SYSTEM_SIG !== 'empty') {
+        removeExistingSystemMenuInjected(container);
+        LAST_SYSTEM_SIG = 'empty';
+      }
       return;
     }
+
+    var nextSig = visible.map(function (row) { return String(row.id || ''); }).join(',');
+    if (nextSig === LAST_SYSTEM_SIG) {
+      return;
+    }
+    LAST_SYSTEM_SIG = nextSig;
+    removeExistingSystemMenuInjected(container);
 
     var divider = document.createElement('li');
     divider.className = 'extmgr-system-divider';
@@ -465,48 +500,8 @@
       listHost = null;
     }
 
-    // Fallback for moOde template variants where installer markers were not injected.
-    if (!folderBtn || !folderBtn.parentNode) {
-      return null;
-    }
-
-    wrap = document.createElement('span');
-    wrap.className = 'extmgr-hover-menu';
-    wrap.style.position = 'relative';
-    wrap.style.display = 'block';
-    wrap.style.width = '100%';
-
-    var extBtn = document.createElement('button');
-    extBtn.setAttribute('aria-label', 'Extensions');
-    extBtn.className = 'btn extensions-manager-btn menu-separator';
-    extBtn.style.width = '100%';
-    extBtn.type = 'button';
-    extBtn.innerHTML = '<i class="fa-solid fa-sharp fa-puzzle-piece"></i> Extensions';
-    extBtn.addEventListener('click', function () {
-      window.location.href = '/ext-mgr.php';
-    });
-
-    panel = document.createElement('div');
-    panel.id = 'extmgr-hover-panel';
-    panel.style.display = 'none';
-    panel.style.position = 'static';
-    panel.style.minWidth = '0';
-    panel.style.zIndex = 'auto';
-    panel.style.background = 'transparent';
-    panel.style.border = 'none';
-    panel.style.boxShadow = 'none';
-    panel.style.padding = '0 0 4px 0';
-    panel.style.borderRadius = '0';
-
-    listHost = document.createElement('div');
-    listHost.id = 'extmgr-hover-list';
-    panel.appendChild(listHost);
-
-    wrap.appendChild(extBtn);
-    wrap.appendChild(panel);
-    folderBtn.parentNode.insertBefore(wrap, folderBtn);
-
-    return { wrap: wrap, panel: panel, listHost: listHost };
+    // Do not force-create a hover wrapper; direct Library dropdown rendering is more stable across moOde variants.
+    return null;
   }
 
   function loadExtensions(host) {
@@ -544,38 +539,37 @@
 
   document.addEventListener('DOMContentLoaded', function () {
     var refs = ensureHostElements();
-    if (!refs) {
-      return;
-    }
 
-    var wrap = refs.wrap;
-    var panel = refs.panel;
-    var listHost = refs.listHost;
+    if (refs) {
+      var wrap = refs.wrap;
+      var panel = refs.panel;
+      var listHost = refs.listHost;
 
-    wrap.addEventListener('mouseenter', function () {
-      panel.style.display = 'block';
-      loadExtensions(listHost);
-    });
-
-    wrap.addEventListener('mouseleave', function () {
-      panel.style.display = 'none';
-    });
-
-    wrap.addEventListener('click', function (e) {
-      var target = e.target;
-      var isExtensionsBtn = target && target.closest && target.closest('.extensions-manager-btn');
-      if (!isExtensionsBtn) {
-        return;
-      }
-
-      e.preventDefault();
-      if (panel.style.display === 'block') {
-        panel.style.display = 'none';
-      } else {
+      wrap.addEventListener('mouseenter', function () {
         panel.style.display = 'block';
         loadExtensions(listHost);
-      }
-    });
+      });
+
+      wrap.addEventListener('mouseleave', function () {
+        panel.style.display = 'none';
+      });
+
+      wrap.addEventListener('click', function (e) {
+        var target = e.target;
+        var isExtensionsBtn = target && target.closest && target.closest('.extensions-manager-btn');
+        if (!isExtensionsBtn) {
+          return;
+        }
+
+        e.preventDefault();
+        if (panel.style.display === 'block') {
+          panel.style.display = 'none';
+        } else {
+          panel.style.display = 'block';
+          loadExtensions(listHost);
+        }
+      });
+    }
 
     fetchState().then(function (payload) {
       var items = payload.extensions || [];
