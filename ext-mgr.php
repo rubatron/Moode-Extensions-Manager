@@ -77,69 +77,69 @@ if (file_exists('/var/www/header.php')) {
             </div>
         </section>
 
-        <section class="extmgr-panel extmgr-section" id="section-update">
-            <button class="extmgr-menu-header" type="button" data-menu-toggle aria-expanded="false">
-                <span>Update</span>
-                <i class="fa-solid fa-angle-down" aria-hidden="true"></i>
-            </button>
-            <div class="extmgr-section-body">
-                <div class="extmgr-text-list">
-                    <div class="extmgr-text-row"><span class="extmgr-text-label">Version</span><span id="meta-version" class="extmgr-text-value">-</span></div>
-                    <div class="extmgr-text-row"><span class="extmgr-text-label">Author</span><span id="meta-creator" class="extmgr-text-value">-</span></div>
-                    <div class="extmgr-text-row"><span class="extmgr-text-label">License</span><span id="meta-license" class="extmgr-text-value">-</span></div>
-                </div>
-
-                <div class="extmgr-actions">
-                    <button id="check-update-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-cloud-arrow-down"></i> Check Update</button>
-                    <button id="run-update-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-rotate"></i> Run Update</button>
-                    <button id="refresh-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-arrows-rotate"></i> Refresh List</button>
-                </div>
-                <div id="update-note" class="extmgr-note">No update info yet.</div>
-
-                <div class="extmgr-submenu" id="submenu-advanced-update">
-                    <button class="extmgr-submenu-header" type="button" data-submenu-toggle aria-expanded="false">
-                        <span>Advanced Update</span>
-                        <i class="fa-solid fa-angle-down" aria-hidden="true"></i>
-                    </button>
-                    <div class="extmgr-submenu-body">
-                        <div class="extmgr-advanced-grid">
-                            <label>Source Mode</label>
-                            <div id="advanced-mode-group" class="extmgr-mode-group" role="group" aria-label="Advanced update source mode">
-                                <button type="button" class="extmgr-mode-btn" data-advanced-mode="main">main</button>
-                                <button type="button" class="extmgr-mode-btn" data-advanced-mode="dev">dev branch</button>
-                                <button type="button" class="extmgr-mode-btn" data-advanced-mode="custom">custom URL</button>
-                            </div>
-
-                            <label for="advanced-custom-url">Custom URL</label>
-                            <input id="advanced-custom-url" type="url" placeholder="https://example.com/ext-mgr" aria-label="Custom update source URL">
-                        </div>
-                        <div class="extmgr-advanced-source">
-                            <span class="extmgr-advanced-source-label">Source</span>
-                            <span id="advanced-source-link" class="extmgr-advanced-source-link">-</span>
-                            <div class="extmgr-advanced-source-icons">
-                                <a id="open-advanced-source-btn" class="extmgr-icon-btn" href="#" target="_blank" rel="noopener noreferrer" aria-label="Open source link" title="Open source link">
-                                    <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
-                                </a>
-                                <button id="copy-advanced-source-btn" class="extmgr-icon-btn" type="button" aria-label="Copy source link" title="Copy source link">
-                                    <i class="fa-solid fa-copy" aria-hidden="true"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="extmgr-actions">
-                            <button id="save-advanced-update-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-floppy-disk"></i> Save Advanced Update</button>
-                            <span id="advanced-update-note" class="extmgr-note">Modes: main, dev branch, custom URL.</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
         <section class="extmgr-panel extmgr-section" id="section-system">
             <button class="extmgr-menu-header" type="button" data-menu-toggle aria-expanded="false">
                 <span>System</span>
                 <i class="fa-solid fa-angle-down" aria-hidden="true"></i>
             </button>
             <div class="extmgr-section-body">
+                <div class="extmgr-submenu" id="submenu-update">
+                    <button class="extmgr-submenu-header" type="button" data-submenu-toggle aria-expanded="false">
+                        <span>Update</span>
+                        <i class="fa-solid fa-angle-down" aria-hidden="true"></i>
+                    </button>
+                    <div class="extmgr-submenu-body">
+                        <div class="extmgr-text-list">
+                            <div class="extmgr-text-row"><span class="extmgr-text-label">Version</span><span id="meta-version" class="extmgr-text-value">-</span></div>
+                            <div class="extmgr-text-row"><span class="extmgr-text-label">Author</span><span id="meta-creator" class="extmgr-text-value">-</span></div>
+                            <div class="extmgr-text-row"><span class="extmgr-text-label">License</span><span id="meta-license" class="extmgr-text-value">-</span></div>
+                        </div>
+
+                        <div class="extmgr-actions">
+                            <button id="check-update-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-cloud-arrow-down"></i> Check Update</button>
+                            <button id="run-update-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-rotate"></i> Run Update</button>
+                            <button id="refresh-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-arrows-rotate"></i> Refresh List</button>
+                        </div>
+                        <div id="update-note" class="extmgr-note">No update info yet.</div>
+
+                        <div class="extmgr-submenu" id="submenu-advanced-update">
+                            <button class="extmgr-submenu-header" type="button" data-submenu-toggle aria-expanded="false">
+                                <span>Advanced Update</span>
+                                <i class="fa-solid fa-angle-down" aria-hidden="true"></i>
+                            </button>
+                            <div class="extmgr-submenu-body">
+                                <div class="extmgr-advanced-grid">
+                                    <label>Source Mode</label>
+                                    <div id="advanced-mode-group" class="extmgr-mode-group" role="group" aria-label="Advanced update source mode">
+                                        <button type="button" class="extmgr-mode-btn" data-advanced-mode="main">main</button>
+                                        <button type="button" class="extmgr-mode-btn" data-advanced-mode="dev">dev branch</button>
+                                        <button type="button" class="extmgr-mode-btn" data-advanced-mode="custom">custom URL</button>
+                                    </div>
+
+                                    <label for="advanced-custom-url">Custom URL</label>
+                                    <input id="advanced-custom-url" type="url" placeholder="https://example.com/ext-mgr" aria-label="Custom update source URL">
+                                </div>
+                                <div class="extmgr-advanced-source">
+                                    <span class="extmgr-advanced-source-label">Source</span>
+                                    <span id="advanced-source-link" class="extmgr-advanced-source-link">-</span>
+                                    <div class="extmgr-advanced-source-icons">
+                                        <a id="open-advanced-source-btn" class="extmgr-icon-btn" href="#" target="_blank" rel="noopener noreferrer" aria-label="Open source link" title="Open source link">
+                                            <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
+                                        </a>
+                                        <button id="copy-advanced-source-btn" class="extmgr-icon-btn" type="button" aria-label="Copy source link" title="Copy source link">
+                                            <i class="fa-solid fa-copy" aria-hidden="true"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="extmgr-actions">
+                                    <button id="save-advanced-update-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-floppy-disk"></i> Save Advanced Update</button>
+                                    <span id="advanced-update-note" class="extmgr-note">Modes: main, dev branch, custom URL.</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="extmgr-submenu" id="submenu-api-status">
                     <button class="extmgr-submenu-header" type="button" data-submenu-toggle aria-expanded="false">
                         <span>API Status</span>
