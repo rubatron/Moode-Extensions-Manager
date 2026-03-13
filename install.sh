@@ -581,50 +581,22 @@ patch_index_template_menu() {
 
     $SUDO python3 - <<'PY'
 from pathlib import Path
+import re
 
 p = Path('/var/www/templates/indextpl.min.html')
 s = p.read_text(encoding='utf-8', errors='ignore')
 
+# Keep canonical route aliases tidy.
 s = s.replace("window.location.href='/extensions-manager.php';", "window.location.href='/ext-mgr.php';")
 s = s.replace('/extensions-manager.php', '/ext-mgr.php')
 
-ext_btn = '<button aria-label="Extensions" class="btn extensions-manager-btn menu-separator" href="#notarget" onclick="window.location.href=\'/ext-mgr.php\';"><i class="fa-solid fa-sharp fa-puzzle-piece"></i> Extensions</button>'
-
-if 'extensions-manager-btn' not in s:
-    marker = '</span></button> <button aria-label="Folder" class="btn folder-view-btn" href="#library-panel">'
-    insert = '</span></button> <span class="extmgr-hover-menu" style="position:relative;display:block;width:100%;">' + ext_btn.replace('class="btn extensions-manager-btn menu-separator"', 'class="btn extensions-manager-btn menu-separator" style="width:100%;"') + '<div id="extmgr-hover-panel" style="display:none;position:static;min-width:0;z-index:auto;background:transparent;border:none;box-shadow:none;padding:0 0 4px 0;border-radius:0;"><div id="extmgr-hover-list"></div></div></span> <button aria-label="Folder" class="btn folder-view-btn" href="#library-panel">'
-    if marker not in s:
-        raise SystemExit('ERROR: unable to find library menu marker in index template')
-    s = s.replace(marker, insert, 1)
-elif 'extmgr-hover-menu' not in s:
-    s = s.replace(ext_btn, '<span class="extmgr-hover-menu" style="position:relative;display:block;width:100%;">' + ext_btn.replace('class="btn extensions-manager-btn menu-separator"', 'class="btn extensions-manager-btn menu-separator" style="width:100%;"') + '<div id="extmgr-hover-panel" style="display:none;position:static;min-width:0;z-index:auto;background:transparent;border:none;box-shadow:none;padding:0 0 4px 0;border-radius:0;"><div id="extmgr-hover-list"></div></div></span>', 1)
-
-# Keep Extensions as second item in Library list (after first primary item).
-ext_start = s.find('<span class="extmgr-hover-menu"')
-if ext_start != -1:
-    ext_end = s.find('</span>', ext_start)
-    first_button_start = s.find('<button aria-label=')
-    if ext_end != -1 and first_button_start != -1:
-        ext_end += len('</span>')
-        first_button_end = s.find('</button>', first_button_start)
-        if first_button_end != -1:
-            first_button_end += len('</button>')
-            ext_block = s[ext_start:ext_end]
-            s = s[:ext_start] + s[ext_end:]
-            first_button_start = s.find('<button aria-label=')
-            first_button_end = s.find('</button>', first_button_start)
-            if first_button_end != -1:
-                first_button_end += len('</button>')
-                s = s[:first_button_end] + ' ' + ext_block + s[first_button_end:]
-
-script_tag = '<script src="/extensions/sys/assets/js/ext-mgr-hover-menu.js" defer></script>'
-if script_tag not in s:
-    anchor = '</span> <button aria-label="Folder" class="btn folder-view-btn" href="#library-panel">'
-    if anchor in s:
-        s = s.replace(anchor, '</span> ' + script_tag + ' <button aria-label="Folder" class="btn folder-view-btn" href="#library-panel">', 1)
+# Remove legacy ext-mgr Library-wrapper injections from earlier installers.
+s = re.sub(r'<span class="extmgr-hover-menu"[^>]*>.*?<div id="extmgr-hover-list"></div>\s*</div>\s*</span>\s*', '', s, flags=re.S)
+s = s.replace(' <button aria-label="Extensions" class="btn extensions-manager-btn menu-separator" href="#notarget" onclick="window.location.href=\'/ext-mgr.php\';"><i class="fa-solid fa-sharp fa-puzzle-piece"></i> Extensions</button>', ' ')
+s = s.replace('<button aria-label="Extensions" class="btn extensions-manager-btn menu-separator" href="#notarget" onclick="window.location.href=\'/ext-mgr.php\';"><i class="fa-solid fa-sharp fa-puzzle-piece"></i> Extensions</button>', '')
 
 p.write_text(s, encoding='utf-8')
-print('patched index template')
+print('normalized index template (non-invasive)')
 PY
 }
 
@@ -635,7 +607,6 @@ from pathlib import Path
 
 p = Path('/var/www/header.php')
 s = p.read_text(encoding='utf-8', errors='ignore')
-script_tag = '<script src="/extensions/sys/assets/js/ext-mgr-hover-menu.js" defer></script>'
 
 s = s.replace('id="ext-mgr-btn" class="btn" href="ext-mgr.php"', 'id="ext-mgr-btn" class="btn" href="/ext-mgr.php"')
 
@@ -644,17 +615,6 @@ if 'id="ext-mgr-btn"' not in s:
     marker = '<a id="per-config-btn" class="btn" href="per-config.php"><span>Peripherals</span><i class="fa-solid fa-sharp fa-display"></i></a>'
     if marker in s:
         s = s.replace(marker, marker + '\n\t\t\t\t\t' + btn, 1)
-
-if script_tag not in s:
-    nav_anchor = '</div><!--main-menu-->'
-    if nav_anchor in s:
-        s = s.replace(nav_anchor, script_tag + '\n' + nav_anchor, 1)
-    elif '</head>' in s:
-        s = s.replace('</head>', script_tag + '\n</head>', 1)
-    elif '</body>' in s:
-        s = s.replace('</body>', script_tag + '\n</body>', 1)
-    else:
-        s += '\n' + script_tag + '\n'
 
 p.write_text(s, encoding='utf-8')
 print('patched header')
