@@ -13,7 +13,7 @@ copilot-instructions.md
 docker/
 1. inspiration/
 radio-browser/
-vscode/
+.vscode/
 radio-browser-menu-integration/
 # OS/editor
 .DS_Store
