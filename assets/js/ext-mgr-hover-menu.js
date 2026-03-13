@@ -290,8 +290,6 @@
       '#context-menu ul',
       '#sys-cmds ul',
       '#context-menu .dropdown-menu',
-      '#configure-modal ul',
-      '#configure-modal .dropdown-menu',
       'ul#context-menu',
       '.context-menu ul',
       '.context-menu .dropdown-menu'
@@ -305,7 +303,7 @@
       }
     }
 
-    var configureAnchor = document.querySelector('a[href*="configure.php"], a[href*="#/configure"], a[href="#configure-modal"], [data-target="#configure-modal"]');
+    var configureAnchor = document.querySelector('a[href*="configure.php"], a[href*="#/configure"]');
     if (!configureAnchor) {
       return null;
     }
@@ -348,6 +346,9 @@
   function renderMMenu(items) {
     var container = findMMenuContainer();
     if (!container) {
+      return;
+    }
+    if (container.closest && container.closest('#configure-modal')) {
       return;
     }
 
@@ -430,13 +431,16 @@
 
   function findSystemMenuContainer() {
     return document.querySelector(
-      '#context-menu ul, #sys-cmds ul, #configure-modal ul.dropdown-menu, .modal #context-menu ul, .context-menu ul, #configure-modal .modal-body ul'
+      '#context-menu ul, #sys-cmds ul, .modal #context-menu ul, .context-menu ul'
     );
   }
 
   function renderSystemMenu(items) {
     var container = findSystemMenuContainer();
     if (!container) {
+      return;
+    }
+    if (container.closest && container.closest('#configure-modal')) {
       return;
     }
 
