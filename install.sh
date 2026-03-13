@@ -550,6 +550,21 @@ fi
 
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
+echo "[0/10] Ensuring ext-mgr security principals..."
+if ! getent group "$SECURITY_GROUP" >/dev/null 2>&1; then
+    $SUDO groupadd --system "$SECURITY_GROUP"
+fi
+
+if ! id -u "$SECURITY_USER" >/dev/null 2>&1; then
+    $SUDO useradd --system --no-create-home --shell /usr/sbin/nologin --gid "$SECURITY_GROUP" "$SECURITY_USER"
+fi
+
+$SUDO usermod -aG "$SECURITY_GROUP" "$WEB_USER" || true
+$SUDO usermod -aG "$WEB_USER" "$SECURITY_USER" || true
+
+PRIMARY_USER="$(detect_primary_user || true)"
+sync_security_user_groups "$PRIMARY_USER"
+
 echo "[1/10] Preparing target directories..."
 $SUDO mkdir -p "$TARGET_EXT_DIR" "$TARGET_SYS_DIR" "$TARGET_ASSETS_DIR" "$TARGET_JS_DIR" "$TARGET_CSS_DIR" "$TARGET_SCRIPT_DIR" "$TARGET_INSTALLED_ROOT" "$TARGET_RUNTIME_CACHE" "$TARGET_RUNTIME_DATA" "$TARGET_RUNTIME_LOGS"
 
@@ -586,20 +601,6 @@ $SUDO ln -sfn /var/www/extensions/sys/ext-mgr-api.php /var/www/ext-mgr-api.php
 $SUDO ln -sfn /var/www/ext-mgr.php /var/www/extensions-manager.php
 
 echo "[5/10] Installing privileged symlink repair helper..."
-if ! getent group "$SECURITY_GROUP" >/dev/null 2>&1; then
-    $SUDO groupadd --system "$SECURITY_GROUP"
-fi
-
-if ! id -u "$SECURITY_USER" >/dev/null 2>&1; then
-    $SUDO useradd --system --no-create-home --shell /usr/sbin/nologin --gid "$SECURITY_GROUP" "$SECURITY_USER"
-fi
-
-$SUDO usermod -aG "$SECURITY_GROUP" "$WEB_USER" || true
-$SUDO usermod -aG "$WEB_USER" "$SECURITY_USER" || true
-
-PRIMARY_USER="$(detect_primary_user || true)"
-sync_security_user_groups "$PRIMARY_USER"
-
 echo "[5.1/10] Applying ext-mgr folder and permission structure..."
 ensure_extmgr_structure_permissions
 
