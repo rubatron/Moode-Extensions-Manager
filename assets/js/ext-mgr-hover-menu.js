@@ -145,7 +145,26 @@
   }
 
   function findMMenuContainer() {
-    var configureAnchor = document.querySelector('a[href*="configure.php"], a[href*="#/configure"], a[href="#configure-modal"]');
+    var selectors = [
+      '#context-menu ul',
+      '#sys-cmds ul',
+      '#context-menu .dropdown-menu',
+      '#configure-modal ul',
+      '#configure-modal .dropdown-menu',
+      'ul#context-menu',
+      '.context-menu ul',
+      '.context-menu .dropdown-menu'
+    ];
+    var i;
+
+    for (i = 0; i < selectors.length; i += 1) {
+      var hit = document.querySelector(selectors[i]);
+      if (hit) {
+        return hit;
+      }
+    }
+
+    var configureAnchor = document.querySelector('a[href*="configure.php"], a[href*="#/configure"], a[href="#configure-modal"], [data-target="#configure-modal"]');
     if (!configureAnchor) {
       return null;
     }
@@ -255,7 +274,9 @@
   }
 
   function findSystemMenuContainer() {
-    return document.querySelector('#context-menu ul, #sys-cmds ul, #configure-modal ul.dropdown-menu, .modal #context-menu ul');
+    return document.querySelector(
+      '#context-menu ul, #sys-cmds ul, #configure-modal ul.dropdown-menu, .modal #context-menu ul, .context-menu ul, #configure-modal .modal-body ul'
+    );
   }
 
   function renderSystemMenu(items) {
@@ -325,7 +346,7 @@
     }
 
     // Fallback for moOde template variants where installer markers were not injected.
-    var folderBtn = document.querySelector('button.folder-view-btn');
+    var folderBtn = document.querySelector('button.folder-view-btn, a.folder-view-btn');
     if (!folderBtn || !folderBtn.parentNode) {
       return null;
     }
@@ -417,6 +438,22 @@
 
     wrap.addEventListener('mouseleave', function () {
       panel.style.display = 'none';
+    });
+
+    wrap.addEventListener('click', function (e) {
+      var target = e.target;
+      var isExtensionsBtn = target && target.closest && target.closest('.extensions-manager-btn');
+      if (!isExtensionsBtn) {
+        return;
+      }
+
+      e.preventDefault();
+      if (panel.style.display === 'block') {
+        panel.style.display = 'none';
+      } else {
+        panel.style.display = 'block';
+        loadExtensions(listHost);
+      }
     });
 
     fetchState().then(function (payload) {
