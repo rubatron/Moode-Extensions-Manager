@@ -277,6 +277,7 @@ if (file_exists('/var/www/header.php')) {
 <script>
 window.__EXT_MGR_INIT__ = <?php echo json_encode($init, JSON_UNESCAPED_SLASHES); ?>;
 </script>
+<script src="/extensions/sys/assets/js/ext-mgr-modal-fix.js" defer></script>
 <script src="/extensions/sys/assets/js/ext-mgr.js"></script>
 
 <?php

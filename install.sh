@@ -12,6 +12,7 @@ SRC_RELEASE=""
 SRC_VERSION=""
 SRC_INTEGRITY=""
 SRC_JS=""
+SRC_MODAL_FIX_JS=""
 SRC_HOVER_MENU_JS=""
 SRC_CSS=""
 SRC_REGISTRY_SYNC_SCRIPT=""
@@ -34,6 +35,7 @@ TARGET_RELEASE="$TARGET_SYS_DIR/ext-mgr.release.json"
 TARGET_VERSION="$TARGET_SYS_DIR/ext-mgr.version"
 TARGET_INTEGRITY="$TARGET_SYS_DIR/ext-mgr.integrity.json"
 TARGET_JS="$TARGET_JS_DIR/ext-mgr.js"
+TARGET_MODAL_FIX_JS="$TARGET_JS_DIR/ext-mgr-modal-fix.js"
 TARGET_CSS="$TARGET_CSS_DIR/ext-mgr.css"
 TARGET_HOVER_MENU_JS="$TARGET_JS_DIR/ext-mgr-hover-menu.js"
 TARGET_SCRIPT_DIR="$TARGET_SYS_DIR/scripts"
@@ -127,6 +129,7 @@ set_source_root() {
     SRC_VERSION="$root/ext-mgr.version"
     SRC_INTEGRITY="$root/ext-mgr.integrity.json"
     SRC_JS="$root/assets/js/ext-mgr.js"
+    SRC_MODAL_FIX_JS="$root/assets/js/ext-mgr-modal-fix.js"
     SRC_HOVER_MENU_JS="$root/assets/js/ext-mgr-hover-menu.js"
     SRC_CSS="$root/assets/css/ext-mgr.css"
     SRC_REGISTRY_SYNC_SCRIPT="$root/scripts/ext-mgr-registry-sync.sh"
@@ -324,6 +327,7 @@ fetch_from_main_branch() {
         "ext-mgr.version"
         "ext-mgr.integrity.json"
         "assets/js/ext-mgr.js"
+        "assets/js/ext-mgr-modal-fix.js"
         "assets/js/ext-mgr-hover-menu.js"
         "assets/css/ext-mgr.css"
         "content/guidance.md"
@@ -382,7 +386,7 @@ run_uninstall() {
     $SUDO mkdir -p "$uninstall_backup_dir"
 
     echo "[uninstall] Backing up core files where present..."
-    for f in "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_RELEASE" "$TARGET_VERSION" "$TARGET_INTEGRITY" "$TARGET_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_REGISTRY" "$TARGET_REGISTRY_SYNC_SCRIPT" "$TARGET_IMPORT_WIZARD_SCRIPT"; do
+    for f in "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_RELEASE" "$TARGET_VERSION" "$TARGET_INTEGRITY" "$TARGET_JS" "$TARGET_MODAL_FIX_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_REGISTRY" "$TARGET_REGISTRY_SYNC_SCRIPT" "$TARGET_IMPORT_WIZARD_SCRIPT"; do
         if [[ -f "$f" ]]; then
             rel="${f#/var/www/extensions/sys/}"
             if [[ "$rel" == "$f" ]]; then
@@ -394,7 +398,7 @@ run_uninstall() {
     done
 
     echo "[uninstall] Removing ext-mgr files/symlinks/helpers..."
-    $SUDO rm -f "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_RELEASE" "$TARGET_VERSION" "$TARGET_INTEGRITY" "$TARGET_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_REGISTRY_SYNC_SCRIPT" "$TARGET_IMPORT_WIZARD_SCRIPT"
+    $SUDO rm -f "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_RELEASE" "$TARGET_VERSION" "$TARGET_INTEGRITY" "$TARGET_JS" "$TARGET_MODAL_FIX_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_REGISTRY_SYNC_SCRIPT" "$TARGET_IMPORT_WIZARD_SCRIPT"
     $SUDO rm -f /var/www/extensions/ext-mgr.php /var/www/extensions/ext-mgr-api.php /var/www/extensions/ext-mgr.meta.json /var/www/extensions/ext-mgr.release.json /var/www/extensions/ext-mgr.version /var/www/extensions/ext-mgr.integrity.json /var/www/extensions/registry.json /var/www/extensions/ext-mgr-hover-menu.js
     $SUDO rm -f /var/www/extensions/assets/js/ext-mgr.js /var/www/extensions/assets/css/ext-mgr.css
     $SUDO rm -f /var/www/ext-mgr.php /var/www/ext-mgr-api.php /var/www/extensions-manager.php
@@ -574,6 +578,7 @@ require_file "$SRC_RELEASE"
 require_file "$SRC_VERSION"
 require_file "$SRC_INTEGRITY"
 require_file "$SRC_JS"
+require_file "$SRC_MODAL_FIX_JS"
 require_file "$SRC_HOVER_MENU_JS"
 require_file "$SRC_CSS"
 require_file "$SRC_REGISTRY_SYNC_SCRIPT"
@@ -622,7 +627,7 @@ $SUDO mkdir -p "$TARGET_EXT_DIR" "$TARGET_SYS_DIR" "$TARGET_ASSETS_DIR" "$TARGET
 echo "[2/10] Backing up existing ext-mgr files (if present)..."
 BACKUP_SNAPSHOT_DIR="$TARGET_BACKUP_DIR/install-$STAMP"
 $SUDO mkdir -p "$BACKUP_SNAPSHOT_DIR"
-for f in "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_REGISTRY" "$TARGET_RELEASE" "$TARGET_VERSION" "$TARGET_INTEGRITY" "$TARGET_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_REGISTRY_SYNC_SCRIPT" "$TARGET_IMPORT_WIZARD_SCRIPT" "$TARGET_GUIDANCE_MD" "$TARGET_REQUIREMENTS_MD" "$TARGET_FAQ_MD"; do
+for f in "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_REGISTRY" "$TARGET_RELEASE" "$TARGET_VERSION" "$TARGET_INTEGRITY" "$TARGET_JS" "$TARGET_MODAL_FIX_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_REGISTRY_SYNC_SCRIPT" "$TARGET_IMPORT_WIZARD_SCRIPT" "$TARGET_GUIDANCE_MD" "$TARGET_REQUIREMENTS_MD" "$TARGET_FAQ_MD"; do
     if [[ -f "$f" ]]; then
         rel="${f#/var/www/extensions/sys/}"
         if [[ "$rel" == "$f" ]]; then
@@ -641,6 +646,7 @@ $SUDO install -o www-data -g www-data -m 0644 "$SRC_RELEASE" "$TARGET_RELEASE"
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_VERSION" "$TARGET_VERSION"
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_INTEGRITY" "$TARGET_INTEGRITY"
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_JS" "$TARGET_JS"
+$SUDO install -o www-data -g www-data -m 0644 "$SRC_MODAL_FIX_JS" "$TARGET_MODAL_FIX_JS"
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_CSS" "$TARGET_CSS"
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_HOVER_MENU_JS" "$TARGET_HOVER_MENU_JS"
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_GUIDANCE_MD" "$TARGET_GUIDANCE_MD"
