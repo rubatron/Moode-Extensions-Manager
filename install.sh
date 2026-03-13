@@ -485,6 +485,7 @@ PY
 from pathlib import Path
 
 tile = '<li><a href="/ext-mgr.php" class="btn btn-large"><i class="fa-solid fa-sharp fa-puzzle-piece"></i><br>Extensions</a></li>'
+script_tag = '<script src="/extensions/sys/assets/js/ext-mgr-hover-menu.js" defer></script>'
 
 for p in [Path('/var/www/footer.min.php'), Path('/var/www/footer.php')]:
     if not p.exists():
@@ -494,6 +495,13 @@ for p in [Path('/var/www/footer.min.php'), Path('/var/www/footer.php')]:
     s = s.replace('href="ext-mgr.php" class="btn btn-large"', 'href="/ext-mgr.php" class="btn btn-large"')
 
     if 'href="/ext-mgr.php" class="btn btn-large"' in s:
+        if script_tag not in s:
+            if '</body>' in s:
+                s = s.replace('</body>', script_tag + '\n</body>', 1)
+            elif '</html>' in s:
+                s = s.replace('</html>', script_tag + '\n</html>', 1)
+            else:
+                s += '\n' + script_tag + '\n'
         p.write_text(s, encoding='utf-8')
         continue
 
@@ -507,6 +515,14 @@ for p in [Path('/var/www/footer.min.php'), Path('/var/www/footer.php')]:
         s = s.replace(marker_camilla, marker_camilla + ' ' + tile, 1)
     elif marker_close in s:
         s = s.replace(marker_close, tile + marker_close, 1)
+
+    if script_tag not in s:
+        if '</body>' in s:
+            s = s.replace('</body>', script_tag + '\n</body>', 1)
+        elif '</html>' in s:
+            s = s.replace('</html>', script_tag + '\n</html>', 1)
+        else:
+            s += '\n' + script_tag + '\n'
 
     p.write_text(s, encoding='utf-8')
 
