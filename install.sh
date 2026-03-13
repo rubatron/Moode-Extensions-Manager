@@ -745,19 +745,7 @@ if [[ "$SKIP_MODULE1" -eq 1 ]]; then
         echo "Skipped Module 1 integration (explicitly disabled via --skip-module1)."
     fi
 else
-    $SUDO cp -a "$HEADER_FILE" "$HEADER_FILE.bak-module1-$STAMP"
     $SUDO cp -a "$RB_FILE" "$RB_FILE.bak-module1-$STAMP"
-
-    if ! grep -Eq "\$section[[:space:]]*==[[:space:]]*['\"]extensions['\"]" "$HEADER_FILE"; then
-        $SUDO sed -i "s/if (\\\$section == 'index')/if (\\\$section == 'index' || \\\$section == 'radio-browser' || \\\$section == 'extensions')/" "$HEADER_FILE" || true
-        $SUDO sed -i 's/if (\$section == "index")/if (\$section == "index" || \$section == "radio-browser" || \$section == "extensions")/' "$HEADER_FILE" || true
-        $SUDO sed -i "s/'radio-browser')/'radio-browser' || \\\$section == 'extensions')/" "$HEADER_FILE" || true
-        $SUDO sed -i 's/"radio-browser")/"radio-browser" || \$section == "extensions")/' "$HEADER_FILE" || true
-
-        if ! grep -Eq "\$section[[:space:]]*==[[:space:]]*['\"]extensions['\"]" "$HEADER_FILE"; then
-            echo "WARN: Could not patch header.php section condition automatically for extensions section." >&2
-        fi
-    fi
 
     if ! grep -q "radio-browser-modal-fix.js" "$RB_FILE"; then
         if grep -q 'radio-browser\.js" defer<\/script>' "$RB_FILE"; then
@@ -811,7 +799,6 @@ JS
     $SUDO chown www-data:www-data "$RB_JS_FILE"
     $SUDO chmod 0644 "$RB_JS_FILE"
 
-    php -l "$HEADER_FILE"
     php -l "$RB_FILE"
 fi
 
