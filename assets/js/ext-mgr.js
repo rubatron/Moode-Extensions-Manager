@@ -35,6 +35,9 @@
   var systemUpdateBtn = document.getElementById('system-update-btn');
   var repairBtn = document.getElementById('repair-btn');
   var syncRegistryBtn = document.getElementById('sync-registry-btn');
+  var importExtensionFileEl = document.getElementById('import-extension-file');
+  var importExtensionBtn = document.getElementById('import-extension-btn');
+  var importWizardNoteEl = document.getElementById('import-wizard-note');
   var listFilterEl = document.getElementById('list-filter');
   var listSortEl = document.getElementById('list-sort');
   var listSearchEl = document.getElementById('list-search');
@@ -98,6 +101,79 @@
       return;
     }
     el.addEventListener(eventName, handler);
+  }
+
+  function initConfigureModalFix() {
+    function bindWithJquery($) {
+      if (!$ || !$.fn || !$.fn.modal) {
+        return false;
+      }
+
+      $(document)
+        .off('click.extMgrConfigureModalFix')
+        .on(
+          'click.extMgrConfigureModalFix',
+          'a[href="#configure-modal"], a[href*="configure-modal"], [data-target="#configure-modal"]',
+          function (e) {
+            var $modal = $('#configure-modal');
+            if (!$modal.length) {
+              return;
+            }
+
+            e.preventDefault();
+            e.stopPropagation();
+            $modal.removeClass('hide').modal('show');
+          }
+        );
+
+      if (window.location.hash === '#configure-modal' || window.location.hash.indexOf('configure-modal') !== -1) {
+        window.setTimeout(function () {
+          var $modal = $('#configure-modal');
+          if ($modal.length) {
+            $modal.removeClass('hide').modal('show');
+          }
+        }, 0);
+      }
+
+      return true;
+    }
+
+    if (bindWithJquery(window.jQuery || window.$)) {
+      return;
+    }
+
+    document.addEventListener('DOMContentLoaded', function onReady() {
+      bindWithJquery(window.jQuery || window.$);
+    }, { once: true });
+  }
+
+  function setImportWizardNote(text, kind) {
+    if (!importWizardNoteEl) {
+      return;
+    }
+    importWizardNoteEl.textContent = text;
+    importWizardNoteEl.classList.remove('error', 'ok');
+    if (kind) {
+      importWizardNoteEl.classList.add(kind);
+    }
+  }
+
+  function apiUpload(file) {
+    var formData = new FormData();
+    formData.append('action', 'import_extension_upload');
+    formData.append('package', file);
+
+    return fetch(apiUrl, {
+      method: 'POST',
+      body: formData
+    }).then(function (res) {
+      return res.json().then(function (data) {
+        if (!res.ok || !data.ok) {
+          throw new Error((data && data.error) || 'Upload failed');
+        }
+        return data;
+      });
+    });
   }
 
   function readPref(key, fallback) {
@@ -169,7 +245,7 @@
     var p = policy || {};
     return {
       provider: p.provider || 'github',
-      repository: p.repository || 'rubatron/Moode-Extensions-Manager',
+      repository: p.repository || '',
       updateTrack: p.updateTrack || 'branch',
       channel: p.channel || 'stable',
       branch: p.branch || 'main',
@@ -769,8 +845,18 @@
     });
   }
 
-  function loadStatusAndList() {
-    setStatus('Loading manager status...', null);
+  function clearStatus() {
+    if (!statusEl) {
+      return;
+    }
+    statusEl.textContent = '';
+    statusEl.classList.remove('error', 'ok');
+  }
+
+  function loadStatusAndList(silent) {
+    if (!silent) {
+      setStatus('Loading manager status...', null);
+    }
     return api({ action: 'status' })
       .then(function (data) {
         renderMeta(data.data.meta || {});
@@ -779,7 +865,9 @@
         renderAdvancedUpdateControls(providerStatusFromPolicy(data.data.releasePolicy || {}), null, null);
         allItems = (data.data && data.data.extensions) || [];
         renderItems(allItems);
-        setStatus('Loaded manager status and ' + allItems.length + ' extension(s).', 'ok');
+        if (!silent) {
+          setStatus('Loaded manager status and ' + allItems.length + ' extension(s).', 'ok');
+        }
       })
       .catch(function (err) {
         setStatus(err.message, 'error');
@@ -921,6 +1009,44 @@
   bindIfPresent(runUpdateBtn, 'click', runUpdate);
   bindIfPresent(repairBtn, 'click', runRepair);
   bindIfPresent(syncRegistryBtn, 'click', runRegistrySync);
+  bindIfPresent(importExtensionBtn, 'click', function () {
+    var files = (importExtensionFileEl && importExtensionFileEl.files) || null;
+    if (!files || files.length === 0) {
+      setStatus('Select a .zip package first.', 'error');
+      setImportWizardNote('Select a .zip package first.', 'error');
+      return;
+    }
+
+    var file = files[0];
+    var fileName = String(file.name || '').toLowerCase();
+    if (fileName.slice(-4) !== '.zip') {
+      setStatus('Only .zip extension packages are supported.', 'error');
+      setImportWizardNote('Only .zip extension packages are supported.', 'error');
+      return;
+    }
+
+    importExtensionBtn.disabled = true;
+    setStatus('Uploading and importing extension package...', null);
+    setImportWizardNote('Uploading and importing extension package...', null);
+
+    apiUpload(file)
+      .then(function (data) {
+        var importedId = ((data || {}).data || {}).extensionId || 'unknown';
+        setStatus('Extension imported: ' + importedId, 'ok');
+        setImportWizardNote('Extension imported: ' + importedId, 'ok');
+        if (importExtensionFileEl) {
+          importExtensionFileEl.value = '';
+        }
+        runRefresh();
+      })
+      .catch(function (err) {
+        setStatus(err.message, 'error');
+        setImportWizardNote(err.message, 'error');
+      })
+      .finally(function () {
+        importExtensionBtn.disabled = false;
+      });
+  });
   bindIfPresent(systemUpdateBtn, 'click', function () {
     setStatus('Syncing extensions metadata...', null);
     api({ action: 'system_update_hook' })
@@ -1087,8 +1213,10 @@
     submenuToggle.setAttribute('aria-expanded', submenu.classList.contains('is-open') ? 'true' : 'false');
   });
 
-  loadStatusAndList().then(function () {
+  initConfigureModalFix();
+
+  loadStatusAndList(true).then(function () {
     setRunUpdateButtonState();
-    setStatus('Ready. Click Check Update when needed.', 'ok');
+    clearStatus();
   });
 })();

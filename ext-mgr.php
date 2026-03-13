@@ -28,7 +28,6 @@ if (file_exists('/var/www/header.php')) {
     $usingMoodeShell = true;
     include '/var/www/header.php';
     echo '<link rel="stylesheet" href="/extensions/sys/assets/css/ext-mgr.css">' . "\n";
-    echo '<script src="/extensions/sys/assets/js/ext-mgr-modal-fix.js" defer></script>' . "\n";
 } else {
     ?>
 <!doctype html>
@@ -52,7 +51,7 @@ if (file_exists('/var/www/header.php')) {
         </div>
         <p class="config-help-static extmgr-page-subtitle">Settings and troubleshooting control panel for extension maintenance.</p>
 
-        <div id="status" class="extmgr-status">Loading...</div>
+        <div id="status" class="extmgr-status"></div>
 
         <section class="extmgr-panel" id="section-installed">
             <h2 class="extmgr-static-heading">Installed Extensions</h2>
@@ -73,7 +72,25 @@ if (file_exists('/var/www/header.php')) {
             <div id="list-summary" class="extmgr-list-summary">-</div>
             <div id="list" class="extmgr-list" aria-live="polite"></div>
             <div class="extmgr-actions">
+                <button id="refresh-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-arrows-rotate"></i> Refresh List</button>
+                <button id="sync-registry-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-database"></i> Sync Registry</button>
                 <button id="system-update-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-rotate"></i> Sync Extensions</button>
+            </div>
+
+            <div class="extmgr-submenu" id="submenu-import-wizard">
+                <button class="extmgr-submenu-header" type="button" data-submenu-toggle aria-expanded="false">
+                    <span>Import Extension Wizard</span>
+                    <i class="fa-solid fa-angle-down" aria-hidden="true"></i>
+                </button>
+                <div class="extmgr-submenu-body">
+                    <p class="config-help-static extmgr-help">Upload a prepared extension package (.zip) or download a starter template kit.</p>
+                    <div class="extmgr-import-controls">
+                        <input id="import-extension-file" type="file" accept=".zip" aria-label="Upload extension package zip">
+                        <button id="import-extension-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-upload"></i> Upload Extension</button>
+                        <a id="download-template-btn" class="btn btn-small" href="/ext-mgr-api.php?action=download_extension_template"><i class="fa-solid fa-sharp fa-file-zipper"></i> Download Template Kit</a>
+                    </div>
+                    <div id="import-wizard-note" class="extmgr-note">Template includes: template.php, template.js, info.json, install.sh and standard folders.</div>
+                </div>
             </div>
         </section>
 
@@ -85,7 +102,7 @@ if (file_exists('/var/www/header.php')) {
             <div class="extmgr-section-body">
                 <div class="extmgr-submenu" id="submenu-update">
                     <button class="extmgr-submenu-header" type="button" data-submenu-toggle aria-expanded="false">
-                        <span>Update</span>
+                        <span>Information</span>
                         <i class="fa-solid fa-angle-down" aria-hidden="true"></i>
                     </button>
                     <div class="extmgr-submenu-body">
@@ -98,7 +115,6 @@ if (file_exists('/var/www/header.php')) {
                         <div class="extmgr-actions">
                             <button id="check-update-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-cloud-arrow-down"></i> Check Update</button>
                             <button id="run-update-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-rotate"></i> Run Update</button>
-                            <button id="refresh-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-arrows-rotate"></i> Refresh List</button>
                         </div>
                         <div id="update-note" class="extmgr-note">No update info yet.</div>
 
@@ -169,7 +185,6 @@ if (file_exists('/var/www/header.php')) {
                         <p class="config-help-static extmgr-help">Use these tools to fix common ext-mgr installation issues.</p>
                         <div class="extmgr-actions">
                             <button id="repair-btn" class="btn btn-small btn-danger" type="button"><i class="fa-solid fa-sharp fa-wrench"></i> Repair Installation</button>
-                            <button id="sync-registry-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-rotate"></i> Sync Registry</button>
                         </div>
                         <div id="maintenance-log" class="extmgr-log">No maintenance actions executed.</div>
                     </div>

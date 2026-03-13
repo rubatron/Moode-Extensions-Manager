@@ -330,10 +330,29 @@
   margin-top: 0.8rem;
 }
 
-.extmgr-actions .btn.btn-small {
+.extmgr-page-shell .btn,
+.extmgr-actions .btn,
+.extmgr-import-controls .btn {
+  border-radius: 4px;
+}
+
+.extmgr-actions .btn.btn-small,
+.extmgr-import-controls .btn.btn-small {
   font-size: 0.8rem;
   padding: 0.22rem 0.56rem;
   line-height: 1.2;
+}
+
+.extmgr-import-controls {
+  margin-top: 0.55rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+#import-extension-file {
+  max-width: 360px;
 }
 
 .extmgr-actions select,
@@ -347,6 +366,14 @@
   margin-top: 0.55rem;
   color: #a1a7ad;
   font-size: 0.88rem;
+}
+
+.extmgr-note.ok {
+  color: #5fcf80;
+}
+
+.extmgr-note.error {
+  color: #ff7f7f;
 }
 
 .extmgr-log {
@@ -511,6 +538,16 @@
 
   .extmgr-advanced-source {
     grid-template-columns: 1fr;
+  }
+
+  .extmgr-import-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  #import-extension-file {
+    max-width: none;
+    width: 100%;
   }
 
   .extmgr-text-row {

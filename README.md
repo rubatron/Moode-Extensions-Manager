@@ -20,7 +20,6 @@ Lightweight workspace to continue development of the moOde extension manager wit
 - `registry.json`
 - `assets/css/ext-mgr.css`
 - `assets/js/ext-mgr.js`
-- `assets/js/ext-mgr-modal-fix.js`
 - `assets/js/ext-mgr-hover-menu.js`
 - `install.sh`
 - `scripts/bootstrap-moode.sh`
@@ -77,7 +76,6 @@ Expected install targets:
 - `/var/www/extensions/sys/ext-mgr.php`
 - `/var/www/extensions/sys/ext-mgr-api.php`
 - `/var/www/extensions/sys/assets/js/ext-mgr.js`
-- `/var/www/extensions/sys/assets/js/ext-mgr-modal-fix.js`
 - `/var/www/extensions/sys/assets/js/ext-mgr-hover-menu.js`
 - `/var/www/extensions/sys/assets/css/ext-mgr.css`
 - `/var/www/extensions/sys/ext-mgr.meta.json`
