@@ -2,6 +2,11 @@
 .ext-mgr-update-backups/
 *.tmp
 *.bak
+*.bak-extmgr-*
+*.bak-module1-*
+*.bak-rbmenu-*
+moode-oobe-backups/
+moode-oobe-web-*.tgz
 *.ps1
 copilot-instructions.txt
 copilot-instructions.md
