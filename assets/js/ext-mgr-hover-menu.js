@@ -134,6 +134,111 @@
     host.innerHTML = html || '<span style="display:block;padding:8px 12px 8px 2.1em;color:#aaa;">No visible extensions</span>';
   }
 
+  function findLibraryMenuContainer() {
+    return document.querySelector('#viewswitch .dropdown-menu, .viewswitch .dropdown-menu, ul.dropdown-menu.context-menu');
+  }
+
+  function removeExistingLibraryInjected(container) {
+    if (!container) {
+      return;
+    }
+    var existing = container.querySelectorAll('.extmgr-library-divider, .extmgr-library-entry, .extmgr-library-header');
+    var i;
+    for (i = 0; i < existing.length; i += 1) {
+      if (existing[i] && existing[i].parentNode) {
+        existing[i].parentNode.removeChild(existing[i]);
+      }
+    }
+  }
+
+  function appendLibraryButton(container, cls, href, iconClass, label) {
+    var button = document.createElement('button');
+    button.className = cls;
+    button.setAttribute('aria-label', label);
+    button.setAttribute('href', '#notarget');
+    button.innerHTML = '<i class="' + iconClass + '"></i> ' + esc(label);
+    button.addEventListener('click', function (e) {
+      e.preventDefault();
+      window.location.href = href;
+    });
+    container.appendChild(button);
+  }
+
+  function renderLibraryMenu(items, meta) {
+    var container = findLibraryMenuContainer();
+    if (!container) {
+      return;
+    }
+
+    removeExistingLibraryInjected(container);
+
+    var managerVisibility = (meta && meta.managerVisibility) || {};
+    var showLibrary = managerVisibility.library !== false;
+    if (!showLibrary) {
+      return;
+    }
+
+    var folderBtn = container.querySelector('.folder-view-btn');
+    var anchorNode = folderBtn && folderBtn.parentNode === container ? folderBtn : null;
+
+    var divider = document.createElement('button');
+    divider.className = 'btn menu-separator extmgr-library-divider';
+    divider.setAttribute('aria-hidden', 'true');
+    divider.disabled = true;
+    divider.style.opacity = '0.5';
+    divider.textContent = 'Extensions';
+
+    if (anchorNode) {
+      container.insertBefore(divider, anchorNode);
+    } else {
+      container.appendChild(divider);
+    }
+
+    var managerBtn = document.createElement('button');
+    managerBtn.className = 'btn extmgr-library-entry';
+    managerBtn.setAttribute('aria-label', 'Extensions Manager');
+    managerBtn.setAttribute('href', '#notarget');
+    managerBtn.innerHTML = '<i class="fa-solid fa-sharp fa-puzzle-piece"></i> Extensions Manager';
+    managerBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      window.location.href = '/ext-mgr.php';
+    });
+    if (anchorNode) {
+      container.insertBefore(managerBtn, anchorNode);
+    } else {
+      container.appendChild(managerBtn);
+    }
+
+    var i;
+    for (i = 0; i < items.length; i += 1) {
+      var item = items[i] || {};
+      if (!item.enabled || !item.menuVisibility || !item.menuVisibility.library) {
+        continue;
+      }
+      var id = String(item.id || '');
+      var name = String(item.name || id || 'Extension');
+      var entry = item.menuEntry || item.entry || ('/' + id + '.php');
+
+      var extBtn = document.createElement('button');
+      extBtn.className = 'btn extmgr-library-entry';
+      extBtn.setAttribute('aria-label', name);
+      extBtn.setAttribute('href', '#notarget');
+      extBtn.innerHTML = '<i class="fa-solid fa-sharp fa-globe"></i> ' + esc(name);
+      (function (targetHref) {
+        extBtn.addEventListener('click', function (e) {
+          e.preventDefault();
+          window.location.href = targetHref;
+        });
+      })(entry);
+
+      if (anchorNode) {
+        container.insertBefore(extBtn, anchorNode);
+      } else {
+        container.appendChild(extBtn);
+      }
+    }
+  }
+
   function removeExistingMMenuInjected(container) {
     var existing = container.querySelectorAll('.extmgr-mmenu-divider, .extmgr-mmenu-header, .extmgr-mmenu-entry');
     var i;
@@ -408,6 +513,7 @@
     fetchState().then(function (payload) {
       var items = payload.extensions || [];
       renderList(host, items);
+      renderLibraryMenu(items, payload.meta || {});
       renderMMenu(items);
       renderSystemMenu(items);
     });
@@ -426,6 +532,7 @@
       timer = window.setTimeout(function () {
         fetchState().then(function (payload) {
           var items = payload.extensions || [];
+          renderLibraryMenu(items, payload.meta || {});
           renderMMenu(items);
           renderSystemMenu(items);
         });
@@ -472,6 +579,7 @@
 
     fetchState().then(function (payload) {
       var items = payload.extensions || [];
+      renderLibraryMenu(items, payload.meta || {});
       renderMMenu(items);
       renderSystemMenu(items);
       applyManagerVisibility(payload.meta || {}, refs);
