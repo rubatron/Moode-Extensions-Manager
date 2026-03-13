@@ -65,7 +65,7 @@ RB_JS_FILE="/var/www/extensions/installed/radio-browser/assets/radio-browser-mod
 
 ACTION="install"
 REPAIR_FROM_MAIN=0
-SKIP_MODULE1=1
+SKIP_MODULE1=0
 REPAIR_TMP_DIR=""
 
 while [[ $# -gt 0 ]]; do
@@ -250,8 +250,8 @@ Options:
   --repair-from-main     Repair installation using files fetched from main branch
   --uninstall            Remove ext-mgr files/symlinks and helpers
     --with-radio-browser-integration
-                                                 Enable optional radio-browser compatibility patching
-  --skip-module1         Skip radio-browser specific module patching
+                                                 Enable radio-browser compatibility patching (default)
+    --skip-module1         Skip radio-browser specific module patching
   --help, -h             Show this help
 EOF
 }
@@ -736,7 +736,7 @@ if [[ "$SKIP_MODULE1" -eq 1 ]]; then
     if [[ -n "$MODULE1_REASON" ]]; then
         echo "Skipped Module 1 integration: $MODULE1_REASON"
     else
-        echo "Skipped Module 1 integration (radio-browser compatibility is out of scope by default)."
+        echo "Skipped Module 1 integration (explicitly disabled via --skip-module1)."
     fi
 else
     $SUDO cp -a "$HEADER_FILE" "$HEADER_FILE.bak-module1-$STAMP"
