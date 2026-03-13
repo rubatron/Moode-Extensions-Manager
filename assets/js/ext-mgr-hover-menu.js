@@ -341,12 +341,26 @@
     var panel = document.getElementById('extmgr-hover-panel');
     var listHost = document.getElementById('extmgr-hover-list');
 
+    var folderBtn = document.querySelector(
+      '#viewswitch .folder-view-btn, .viewswitch .folder-view-btn, .dropdown-menu .folder-view-btn, button.folder-view-btn, a.folder-view-btn'
+    );
+
     if (wrap && panel && listHost) {
-      return { wrap: wrap, panel: panel, listHost: listHost };
+      var wrapInLibraryMenu = !!wrap.closest('#viewswitch, .viewswitch, .dropdown-menu');
+      if (wrapInLibraryMenu) {
+        return { wrap: wrap, panel: panel, listHost: listHost };
+      }
+
+      // Remove stale misplaced wrapper (older installer patch could inject it in playback area).
+      if (wrap.parentNode) {
+        wrap.parentNode.removeChild(wrap);
+      }
+      wrap = null;
+      panel = null;
+      listHost = null;
     }
 
     // Fallback for moOde template variants where installer markers were not injected.
-    var folderBtn = document.querySelector('button.folder-view-btn, a.folder-view-btn');
     if (!folderBtn || !folderBtn.parentNode) {
       return null;
     }
