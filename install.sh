@@ -465,6 +465,7 @@ from pathlib import Path
 
 p = Path('/var/www/header.php')
 s = p.read_text(encoding='utf-8', errors='ignore')
+script_tag = '<script src="/extensions/sys/assets/js/ext-mgr-hover-menu.js" defer></script>'
 
 s = s.replace('id="ext-mgr-btn" class="btn" href="ext-mgr.php"', 'id="ext-mgr-btn" class="btn" href="/ext-mgr.php"')
 
@@ -473,6 +474,17 @@ if 'id="ext-mgr-btn"' not in s:
     marker = '<a id="per-config-btn" class="btn" href="per-config.php"><span>Peripherals</span><i class="fa-solid fa-sharp fa-display"></i></a>'
     if marker in s:
         s = s.replace(marker, marker + '\n\t\t\t\t\t' + btn, 1)
+
+if script_tag not in s:
+    nav_anchor = '</div><!--main-menu-->'
+    if nav_anchor in s:
+        s = s.replace(nav_anchor, script_tag + '\n' + nav_anchor, 1)
+    elif '</head>' in s:
+        s = s.replace('</head>', script_tag + '\n</head>', 1)
+    elif '</body>' in s:
+        s = s.replace('</body>', script_tag + '\n</body>', 1)
+    else:
+        s += '\n' + script_tag + '\n'
 
 p.write_text(s, encoding='utf-8')
 print('patched header')
