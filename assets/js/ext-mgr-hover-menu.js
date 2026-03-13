@@ -167,6 +167,23 @@
     container.appendChild(button);
   }
 
+  function isManagerEntry(item) {
+    var row = item || {};
+    var id = String(row.id || '').toLowerCase();
+    var entry = row.menuEntry || row.entry || ('/' + String(row.id || '') + '.php');
+    var path = normalizePath(entry).toLowerCase();
+    return id === 'ext-mgr' || path === '/ext-mgr.php';
+  }
+
+  function hasExistingManagerLink(container) {
+    if (!container || !container.querySelector) {
+      return false;
+    }
+    return !!container.querySelector(
+      'a[href="/ext-mgr.php"], a[href="ext-mgr.php"], button[href="/ext-mgr.php"], button[href="ext-mgr.php"]'
+    );
+  }
+
   function renderLibraryMenu(items, meta) {
     var container = findLibraryMenuContainer();
     if (!container) {
@@ -174,17 +191,20 @@
     }
 
     var managerVisibility = (meta && meta.managerVisibility) || {};
-    var showLibrary = managerVisibility.library !== false;
-    var visibleIds = [];
+    var showManagerInLibrary = managerVisibility.library !== false;
+    var visibleItems = [];
     var i;
     for (i = 0; i < items.length; i += 1) {
       var candidate = items[i] || {};
       if (!candidate.enabled || !candidate.menuVisibility || !candidate.menuVisibility.library) {
         continue;
       }
-      visibleIds.push(String(candidate.id || ''));
+      if (isManagerEntry(candidate)) {
+        continue;
+      }
+      visibleItems.push(candidate);
     }
-    var sig = String(showLibrary) + '|' + visibleIds.join(',');
+    var sig = String(showManagerInLibrary) + '|' + visibleItems.map(function (row) { return String(row.id || ''); }).join(',');
     if (sig === LAST_LIBRARY_SIG) {
       return;
     }
@@ -192,7 +212,7 @@
 
     removeExistingLibraryInjected(container);
 
-    if (!showLibrary) {
+    if (!showManagerInLibrary && visibleItems.length === 0) {
       return;
     }
 
@@ -212,26 +232,25 @@
       container.appendChild(divider);
     }
 
-    var managerBtn = document.createElement('button');
-    managerBtn.className = 'btn extmgr-library-entry';
-    managerBtn.setAttribute('aria-label', 'Extensions Manager');
-    managerBtn.setAttribute('href', '#notarget');
-    managerBtn.innerHTML = '<i class="fa-solid fa-sharp fa-puzzle-piece"></i> Extensions Manager';
-    managerBtn.addEventListener('click', function (e) {
-      e.preventDefault();
-      window.location.href = '/ext-mgr.php';
-    });
-    if (anchorNode) {
-      container.insertBefore(managerBtn, anchorNode);
-    } else {
-      container.appendChild(managerBtn);
+    if (showManagerInLibrary && !hasExistingManagerLink(container)) {
+      var managerBtn = document.createElement('button');
+      managerBtn.className = 'btn extmgr-library-entry';
+      managerBtn.setAttribute('aria-label', 'Extensions Manager');
+      managerBtn.setAttribute('href', '#notarget');
+      managerBtn.innerHTML = '<i class="fa-solid fa-sharp fa-puzzle-piece"></i> Extensions Manager';
+      managerBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        window.location.href = '/ext-mgr.php';
+      });
+      if (anchorNode) {
+        container.insertBefore(managerBtn, anchorNode);
+      } else {
+        container.appendChild(managerBtn);
+      }
     }
 
-    for (i = 0; i < items.length; i += 1) {
-      var item = items[i] || {};
-      if (!item.enabled || !item.menuVisibility || !item.menuVisibility.library) {
-        continue;
-      }
+    for (i = 0; i < visibleItems.length; i += 1) {
+      var item = visibleItems[i] || {};
       var id = String(item.id || '');
       var name = String(item.name || id || 'Extension');
       var entry = item.menuEntry || item.entry || ('/' + id + '.php');

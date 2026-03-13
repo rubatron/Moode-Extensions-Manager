@@ -45,6 +45,37 @@ write_configure_guard_js() {
 (function (window, document) {
   'use strict';
 
+  function ensureBackdrop() {
+    var existing = document.querySelector('.modal-backdrop');
+    if (existing) {
+      return existing;
+    }
+    var backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop in';
+    document.body.appendChild(backdrop);
+    return backdrop;
+  }
+
+  function closeConfigureModal() {
+    var modal = document.getElementById('configure-modal');
+    if (!modal) {
+      return;
+    }
+
+    modal.classList.add('hide');
+    modal.style.display = 'none';
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('modal-open');
+
+    var backdrops = document.querySelectorAll('.modal-backdrop');
+    var i;
+    for (i = 0; i < backdrops.length; i += 1) {
+      if (backdrops[i] && backdrops[i].parentNode) {
+        backdrops[i].parentNode.removeChild(backdrops[i]);
+      }
+    }
+  }
+
   function openConfigureModal(e) {
     var modal = document.getElementById('configure-modal');
     if (!modal) {
@@ -65,6 +96,7 @@ write_configure_guard_js() {
     modal.style.display = 'block';
     modal.setAttribute('aria-hidden', 'false');
     document.body.classList.add('modal-open');
+    ensureBackdrop();
   }
 
   document.addEventListener('click', function (e) {
@@ -76,6 +108,22 @@ write_configure_guard_js() {
     }
     openConfigureModal(e);
   }, true);
+
+  document.addEventListener('click', function (e) {
+    var closeTrigger = e.target && e.target.closest
+      ? e.target.closest('#configure-modal [data-dismiss="modal"], #configure-modal .close, .modal-backdrop')
+      : null;
+    if (!closeTrigger) {
+      return;
+    }
+    closeConfigureModal();
+  }, true);
+
+  if (window.location.hash === '#configure-modal' || window.location.hash.indexOf('configure-modal') !== -1) {
+    window.setTimeout(function () {
+      openConfigureModal();
+    }, 0);
+  }
 })(window, document);
 JS
   $SUDO chmod 0644 "$GUARD_JS"
