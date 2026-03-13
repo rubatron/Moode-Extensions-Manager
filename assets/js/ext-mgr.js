@@ -37,6 +37,7 @@
   var repairBtn = document.getElementById('repair-btn');
   var syncRegistryBtn = document.getElementById('sync-registry-btn');
   var importExtensionFileEl = document.getElementById('import-extension-file');
+  var importExtensionFileNameEl = document.getElementById('import-extension-file-name');
   var importExtensionBtn = document.getElementById('import-extension-btn');
   var importWizardNoteEl = document.getElementById('import-wizard-note');
   var listFilterEl = document.getElementById('list-filter');
@@ -1014,6 +1015,13 @@
   bindIfPresent(runUpdateBtn, 'click', runUpdate);
   bindIfPresent(repairBtn, 'click', runRepair);
   bindIfPresent(syncRegistryBtn, 'click', runRegistrySync);
+  bindIfPresent(importExtensionFileEl, 'change', function () {
+    if (!importExtensionFileNameEl) {
+      return;
+    }
+    var files = importExtensionFileEl.files || [];
+    importExtensionFileNameEl.textContent = files.length > 0 ? files[0].name : 'No file chosen';
+  });
   bindIfPresent(importExtensionBtn, 'click', function () {
     var files = (importExtensionFileEl && importExtensionFileEl.files) || null;
     if (!files || files.length === 0) {
@@ -1041,6 +1049,9 @@
         setImportWizardNote('Extension imported: ' + importedId, 'ok');
         if (importExtensionFileEl) {
           importExtensionFileEl.value = '';
+        }
+        if (importExtensionFileNameEl) {
+          importExtensionFileNameEl.textContent = 'No file chosen';
         }
         runRefresh();
       })

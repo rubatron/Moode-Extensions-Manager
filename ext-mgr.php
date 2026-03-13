@@ -85,7 +85,9 @@ if (file_exists('/var/www/header.php')) {
                 <div class="extmgr-submenu-body">
                     <p class="config-help-static extmgr-help">Upload a prepared extension package (.zip) or download a starter template kit.</p>
                     <div class="extmgr-import-controls">
-                        <input id="import-extension-file" type="file" accept=".zip" aria-label="Upload extension package zip">
+                        <input id="import-extension-file" class="extmgr-file-input" type="file" accept=".zip" aria-label="Upload extension package zip">
+                        <label for="import-extension-file" id="import-extension-file-trigger" class="btn btn-primary btn-small">Choose File</label>
+                        <span id="import-extension-file-name" class="extmgr-file-name">No file chosen</span>
                         <button id="import-extension-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-upload"></i> Upload Extension</button>
                         <a id="download-template-btn" class="btn btn-small" href="/ext-mgr-api.php?action=download_extension_template"><i class="fa-solid fa-sharp fa-file-zipper"></i> Download Template Kit</a>
                     </div>
@@ -127,9 +129,9 @@ if (file_exists('/var/www/header.php')) {
                                 <div class="extmgr-advanced-grid">
                                     <label>Source Mode</label>
                                     <div id="advanced-mode-group" class="extmgr-mode-group" role="group" aria-label="Advanced update source mode">
-                                        <button type="button" class="extmgr-mode-btn" data-advanced-mode="main">main</button>
-                                        <button type="button" class="extmgr-mode-btn" data-advanced-mode="dev">dev branch</button>
-                                        <button type="button" class="extmgr-mode-btn" data-advanced-mode="custom">custom URL</button>
+                                        <button type="button" class="extmgr-mode-btn btn btn-primary btn-small" data-advanced-mode="main">main</button>
+                                        <button type="button" class="extmgr-mode-btn btn btn-primary btn-small" data-advanced-mode="dev">dev branch</button>
+                                        <button type="button" class="extmgr-mode-btn btn btn-primary btn-small" data-advanced-mode="custom">custom URL</button>
                                     </div>
 
                                     <div id="advanced-custom-wrap" class="extmgr-custom-url-row" aria-live="polite">
