@@ -40,6 +40,30 @@
   margin-bottom: 0.95rem;
 }
 
+.extmgr-system-cards {
+  margin-top: 0.65rem;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.7rem;
+}
+
+.extmgr-system-card {
+  border: 1px solid rgba(128, 128, 128, 0.26);
+  border-radius: 6px;
+  padding: 0.6rem 0.65rem;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.extmgr-system-card-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.93rem;
+  color: #c0c8d0;
+}
+
+.extmgr-grid-meta {
+  margin-top: 0.55rem;
+}
+
 .extmgr-collapse {
   margin-top: 0.45rem;
   border: 1px solid rgba(128, 128, 128, 0.22);

@@ -14,6 +14,7 @@
   var mVisibleCountEl = document.getElementById('m-visible-count');
   var libraryVisibleCountEl = document.getElementById('library-visible-count');
   var settingsCardCountEl = document.getElementById('settings-card-count');
+  var serviceMemPctEl = document.getElementById('service-mem-pct');
 
   var metaVersionEl = document.getElementById('meta-version');
   var metaCreatorEl = document.getElementById('meta-creator');
@@ -133,6 +134,14 @@
     setText(mVisibleCountEl, String(health.mVisibleCount || 0));
     setText(libraryVisibleCountEl, String(health.libraryVisibleCount || 0));
     setText(settingsCardCountEl, String(health.settingsCardCount || 0));
+    if (serviceMemPctEl) {
+      var memPct = health.serviceMemoryPctOfSystem;
+      if (typeof memPct === 'number') {
+        serviceMemPctEl.textContent = memPct.toFixed(4) + '%';
+      } else {
+        serviceMemPctEl.textContent = 'n/a';
+      }
+    }
   }
 
   function providerStatusFromPolicy(policy) {

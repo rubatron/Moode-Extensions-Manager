@@ -243,6 +243,44 @@ function formatWriteFailure($path, $label) {
         . ').';
 }
 
+function readSystemTotalMemMiB() {
+    $meminfoPath = '/proc/meminfo';
+    if (!is_readable($meminfoPath)) {
+        return null;
+    }
+
+    $contents = @file_get_contents($meminfoPath);
+    if (!is_string($contents) || $contents === '') {
+        return null;
+    }
+
+    if (preg_match('/^MemTotal:\s+([0-9]+)\s+kB/im', $contents, $matches) !== 1) {
+        return null;
+    }
+
+    $totalKiB = (float)$matches[1];
+    if ($totalKiB <= 0) {
+        return null;
+    }
+
+    return $totalKiB / 1024.0;
+}
+
+function buildRuntimeMemoryHealth() {
+    $currentMiB = memory_get_usage(true) / 1048576.0;
+    $totalMiB = readSystemTotalMemMiB();
+    $pct = null;
+    if (is_float($totalMiB) && $totalMiB > 0) {
+        $pct = ($currentMiB / $totalMiB) * 100.0;
+    }
+
+    return [
+        'serviceMemoryMiB' => round($currentMiB, 2),
+        'systemMemoryMiB' => is_float($totalMiB) ? round($totalMiB, 2) : null,
+        'serviceMemoryPctOfSystem' => is_float($pct) ? round($pct, 4) : null,
+    ];
+}
+
 function readMeta($path) {
     $defaults = defaultMeta();
     $meta = readJsonFile($path, $defaults);
@@ -1303,6 +1341,8 @@ function responseData($registryPath, $metaPath, $versionPath, $releasePath) {
         }
     }
 
+    $runtimeMemory = buildRuntimeMemoryHealth();
+
     return [
         'extensions' => $registry['extensions'],
         'meta' => $meta,
@@ -1316,6 +1356,9 @@ function responseData($registryPath, $metaPath, $versionPath, $releasePath) {
             'mVisibleCount' => $mVisibleCount,
             'libraryVisibleCount' => $libraryVisibleCount,
             'settingsCardCount' => $settingsCardCount,
+            'serviceMemoryPctOfSystem' => $runtimeMemory['serviceMemoryPctOfSystem'],
+            'serviceMemoryMiB' => $runtimeMemory['serviceMemoryMiB'],
+            'systemMemoryMiB' => $runtimeMemory['systemMemoryMiB'],
         ],
     ];
 }
