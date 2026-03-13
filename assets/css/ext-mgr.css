@@ -40,57 +40,34 @@
   margin-bottom: 0.95rem;
 }
 
-.extmgr-system-cards {
-  margin-top: 0.65rem;
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 0.7rem;
+.extmgr-local-menu {
+  margin: 0.2rem 0 0.85rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
 }
 
-.extmgr-system-card {
-  border: 1px solid rgba(128, 128, 128, 0.26);
-  border-radius: 6px;
-  padding: 0.6rem 0.65rem;
-  background: rgba(0, 0, 0, 0.1);
-}
-
-.extmgr-system-card-title {
-  margin: 0 0 0.35rem;
-  font-size: 0.93rem;
-  color: #c0c8d0;
-}
-
-.extmgr-system-card-compact .extmgr-grid {
-  gap: 0.5rem;
-  grid-template-columns: repeat(4, minmax(140px, 1fr));
-}
-
-.extmgr-system-card-compact .extmgr-metric {
-  padding: 0.46rem 0.5rem;
-}
-
-.extmgr-system-card-compact .extmgr-metric-label {
-  font-size: 0.64rem;
-  letter-spacing: 0.06em;
-}
-
-.extmgr-system-card-compact .extmgr-metric-value {
-  margin-top: 0.16rem;
-  font-size: 0.9rem;
-}
-
-.extmgr-system-card-compact .extmgr-actions {
-  margin-top: 0.58rem;
-  gap: 0.38rem;
-}
-
-.extmgr-system-card-compact .extmgr-note {
-  margin-top: 0.4rem;
+.extmgr-local-menu-item {
+  appearance: none;
+  border: 1px solid rgba(128, 128, 128, 0.28);
+  background: rgba(0, 0, 0, 0.16);
+  color: #b7bec7;
   font-size: 0.82rem;
+  line-height: 1.3;
+  border-radius: 4px;
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
 }
 
-.extmgr-system-card-compact .extmgr-collapse-inner {
-  margin-top: 0.52rem;
+.extmgr-local-menu-item:hover {
+  border-color: rgba(175, 183, 191, 0.5);
+  color: #d0d6dd;
+}
+
+.extmgr-local-menu-item.is-active {
+  border-color: rgba(112, 145, 178, 0.6);
+  color: #d6dde5;
+  background: rgba(67, 89, 109, 0.35);
 }
 
 .extmgr-grid-meta {
@@ -126,7 +103,7 @@
 
 .extmgr-submenu-section {
   margin-top: 0.5rem;
-  background: rgba(0, 0, 0, 0.08);
+  background: rgba(0, 0, 0, 0.1);
 }
 
 .extmgr-submenu-section>summary {
@@ -376,10 +353,6 @@
 @media (max-width: 980px) {
   .extmgr-grid {
     grid-template-columns: repeat(2, minmax(180px, 1fr));
-  }
-
-  .extmgr-system-card-compact .extmgr-grid {
-    grid-template-columns: repeat(2, minmax(150px, 1fr));
   }
 }
 

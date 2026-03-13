@@ -39,6 +39,8 @@
   var listSortEl = document.getElementById('list-sort');
   var listSearchEl = document.getElementById('list-search');
   var listSummaryEl = document.getElementById('list-summary');
+  var localMenuItems = document.querySelectorAll('.extmgr-local-menu-item');
+  var systemRootDetailsEl = document.getElementById('system-root-details');
 
   var allItems = [];
   var PREF_PREFIX = 'extmgr.list.';
@@ -893,6 +895,33 @@
   bindIfPresent(listSearchEl, 'input', function () {
     writePref('search', listSearchEl.value);
     renderItems(allItems);
+  });
+
+  function activateLocalMenuItem(activeButton) {
+    localMenuItems.forEach(function (btn) {
+      btn.classList.toggle('is-active', btn === activeButton);
+    });
+  }
+
+  function scrollToSection(sectionId) {
+    var target = document.getElementById(sectionId);
+    if (!target) {
+      return;
+    }
+
+    if (sectionId === 'section-system' && systemRootDetailsEl) {
+      systemRootDetailsEl.open = true;
+    }
+
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  localMenuItems.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var sectionId = btn.getAttribute('data-target');
+      activateLocalMenuItem(btn);
+      scrollToSection(sectionId);
+    });
   });
 
   document.querySelectorAll('.extmgr-collapse').forEach(function (detailsEl) {

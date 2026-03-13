@@ -54,7 +54,13 @@ if (file_exists('/var/www/header.php')) {
 
         <div id="status" class="extmgr-status">Loading...</div>
 
-        <fieldset class="extmgr-panel">
+        <div class="extmgr-local-menu" role="navigation" aria-label="Sections">
+            <button class="extmgr-local-menu-item is-active" type="button" data-target="section-installed">Installed Extensions</button>
+            <button class="extmgr-local-menu-item" type="button" data-target="section-update">Update</button>
+            <button class="extmgr-local-menu-item" type="button" data-target="section-system">System</button>
+        </div>
+
+        <fieldset class="extmgr-panel" id="section-installed">
             <legend>Installed Extensions</legend>
             <div class="config-help-static extmgr-help">Inactive extensions remain in registry but are marked unavailable in menu integrations.</div>
             <div class="extmgr-actions extmgr-list-controls">
@@ -74,7 +80,7 @@ if (file_exists('/var/www/header.php')) {
             <div id="list" class="extmgr-list" aria-live="polite"></div>
         </fieldset>
 
-        <fieldset class="extmgr-panel">
+        <fieldset class="extmgr-panel" id="section-update">
             <legend>Update</legend>
             <div class="extmgr-text-list">
                 <div class="extmgr-text-row"><span class="extmgr-text-label">Version</span><span id="meta-version" class="extmgr-text-value">-</span></div>
@@ -124,9 +130,9 @@ if (file_exists('/var/www/header.php')) {
             </details>
         </fieldset>
 
-        <fieldset class="extmgr-panel">
+        <fieldset class="extmgr-panel" id="section-system">
             <legend>System</legend>
-            <details class="extmgr-collapse" open>
+            <details id="system-root-details" class="extmgr-collapse" open>
             <summary>Open System Panels</summary>
 
             <details class="extmgr-collapse extmgr-submenu-section" open>
