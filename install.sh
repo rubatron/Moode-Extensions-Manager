@@ -266,6 +266,25 @@ Options:
 EOF
 }
 
+confirm_destructive_action() {
+    local action_label="$1"
+    local answer=""
+
+    if [[ ! -t 0 ]]; then
+        echo "WARN: non-interactive shell detected, skipping confirmation for ${action_label}." >&2
+        return 0
+    fi
+
+    echo
+    echo "WARNING: You are about to run '${action_label}'."
+    printf "Type YES to continue: "
+    read -r answer
+    if [[ "$answer" != "YES" ]]; then
+        echo "INFO: cancelled ${action_label}."
+        exit 0
+    fi
+}
+
 show_interactive_menu() {
     local choice adv
     echo
@@ -689,10 +708,12 @@ case "$ACTION" in
         exit 0
         ;;
     uninstall)
+        confirm_destructive_action "uninstall"
         run_uninstall
         exit 0
         ;;
     restore-oobe)
+        confirm_destructive_action "restore-oobe"
         run_restore_oobe
         exit 0
         ;;
