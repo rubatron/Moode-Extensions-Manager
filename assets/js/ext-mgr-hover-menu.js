@@ -571,6 +571,32 @@
   }
 
   function buildConfigureModalFallback() {
+    var tabLinks = document.querySelectorAll('#config-tabs a.btn');
+    var tiles = '';
+    var i;
+
+    for (i = 0; i < tabLinks.length; i += 1) {
+      var link = tabLinks[i];
+      var href = link.getAttribute('href') || '#notarget';
+      var icon = link.querySelector('i');
+      var labelNode = link.querySelector('span');
+      var label = labelNode ? labelNode.textContent : link.textContent;
+      var iconClass = icon ? icon.className : 'fa-solid fa-sharp fa-gear-complex';
+
+      tiles += '<li><a href="' + esc(href) + '" class="btn btn-large"><i class="' + esc(iconClass) + '"></i><br>' + esc((label || '').trim()) + '</a></li>';
+    }
+
+    if (!tiles) {
+      tiles = '' +
+        '<li><a href="lib-config.php" class="btn btn-large"><i class="fa-solid fa-sharp fa-database"></i><br>Library</a></li>' +
+        '<li><a href="snd-config.php" class="btn btn-large"><i class="fa-solid fa-sharp fa-volume-up"></i><br>Audio</a></li>' +
+        '<li><a href="net-config.php" class="btn btn-large"><i class="fa-solid fa-sharp fa-sitemap"></i><br>Network</a></li>' +
+        '<li><a href="sys-config.php" class="btn btn-large"><i class="fa-solid fa-sharp fa-gears"></i><br>System</a></li>' +
+        '<li><a href="ren-config.php" class="btn btn-large"><i class="fa-solid fa-sharp fa-play-circle"></i><br>Renderers</a></li>' +
+        '<li><a href="per-config.php" class="btn btn-large"><i class="fa-solid fa-sharp fa-display"></i><br>Peripherals</a></li>' +
+        '<li><a href="/ext-mgr.php" class="btn btn-large"><i class="fa-solid fa-sharp fa-puzzle-piece"></i><br>Extensions</a></li>';
+    }
+
     var modal = document.createElement('div');
     modal.id = 'configure-modal';
     modal.className = 'modal hide';
@@ -585,13 +611,7 @@
       '<div class="modal-body">' +
       '  <div class="container-fluid">' +
       '    <ul class="thumbnails txtmid">' +
-      '      <li><a href="lib-config.php" class="btn btn-large"><i class="fa-solid fa-sharp fa-database"></i><br>Library</a></li>' +
-      '      <li><a href="snd-config.php" class="btn btn-large"><i class="fa-solid fa-sharp fa-volume-up"></i><br>Audio</a></li>' +
-      '      <li><a href="net-config.php" class="btn btn-large"><i class="fa-solid fa-sharp fa-sitemap"></i><br>Network</a></li>' +
-      '      <li><a href="sys-config.php" class="btn btn-large"><i class="fa-solid fa-sharp fa-gears"></i><br>System</a></li>' +
-      '      <li><a href="ren-config.php" class="btn btn-large"><i class="fa-solid fa-sharp fa-play-circle"></i><br>Renderers</a></li>' +
-      '      <li><a href="per-config.php" class="btn btn-large"><i class="fa-solid fa-sharp fa-display"></i><br>Peripherals</a></li>' +
-      '      <li><a href="/ext-mgr.php" class="btn btn-large"><i class="fa-solid fa-sharp fa-puzzle-piece"></i><br>Extensions</a></li>' +
+      tiles +
       '    </ul>' +
       '  </div>' +
       '</div>' +
