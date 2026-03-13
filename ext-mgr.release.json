@@ -1,6 +1,6 @@
 {
   "schemaVersion": "2",
-  "channel": "beta",
+  "channel": "stable",
   "updateTrack": "channel",
   "branch": "main",
   "devBranch": "dev",
@@ -16,7 +16,7 @@
   "integrityManifestPath": "ext-mgr.integrity.json",
   "systemSettingsHook": "api-managed",
   "releaseSelection": "channel-aware",
-  "prereleaseStrategy": "prefer-prerelease",
+  "prereleaseStrategy": "prefer-stable",
   "managedFiles": [
     "ext-mgr.php",
     "ext-mgr-api.php",

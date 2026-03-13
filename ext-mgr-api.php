@@ -38,12 +38,12 @@ function defaultMeta() {
 function defaultReleasePolicy() {
     return [
         'schemaVersion' => '2',
-        'channel' => 'dev',
+        'channel' => 'stable',
         'updateTrack' => 'channel',
         'branch' => 'main',
         'devBranch' => 'dev',
         'availableBranches' => ['main', 'dev'],
-        'latestVersion' => '0.0.0-dev',
+        'latestVersion' => '0.0.0',
         'provider' => 'github',
         'repository' => 'rubatron/Moode-Extensions-Manager',
         'signatureVerification' => 'planned',
@@ -51,7 +51,7 @@ function defaultReleasePolicy() {
         'integrityManifestPath' => 'ext-mgr.integrity.json',
         'systemSettingsHook' => 'api-managed',
         'releaseSelection' => 'channel-aware',
-        'prereleaseStrategy' => 'prefer-prerelease',
+        'prereleaseStrategy' => 'prefer-stable',
         'notes' => 'Release policy for ext-mgr self-update via provider metadata.',
         'managedFiles' => [
             'ext-mgr.php',
