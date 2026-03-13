@@ -39,6 +39,34 @@
     return pinned.concat(rest);
   }
 
+  var EXTENSIONS_CACHE = null;
+  var EXTENSIONS_CACHE_AT = 0;
+  var EXTENSIONS_CACHE_TTL_MS = 10000;
+
+  function fetchExtensions() {
+    var now = Date.now();
+    if (Array.isArray(EXTENSIONS_CACHE) && (now - EXTENSIONS_CACHE_AT) < EXTENSIONS_CACHE_TTL_MS) {
+      return Promise.resolve(EXTENSIONS_CACHE);
+    }
+
+    return fetch('/ext-mgr-api.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+      },
+      body: 'action=list'
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        EXTENSIONS_CACHE = (data && data.data && data.data.extensions) || [];
+        EXTENSIONS_CACHE_AT = Date.now();
+        return EXTENSIONS_CACHE;
+      })
+      .catch(function () {
+        return [];
+      });
+  }
+
   function renderList(host, items) {
     if (!host) {
       return;
@@ -72,31 +100,206 @@
     host.innerHTML = html || '<span style="display:block;padding:8px 12px 8px 2.1em;color:#aaa;">No visible extensions</span>';
   }
 
-  function loadExtensions(host) {
-    fetch('/ext-mgr-api.php', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
-      },
-      body: 'action=list'
-    })
-      .then(function (res) { return res.json(); })
-      .then(function (data) {
-        renderList(host, (data && data.data && data.data.extensions) || []);
-      })
-      .catch(function () {
-        renderList(host, []);
-      });
+  function removeExistingMMenuInjected(container) {
+    var existing = container.querySelectorAll('.extmgr-mmenu-divider, .extmgr-mmenu-header, .extmgr-mmenu-entry');
+    var i;
+    for (i = 0; i < existing.length; i += 1) {
+      if (existing[i] && existing[i].parentNode) {
+        existing[i].parentNode.removeChild(existing[i]);
+      }
+    }
   }
 
-  document.addEventListener('DOMContentLoaded', function () {
+  function findMMenuContainer() {
+    var configureAnchor = document.querySelector('a[href*="configure.php"], a[href*="#/configure"], a[href="#configure-modal"]');
+    if (!configureAnchor) {
+      return null;
+    }
+
+    var candidate = configureAnchor.closest('ul, .dropdown-menu, .context-menu, .menu, .modal-body, .modal-content, .menu-list');
+    return candidate || configureAnchor.parentNode;
+  }
+
+  function appendMMenuEntry(container, entryHref, label, useListItem) {
+    if (useListItem) {
+      var li = document.createElement('li');
+      li.className = 'extmgr-mmenu-entry';
+      li.style.listStyle = 'none';
+
+      var a = document.createElement('a');
+      a.href = entryHref;
+      a.className = 'btn btn-large';
+      a.innerHTML = '<i class="fa-solid fa-sharp fa-puzzle-piece"></i><br>' + esc(label);
+      li.appendChild(a);
+      container.appendChild(li);
+      return;
+    }
+
+    var link = document.createElement('a');
+    link.href = entryHref;
+    link.className = 'extmgr-mmenu-entry';
+    link.style.display = 'block';
+    link.style.padding = '0.7em 1em';
+    link.style.textDecoration = 'none';
+    link.style.color = 'inherit';
+    link.innerHTML = '<i class="fa-solid fa-sharp fa-puzzle-piece" style="margin-right:.5em;"></i>' + esc(label);
+    container.appendChild(link);
+  }
+
+  function renderMMenu(items) {
+    var container = findMMenuContainer();
+    if (!container) {
+      return;
+    }
+
+    removeExistingMMenuInjected(container);
+
+    var visible = [];
+    var i;
+    for (i = 0; i < items.length; i += 1) {
+      var item = items[i] || {};
+      if (!item.enabled || !item.menuVisibility || !item.menuVisibility.m) {
+        continue;
+      }
+      visible.push(item);
+    }
+
+    if (visible.length === 0) {
+      return;
+    }
+
+    var useListItem = container.tagName === 'UL' || container.querySelector('li') !== null;
+    if (useListItem) {
+      var dividerLi = document.createElement('li');
+      dividerLi.className = 'extmgr-mmenu-divider';
+      dividerLi.style.listStyle = 'none';
+      dividerLi.style.borderTop = '1px solid rgba(128,128,128,.25)';
+      dividerLi.style.margin = '6px 0';
+      container.appendChild(dividerLi);
+
+      var headerLi = document.createElement('li');
+      headerLi.className = 'extmgr-mmenu-header';
+      headerLi.style.listStyle = 'none';
+      headerLi.style.padding = '4px 12px';
+      headerLi.style.fontSize = '0.8em';
+      headerLi.style.opacity = '0.8';
+      headerLi.textContent = 'Extensions';
+      container.appendChild(headerLi);
+    } else {
+      var divider = document.createElement('div');
+      divider.className = 'extmgr-mmenu-divider';
+      divider.style.borderTop = '1px solid rgba(128,128,128,.25)';
+      divider.style.margin = '6px 0';
+      container.appendChild(divider);
+
+      var header = document.createElement('div');
+      header.className = 'extmgr-mmenu-header';
+      header.style.padding = '4px 12px';
+      header.style.fontSize = '0.8em';
+      header.style.opacity = '0.8';
+      header.textContent = 'Extensions';
+      container.appendChild(header);
+    }
+
+    for (i = 0; i < visible.length; i += 1) {
+      var ext = visible[i] || {};
+      var id = String(ext.id || '');
+      var name = String(ext.name || id || 'Extension');
+      var entry = ext.menuEntry || ext.entry || ('/' + id + '.php');
+      appendMMenuEntry(container, entry, name, useListItem);
+    }
+  }
+
+  function ensureHostElements() {
     var wrap = document.querySelector('.extmgr-hover-menu');
     var panel = document.getElementById('extmgr-hover-panel');
     var listHost = document.getElementById('extmgr-hover-list');
 
-    if (!wrap || !panel || !listHost) {
+    if (wrap && panel && listHost) {
+      return { wrap: wrap, panel: panel, listHost: listHost };
+    }
+
+    // Fallback for moOde template variants where installer markers were not injected.
+    var folderBtn = document.querySelector('button.folder-view-btn');
+    if (!folderBtn || !folderBtn.parentNode) {
+      return null;
+    }
+
+    wrap = document.createElement('span');
+    wrap.className = 'extmgr-hover-menu';
+    wrap.style.position = 'relative';
+    wrap.style.display = 'block';
+    wrap.style.width = '100%';
+
+    var extBtn = document.createElement('button');
+    extBtn.setAttribute('aria-label', 'Extensions');
+    extBtn.className = 'btn extensions-manager-btn menu-separator';
+    extBtn.style.width = '100%';
+    extBtn.type = 'button';
+    extBtn.innerHTML = '<i class="fa-solid fa-sharp fa-puzzle-piece"></i> Extensions';
+    extBtn.addEventListener('click', function () {
+      window.location.href = '/ext-mgr.php';
+    });
+
+    panel = document.createElement('div');
+    panel.id = 'extmgr-hover-panel';
+    panel.style.display = 'none';
+    panel.style.position = 'static';
+    panel.style.minWidth = '0';
+    panel.style.zIndex = 'auto';
+    panel.style.background = 'transparent';
+    panel.style.border = 'none';
+    panel.style.boxShadow = 'none';
+    panel.style.padding = '0 0 4px 0';
+    panel.style.borderRadius = '0';
+
+    listHost = document.createElement('div');
+    listHost.id = 'extmgr-hover-list';
+    panel.appendChild(listHost);
+
+    wrap.appendChild(extBtn);
+    wrap.appendChild(panel);
+    folderBtn.parentNode.insertBefore(wrap, folderBtn);
+
+    return { wrap: wrap, panel: panel, listHost: listHost };
+  }
+
+  function loadExtensions(host) {
+    fetchExtensions().then(function (items) {
+      renderList(host, items);
+      renderMMenu(items);
+    });
+  }
+
+  function observeMMenu() {
+    if (!window.MutationObserver) {
       return;
     }
+
+    var timer = null;
+    var observer = new MutationObserver(function () {
+      if (timer) {
+        window.clearTimeout(timer);
+      }
+      timer = window.setTimeout(function () {
+        fetchExtensions().then(function (items) {
+          renderMMenu(items);
+        });
+      }, 120);
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var refs = ensureHostElements();
+    if (!refs) {
+      return;
+    }
+
+    var wrap = refs.wrap;
+    var panel = refs.panel;
+    var listHost = refs.listHost;
 
     wrap.addEventListener('mouseenter', function () {
       panel.style.display = 'block';
@@ -106,5 +309,10 @@
     wrap.addEventListener('mouseleave', function () {
       panel.style.display = 'none';
     });
+
+    fetchExtensions().then(function (items) {
+      renderMMenu(items);
+    });
+    observeMMenu();
   });
 })();
