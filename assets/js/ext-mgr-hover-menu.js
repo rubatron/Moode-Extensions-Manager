@@ -267,32 +267,22 @@
   }
 
   function findMMenuContainer() {
-    var selectors = [
-      '#context-menu ul',
-      '#sys-cmds ul',
-      '#context-menu .dropdown-menu',
-      '#configure-modal ul',
-      '#configure-modal .dropdown-menu',
-      'ul#context-menu',
-      '.context-menu ul',
-      '.context-menu .dropdown-menu'
-    ];
-    var i;
-
-    for (i = 0; i < selectors.length; i += 1) {
-      var hit = document.querySelector(selectors[i]);
-      if (hit) {
-        return hit;
-      }
+    var direct = document.querySelector('#menu-settings + .dropdown-menu, .dropdown-menu[aria-labelledby="menu-settings"]');
+    if (direct) {
+      return direct;
     }
 
-    var configureAnchor = document.querySelector('a[href*="configure.php"], a[href*="#/configure"], a[href="#configure-modal"], [data-target="#configure-modal"]');
-    if (!configureAnchor) {
+    var menuToggle = document.getElementById('menu-settings');
+    if (!menuToggle) {
       return null;
     }
 
-    var candidate = configureAnchor.closest('ul, .dropdown-menu, .context-menu, .menu, .modal-body, .modal-content, .menu-list');
-    return candidate || configureAnchor.parentNode;
+    var dropdown = menuToggle.closest('.dropdown');
+    if (!dropdown) {
+      return null;
+    }
+
+    return dropdown.querySelector('ul.dropdown-menu, .dropdown-menu');
   }
 
   function appendMMenuEntry(container, entryHref, label, useListItem) {
@@ -410,9 +400,20 @@
   }
 
   function findSystemMenuContainer() {
-    return document.querySelector(
-      '#context-menu ul, #sys-cmds ul, #configure-modal ul.dropdown-menu, .modal #context-menu ul, .context-menu ul, #configure-modal .modal-body ul'
+    var candidates = document.querySelectorAll(
+      '#sys-cmds ul, #context-menu ul, #configure-modal ul.dropdown-menu, .modal #context-menu ul'
     );
+    var i;
+    for (i = 0; i < candidates.length; i += 1) {
+      var c = candidates[i];
+      if (!c || !c.querySelector) {
+        continue;
+      }
+      if (c.querySelector('a[href="#configure-modal"], a[data-cmd="preferences"], a[href="#power-modal"]')) {
+        return c;
+      }
+    }
+    return null;
   }
 
   function renderSystemMenu(items) {
