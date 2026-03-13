@@ -542,6 +542,133 @@ function writeTemplateZipArchive($zipPath, $extensionId, &$error) {
     return true;
 }
 
+function isSafeArchiveEntryPath($entryPath) {
+    if (!is_string($entryPath)) {
+        return false;
+    }
+
+    $clean = str_replace('\\', '/', trim($entryPath));
+    if ($clean === '' || $clean === '.' || $clean === '..') {
+        return false;
+    }
+    if (strpos($clean, "\0") !== false) {
+        return false;
+    }
+    if (substr($clean, 0, 1) === '/') {
+        return false;
+    }
+    if (preg_match('/^[a-zA-Z]:\//', $clean) === 1) {
+        return false;
+    }
+    if (strpos($clean, '../') !== false || strpos($clean, '/..') !== false) {
+        return false;
+    }
+
+    return true;
+}
+
+function listZipEntriesViaUnzip($zipPath, &$error) {
+    $error = '';
+    if (!isPhpFunctionEnabled('exec')) {
+        $error = 'unzip fallback unavailable: exec() is disabled.';
+        return null;
+    }
+
+    $whichOutput = [];
+    $whichCode = 0;
+    @exec('command -v unzip 2>/dev/null', $whichOutput, $whichCode);
+    if ($whichCode !== 0 || !is_array($whichOutput) || count($whichOutput) === 0) {
+        $error = 'unzip fallback unavailable: unzip command not found.';
+        return null;
+    }
+
+    $unzipBinary = trim((string)$whichOutput[0]);
+    if ($unzipBinary === '') {
+        $error = 'unzip fallback unavailable: invalid unzip binary path.';
+        return null;
+    }
+
+    $listCmd = escapeshellarg($unzipBinary) . ' -Z1 ' . escapeshellarg($zipPath) . ' 2>&1';
+    $listOutput = [];
+    $listExitCode = 0;
+    @exec($listCmd, $listOutput, $listExitCode);
+    if ($listExitCode !== 0) {
+        $error = 'Failed to list zip entries via unzip: ' . trim(implode("\n", $listOutput));
+        return null;
+    }
+
+    return [
+        'binary' => $unzipBinary,
+        'entries' => $listOutput,
+    ];
+}
+
+function extractZipArchiveSafely($zipPath, $extractDir, &$error) {
+    $error = '';
+
+    if (class_exists('ZipArchive')) {
+        $zip = new ZipArchive();
+        $openStatus = $zip->open($zipPath);
+        if ($openStatus !== true) {
+            $error = 'Invalid ZIP package.';
+            return false;
+        }
+
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $entryName = (string)$zip->getNameIndex($i);
+            if (!isSafeArchiveEntryPath($entryName)) {
+                $zip->close();
+                $error = 'Unsafe ZIP entry path detected: ' . $entryName;
+                return false;
+            }
+        }
+
+        if (!$zip->extractTo($extractDir)) {
+            $zip->close();
+            $error = 'Failed to extract ZIP package.';
+            return false;
+        }
+
+        $zip->close();
+        return true;
+    }
+
+    $listError = '';
+    $listResult = listZipEntriesViaUnzip($zipPath, $listError);
+    if (!is_array($listResult)) {
+        $error = 'ZipArchive is unavailable. ' . $listError;
+        return false;
+    }
+
+    foreach ((array)$listResult['entries'] as $entryName) {
+        $entryName = trim((string)$entryName);
+        if ($entryName === '') {
+            continue;
+        }
+        if (!isSafeArchiveEntryPath($entryName)) {
+            $error = 'Unsafe ZIP entry path detected: ' . $entryName;
+            return false;
+        }
+    }
+
+    $extractCmd = escapeshellarg((string)$listResult['binary'])
+        . ' -qq -o '
+        . escapeshellarg($zipPath)
+        . ' -d '
+        . escapeshellarg($extractDir)
+        . ' 2>&1';
+
+    $extractOutput = [];
+    $extractExitCode = 0;
+    @exec($extractCmd, $extractOutput, $extractExitCode);
+    if ($extractExitCode !== 0) {
+        $error = 'Failed to extract ZIP package via unzip: ' . trim(implode("\n", $extractOutput));
+        return false;
+    }
+
+    return true;
+}
+
 function removePathRecursive($path) {
     if (!is_string($path) || $path === '' || !file_exists($path)) {
         return;
@@ -2084,12 +2211,6 @@ if ($action === 'import_extension_upload') {
         exit;
     }
 
-    if (!class_exists('ZipArchive')) {
-        http_response_code(500);
-        echo json_encode(['ok' => false, 'error' => 'ZipArchive is not available on this system.']);
-        exit;
-    }
-
     $workDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'extmgr_import_' . uniqid('', true);
     $extractDir = $workDir . DIRECTORY_SEPARATOR . 'extract';
     if (!mkdir($extractDir, 0775, true) && !is_dir($extractDir)) {
@@ -2106,23 +2227,13 @@ if ($action === 'import_extension_upload') {
         exit;
     }
 
-    $zip = new ZipArchive();
-    $openStatus = $zip->open($zipPath);
-    if ($openStatus !== true) {
+    $extractError = '';
+    if (!extractZipArchiveSafely($zipPath, $extractDir, $extractError)) {
         removePathRecursive($workDir);
         http_response_code(400);
-        echo json_encode(['ok' => false, 'error' => 'Invalid ZIP package.']);
+        echo json_encode(['ok' => false, 'error' => $extractError !== '' ? $extractError : 'Failed to extract ZIP package.']);
         exit;
     }
-
-    if (!$zip->extractTo($extractDir)) {
-        $zip->close();
-        removePathRecursive($workDir);
-        http_response_code(400);
-        echo json_encode(['ok' => false, 'error' => 'Failed to extract ZIP package.']);
-        exit;
-    }
-    $zip->close();
 
     $sourceDir = detectImportSourceDir($extractDir);
     if (!is_string($sourceDir) || $sourceDir === '') {
@@ -2514,43 +2625,6 @@ if ($action === 'repair') {
             'extensions' => $registry['extensions'],
         ],
     ], JSON_UNESCAPED_SLASHES);
-    exit;
-}
-
-if ($action === 'pin') {
-    $id = (string)($_REQUEST['id'] ?? '');
-    $value = (string)($_REQUEST['value'] ?? '1');
-    if ($id === '') {
-        http_response_code(400);
-        echo json_encode(['ok' => false, 'error' => 'Missing id']);
-        exit;
-    }
-
-    $registry = normalizeRegistry(readRegistry($registryPath));
-    $updated = false;
-
-    foreach ($registry['extensions'] as &$ext) {
-        if (($ext['id'] ?? '') === $id) {
-            $ext['pinned'] = ($value === '1' || strtolower($value) === 'true');
-            $updated = true;
-            break;
-        }
-    }
-    unset($ext);
-
-    if (!$updated) {
-        http_response_code(404);
-        echo json_encode(['ok' => false, 'error' => 'Extension not found']);
-        exit;
-    }
-
-    if (!writeJsonFile($registryPath, sanitizeRegistryForPersist($registry))) {
-        http_response_code(500);
-        echo json_encode(['ok' => false, 'error' => formatWriteFailure($registryPath, 'registry')]);
-        exit;
-    }
-
-    echo json_encode(['ok' => true, 'data' => ['id' => $id]], JSON_UNESCAPED_SLASHES);
     exit;
 }
 
