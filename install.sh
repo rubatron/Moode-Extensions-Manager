@@ -69,6 +69,7 @@ ACTION="install"
 REPAIR_FROM_MAIN=0
 SKIP_MODULE1=0
 REPAIR_TMP_DIR=""
+ORIG_ARGC="$#"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -99,6 +100,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --uninstall)
             ACTION="uninstall"
+            shift
+            ;;
+        --restore-oobe)
+            ACTION="restore-oobe"
             shift
             ;;
         --help|-h)
@@ -248,15 +253,143 @@ print_usage() {
 Usage: ./install.sh [options]
 
 Options:
+  (no args)             Interactive menu (default install / advanced)
   --install              Install/upgrade ext-mgr (default)
   --repair               Repair local installation using workspace files
   --repair-from-main     Repair installation using files fetched from main branch
   --uninstall            Remove ext-mgr files/symlinks and helpers
-    --with-radio-browser-integration
-                                                 Enable radio-browser compatibility patching (default)
-    --skip-module1         Skip radio-browser specific module patching
+  --restore-oobe         Restore moOde OOBE web files using backup script
+  --with-radio-browser-integration
+                         Enable radio-browser compatibility patching (default)
+  --skip-module1         Skip radio-browser specific module patching
   --help, -h             Show this help
 EOF
+}
+
+show_interactive_menu() {
+    local choice adv
+    echo
+    echo "ext-mgr installer"
+    echo "1) Default install (recommended)"
+    echo "2) Advanced"
+    echo "0) Exit"
+    printf "Select [1]: "
+    read -r choice
+    choice="${choice:-1}"
+
+    case "$choice" in
+        1)
+            ACTION="install"
+            ;;
+        2)
+            echo
+            echo "Advanced actions"
+            echo "1) Install/upgrade"
+            echo "2) Uninstall"
+            echo "3) Repair (workspace files)"
+            echo "4) Repair (fetch from main)"
+            echo "5) Restore moOde OOBE"
+            echo "0) Exit"
+            printf "Select [1]: "
+            read -r adv
+            adv="${adv:-1}"
+            case "$adv" in
+                1)
+                    ACTION="install"
+                    ;;
+                2)
+                    ACTION="uninstall"
+                    ;;
+                3)
+                    ACTION="repair"
+                    REPAIR_FROM_MAIN=0
+                    ;;
+                4)
+                    ACTION="repair"
+                    REPAIR_FROM_MAIN=1
+                    ;;
+                5)
+                    ACTION="restore-oobe"
+                    ;;
+                0)
+                    ACTION="help"
+                    ;;
+                *)
+                    echo "WARN: invalid selection, using default install" >&2
+                    ACTION="install"
+                    ;;
+            esac
+            ;;
+        0)
+            ACTION="help"
+            ;;
+        *)
+            echo "WARN: invalid selection, using default install" >&2
+            ACTION="install"
+            ;;
+    esac
+}
+
+run_restore_oobe() {
+    local restore_script=""
+    local tmp_script=""
+
+    if [[ -f "$PROJECT_ROOT/scripts/moode-oobe-restore.sh" ]]; then
+        restore_script="$PROJECT_ROOT/scripts/moode-oobe-restore.sh"
+    elif [[ -f "/home/pi/ext-mgr-tools/moode-oobe-restore.sh" ]]; then
+        restore_script="/home/pi/ext-mgr-tools/moode-oobe-restore.sh"
+    else
+        tmp_script="$(mktemp /tmp/moode-oobe-restore.XXXXXX.sh)"
+        if command -v curl >/dev/null 2>&1; then
+            curl -fsSL "https://raw.githubusercontent.com/rubatron/Moode-Extensions-Manager/main/scripts/moode-oobe-restore.sh" -o "$tmp_script"
+        elif command -v wget >/dev/null 2>&1; then
+            wget -q -O "$tmp_script" "https://raw.githubusercontent.com/rubatron/Moode-Extensions-Manager/main/scripts/moode-oobe-restore.sh"
+        else
+            echo "ERROR: curl or wget is required to fetch moode-oobe-restore.sh" >&2
+            return 1
+        fi
+        chmod +x "$tmp_script"
+        restore_script="$tmp_script"
+    fi
+
+    echo "INFO: restoring moOde OOBE web files using: $restore_script"
+    $SUDO bash "$restore_script"
+
+    if [[ -n "$tmp_script" && -f "$tmp_script" ]]; then
+        rm -f "$tmp_script"
+    fi
+
+    echo "INFO: OOBE restore completed."
+}
+
+graceful_finalize_services() {
+    local ready=0
+    local i code
+
+    echo "[11/11] Graceful reload and health wait..."
+    if command -v systemctl >/dev/null 2>&1; then
+        for svc in nginx apache2 php8.3-fpm php8.2-fpm php8.1-fpm php-fpm; do
+            if systemctl list-unit-files | grep -q "^${svc}\\.service"; then
+                $SUDO systemctl reload "$svc" 2>/dev/null || true
+            fi
+        done
+    fi
+
+    if command -v curl >/dev/null 2>&1; then
+        for i in $(seq 1 20); do
+            code="$(curl -s -o /dev/null -w "%{http_code}" http://localhost/index.php || true)"
+            if [[ "$code" == "200" || "$code" == "302" ]]; then
+                ready=1
+                echo "INFO: Web UI health check passed (HTTP $code)."
+                break
+            fi
+            sleep 1
+        done
+    fi
+
+    if [[ "$ready" -eq 0 ]]; then
+        echo "WARN: health check did not confirm ready state within timeout."
+    fi
 }
 
 read_version_value() {
@@ -546,6 +679,10 @@ print('patched footer')
 PY
 }
 
+if [[ "$ORIG_ARGC" -eq 0 && -t 0 ]]; then
+    show_interactive_menu
+fi
+
 case "$ACTION" in
     help)
         print_usage
@@ -553,6 +690,10 @@ case "$ACTION" in
         ;;
     uninstall)
         run_uninstall
+        exit 0
+        ;;
+    restore-oobe)
+        run_restore_oobe
         exit 0
         ;;
     repair)
@@ -818,6 +959,7 @@ echo "- Verify Library dropdown shows Extensions and canonical routes"
 echo "- Verify Configure modal includes Extensions tile"
 echo "- Verify /ext-mgr.php loads in moOde shell"
 
-echo "[10/10] Done."
+echo "[10/11] Done."
+graceful_finalize_services
 echo "Installed: $TARGET_PAGE, $TARGET_API, $TARGET_JS, $TARGET_HOVER_MENU_JS, $TARGET_CSS, $TARGET_META"
 echo "Root endpoints: /ext-mgr.php, /ext-mgr-api.php, /extensions-manager.php"
