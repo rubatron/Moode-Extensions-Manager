@@ -628,10 +628,13 @@
     }
 
     var modal = document.getElementById('configure-modal');
-    if (!modal) {
-      modal = buildConfigureModalFallback();
-      document.body.appendChild(modal);
+    if (modal) {
+      // Native moOde modal exists: do not intercept behavior.
+      return;
     }
+
+    modal = buildConfigureModalFallback();
+    document.body.appendChild(modal);
 
     document.addEventListener('click', function (e) {
       var openLink = e.target && e.target.closest ? e.target.closest('a[href="#configure-modal"], [data-target="#configure-modal"]') : null;
