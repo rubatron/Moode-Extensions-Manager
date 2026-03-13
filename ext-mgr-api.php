@@ -985,7 +985,8 @@ function resolveRemoteBranchCandidate($repository, $branch, &$error) {
     $payload = httpGet($apiUrl, $networkError);
     if ($payload === null) {
         $tagError = '';
-        $tagCandidate = resolveRemoteTagCandidate($repository, $channel, $tagError);
+        $fallbackChannel = strtolower($branch) === 'dev' ? 'dev' : 'stable';
+        $tagCandidate = resolveRemoteTagCandidate($repository, $fallbackChannel, $tagError);
         if (is_array($tagCandidate)) {
             $error = '';
             return $tagCandidate;
@@ -1037,7 +1038,14 @@ function resolveAvailableRemoteBranches($repository, &$error) {
     $networkError = '';
     $payload = httpGet($apiUrl, $networkError);
     if ($payload === null) {
-        $error = $networkError;
+        $tagError = '';
+        $tagCandidate = resolveRemoteTagCandidate($repository, $channel, $tagError);
+        if (is_array($tagCandidate)) {
+            $error = '';
+            return $tagCandidate;
+        }
+
+        $error = $networkError . ' | tag fallback failed: ' . $tagError;
         return null;
     }
 

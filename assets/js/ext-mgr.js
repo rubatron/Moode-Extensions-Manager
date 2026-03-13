@@ -336,14 +336,35 @@
     }
 
     advancedSourceLinkEl.textContent = display;
-    advancedSourceLinkEl.setAttribute('data-source-url', resolveUrl || '');
+    var sourceUrl = resolveUrl || rawBase || '';
+    advancedSourceLinkEl.setAttribute('data-source-url', sourceUrl);
     advancedSourceLinkEl.setAttribute('data-raw-base-url', rawBase || '');
 
     if (openAdvancedSourceBtn) {
-      openAdvancedSourceBtn.href = resolveUrl || '#';
-      openAdvancedSourceBtn.setAttribute('aria-disabled', resolveUrl ? 'false' : 'true');
-      openAdvancedSourceBtn.tabIndex = resolveUrl ? 0 : -1;
+      openAdvancedSourceBtn.href = sourceUrl || '#';
+      openAdvancedSourceBtn.setAttribute('aria-disabled', sourceUrl ? 'false' : 'true');
+      openAdvancedSourceBtn.tabIndex = sourceUrl ? 0 : -1;
     }
+  }
+
+  function fallbackCopyText(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', 'readonly');
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+
+    var copied = false;
+    try {
+      copied = document.execCommand('copy');
+    } catch (e) {
+      copied = false;
+    }
+
+    document.body.removeChild(ta);
+    return copied;
   }
 
   function buildIntegrityText(integrity, providerStatus) {
@@ -1128,12 +1149,37 @@
           setStatus('Advanced source link copied.', 'ok');
         })
         .catch(function () {
+          if (fallbackCopyText(text)) {
+            setStatus('Advanced source link copied.', 'ok');
+            return;
+          }
           setStatus('Copy failed. Select and copy manually.', 'error');
         });
       return;
     }
 
+    if (fallbackCopyText(text)) {
+      setStatus('Advanced source link copied.', 'ok');
+      return;
+    }
+
     setStatus('Clipboard API unavailable. Select and copy the source link manually.', 'error');
+  });
+
+  bindIfPresent(openAdvancedSourceBtn, 'click', function (e) {
+    if (!advancedSourceLinkEl) {
+      return;
+    }
+
+    var sourceUrl = advancedSourceLinkEl.getAttribute('data-source-url') || '';
+    if (!sourceUrl) {
+      e.preventDefault();
+      setStatus('No source URL available to open.', 'error');
+      return;
+    }
+
+    e.preventDefault();
+    window.open(sourceUrl, '_blank', 'noopener');
   });
 
   bindIfPresent(saveAdvancedUpdateBtn, 'click', function () {
