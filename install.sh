@@ -666,7 +666,6 @@ PY
     $SUDO python3 - <<'PY'
 from pathlib import Path
 
-tile = '<li><a href="/ext-mgr.php" class="btn btn-large"><i class="fa-solid fa-sharp fa-puzzle-piece"></i><br>Extensions</a></li>'
 script_tag = '<script src="/extensions/sys/assets/js/ext-mgr-hover-menu.js" defer></script>'
 
 for p in [Path('/var/www/footer.min.php'), Path('/var/www/footer.php')]:
@@ -675,6 +674,10 @@ for p in [Path('/var/www/footer.min.php'), Path('/var/www/footer.php')]:
 
     s = p.read_text(encoding='utf-8', errors='ignore')
     s = s.replace('href="ext-mgr.php" class="btn btn-large"', 'href="/ext-mgr.php" class="btn btn-large"')
+
+    # Keep native moOde configure modal untouched; remove any legacy ext-mgr tile injections.
+    s = s.replace('<li><a href="/ext-mgr.php" class="btn btn-large"><i class="fa-solid fa-sharp fa-puzzle-piece"></i><br>Extensions</a></li>', '')
+    s = s.replace('<li><a href="ext-mgr.php" class="btn btn-large"><i class="fa-solid fa-sharp fa-puzzle-piece"></i><br>Extensions</a></li>', '')
 
     if 'href="/ext-mgr.php" class="btn btn-large"' in s:
         if script_tag not in s:
@@ -686,17 +689,6 @@ for p in [Path('/var/www/footer.min.php'), Path('/var/www/footer.php')]:
                 s += '\n' + script_tag + '\n'
         p.write_text(s, encoding='utf-8')
         continue
-
-    marker_clock = '<?php if ($section == \'index\') { ?> <li class="context-menu"'
-    marker_camilla = '<li><a href="cdsp-config.php" class="btn btn-large"><i class="fa-solid fa-sharp fa-square-sliders-vertical"></i><br>CamillaDSP</a></li>'
-    marker_close = '</ul></div></div><div class="modal-footer">'
-
-    if marker_clock in s:
-        s = s.replace(marker_clock, tile + ' ' + marker_clock, 1)
-    elif marker_camilla in s:
-        s = s.replace(marker_camilla, marker_camilla + ' ' + tile, 1)
-    elif marker_close in s:
-        s = s.replace(marker_close, tile + marker_close, 1)
 
     if script_tag not in s:
         if '</body>' in s:
@@ -993,7 +985,7 @@ php -l "$TARGET_API"
 
 echo "[9/10] Validation hints..."
 echo "- Verify Library dropdown shows Extensions and canonical routes"
-echo "- Verify Configure modal includes Extensions tile"
+echo "- Verify Configure modal remains native moOde layout (no ext-mgr tile injection)"
 echo "- Verify /ext-mgr.php loads in moOde shell"
 
 echo "[10/11] Done."
