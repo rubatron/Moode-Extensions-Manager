@@ -73,6 +73,30 @@
   font-size: 0.8rem;
 }
 
+.extmgr-advanced-source {
+  margin-top: 0.55rem;
+  display: grid;
+  grid-template-columns: 120px minmax(220px, 1fr) auto;
+  gap: 0.42rem 0.65rem;
+  align-items: center;
+}
+
+.extmgr-advanced-source-label {
+  color: #a8b0ba;
+  font-size: 0.8rem;
+}
+
+.extmgr-advanced-source-link {
+  color: #b9c2cc;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  font-size: 0.82rem;
+}
+
+.extmgr-advanced-source-link:hover {
+  text-decoration: underline;
+}
+
 .extmgr-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(180px, 1fr));
@@ -221,19 +245,21 @@
 }
 
 .visibility-toggle {
-  min-width: 132px;
+  min-width: 118px;
+  border-radius: 5px;
+  letter-spacing: 0.01em;
 }
 
 .visibility-toggle.is-on {
-  color: #baf7ce;
-  border-color: #2b6b46;
-  background: #183627;
+  color: #c6d8cb;
+  border-color: rgba(99, 128, 106, 0.55);
+  background: rgba(48, 67, 53, 0.35);
 }
 
 .visibility-toggle.is-off {
-  color: #ffd4d4;
-  border-color: #6d3438;
-  background: #3a1b1e;
+  color: #d5c2c2;
+  border-color: rgba(132, 96, 96, 0.55);
+  background: rgba(70, 48, 48, 0.35);
 }
 
 .visibility-toggle:disabled {
@@ -273,6 +299,10 @@
   }
 
   .extmgr-advanced-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .extmgr-advanced-source {
     grid-template-columns: 1fr;
   }
 }

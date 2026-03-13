@@ -124,11 +124,19 @@ if (file_exists('/var/www/header.php')) {
                     </select>
 
                     <label for="advanced-branch">Branch</label>
-                    <select id="advanced-branch" aria-label="Advanced update branch"></select>
+                    <select id="advanced-branch" aria-label="Advanced update branch">
+                        <option value="main">main</option>
+                        <option value="dev">dev</option>
+                    </select>
+                </div>
+                <div class="extmgr-advanced-source">
+                    <span class="extmgr-advanced-source-label">Source</span>
+                    <a id="advanced-source-link" class="extmgr-advanced-source-link" href="#" target="_blank" rel="noopener noreferrer">-</a>
+                    <button id="copy-advanced-source-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-link"></i> Copy Link</button>
                 </div>
                 <div class="extmgr-actions">
                     <button id="save-advanced-update-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-floppy-disk"></i> Save Advanced Update</button>
-                    <span id="advanced-update-note" class="extmgr-note">Branch option includes an extra dev branch.</span>
+                    <span id="advanced-update-note" class="extmgr-note">Track branch is limited to main/dev. Use Copy Link for quick diagnostics.</span>
                 </div>
             </details>
         </fieldset>

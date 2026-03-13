@@ -22,6 +22,8 @@
   var advancedTrackEl = document.getElementById('advanced-track');
   var advancedChannelEl = document.getElementById('advanced-channel');
   var advancedBranchEl = document.getElementById('advanced-branch');
+  var advancedSourceLinkEl = document.getElementById('advanced-source-link');
+  var copyAdvancedSourceBtn = document.getElementById('copy-advanced-source-btn');
   var saveAdvancedUpdateBtn = document.getElementById('save-advanced-update-btn');
   var advancedUpdateNoteEl = document.getElementById('advanced-update-note');
   var maintenanceLogEl = document.getElementById('maintenance-log');
@@ -136,14 +138,86 @@
   function providerStatusFromPolicy(policy) {
     var p = policy || {};
     return {
+      provider: p.provider || 'github',
+      repository: p.repository || 'rubatron/Moode-Extensions-Manager',
       updateTrack: p.updateTrack || 'channel',
-      channel: p.channel || 'dev',
+      channel: p.channel || 'stable',
       branch: p.branch || 'main',
-      availableBranches: p.availableBranches || ['main', 'dev'],
+      availableBranches: ['main', 'dev'],
       signatureVerification: p.signatureVerification || 'planned',
       checksumAlgorithm: p.checksumAlgorithm || 'sha256',
       integrityManifestPath: p.integrityManifestPath || 'ext-mgr.integrity.json'
     };
+  }
+
+  function parseRepository(repository) {
+    var repo = String(repository || '').trim();
+    var parts = repo.split('/');
+    if (parts.length !== 2 || !parts[0] || !parts[1]) {
+      return null;
+    }
+    return { owner: parts[0], name: parts[1] };
+  }
+
+  function buildResolveSourceUrl(providerStatus) {
+    var status = providerStatus || {};
+    if ((status.provider || 'github') !== 'github') {
+      return '';
+    }
+
+    var repoParts = parseRepository(status.repository || '');
+    if (!repoParts) {
+      return '';
+    }
+
+    var base = 'https://api.github.com/repos/' + encodeURIComponent(repoParts.owner) + '/' + encodeURIComponent(repoParts.name);
+    var track = status.updateTrack || 'channel';
+    if (track === 'branch') {
+      return base + '/branches/' + encodeURIComponent(status.branch || 'main');
+    }
+
+    var channel = status.channel || 'stable';
+    if (channel === 'stable') {
+      return base + '/releases/latest';
+    }
+    return base + '/releases?per_page=30';
+  }
+
+  function buildRawManagedBaseUrl(providerStatus, candidate) {
+    var status = providerStatus || {};
+    if ((status.provider || 'github') !== 'github') {
+      return '';
+    }
+
+    var repoParts = parseRepository(status.repository || '');
+    if (!repoParts) {
+      return '';
+    }
+
+    var ref = (candidate && (candidate.ref || candidate.tag)) || (status.updateTrack === 'branch' ? status.branch : 'main');
+    if (!ref) {
+      return '';
+    }
+
+    return 'https://raw.githubusercontent.com/' + encodeURIComponent(repoParts.owner) + '/' + encodeURIComponent(repoParts.name) + '/' + encodeURIComponent(ref) + '/';
+  }
+
+  function renderAdvancedSource(providerStatus, candidate) {
+    if (!advancedSourceLinkEl) {
+      return;
+    }
+
+    var resolveUrl = buildResolveSourceUrl(providerStatus);
+    var rawBase = buildRawManagedBaseUrl(providerStatus, candidate);
+    var display = resolveUrl || '-';
+    if (rawBase) {
+      display += ' | raw base: ' + rawBase;
+    }
+
+    advancedSourceLinkEl.textContent = display;
+    advancedSourceLinkEl.href = resolveUrl || '#';
+    advancedSourceLinkEl.setAttribute('data-source-url', resolveUrl || '');
+    advancedSourceLinkEl.setAttribute('data-raw-base-url', rawBase || '');
   }
 
   function buildIntegrityText(integrity, providerStatus) {
@@ -202,15 +276,15 @@
     }
   }
 
-  function renderAdvancedUpdateControls(providerStatus, payloadWarning) {
+  function renderAdvancedUpdateControls(providerStatus, payloadWarning, candidate) {
     if (!advancedTrackEl || !advancedChannelEl || !advancedBranchEl) {
       return;
     }
 
     var track = (providerStatus && providerStatus.updateTrack) || 'channel';
-    var channel = (providerStatus && providerStatus.channel) || 'dev';
+    var channel = (providerStatus && providerStatus.channel) || 'stable';
     var branch = (providerStatus && providerStatus.branch) || 'main';
-    var branches = (providerStatus && providerStatus.availableBranches) || ['main', 'dev'];
+    var branches = ['main', 'dev'];
 
     advancedBranchEl.innerHTML = '';
     branches.forEach(function (name) {
@@ -223,6 +297,7 @@
       advancedBranchEl.appendChild(option);
     });
 
+    ensureBranchOption('main');
     ensureBranchOption('dev');
     ensureBranchOption(branch);
 
@@ -230,11 +305,12 @@
     advancedChannelEl.value = channel;
     advancedBranchEl.value = branch;
     advancedBranchEl.disabled = track !== 'branch';
+    renderAdvancedSource(providerStatus || {}, candidate || null);
 
     if (advancedUpdateNoteEl) {
       advancedUpdateNoteEl.textContent = payloadWarning
         ? ('Branch discovery warning: ' + payloadWarning + '. Using stored branch list.')
-        : ('Branch mode includes dev option. Active track=' + track + '.');
+        : ('Branch mode limited to main/dev. Active track=' + track + '.');
     }
   }
 
@@ -545,7 +621,7 @@
       .then(function (data) {
         renderMeta(data.data.meta || {});
         renderHealth(data.data.health || {});
-        renderAdvancedUpdateControls(providerStatusFromPolicy(data.data.releasePolicy || {}), null);
+        renderAdvancedUpdateControls(providerStatusFromPolicy(data.data.releasePolicy || {}), null, null);
         allItems = (data.data && data.data.extensions) || [];
         renderItems(allItems);
         setStatus('Loaded manager status and ' + allItems.length + ' extension(s).', 'ok');
@@ -561,7 +637,7 @@
       .then(function (data) {
         renderMeta(data.data.meta || {});
         renderHealth(data.data.health || {});
-        renderAdvancedUpdateControls(providerStatusFromPolicy(data.data.releasePolicy || {}), null);
+        renderAdvancedUpdateControls(providerStatusFromPolicy(data.data.releasePolicy || {}), null, null);
         allItems = (data.data && data.data.extensions) || [];
         renderItems(allItems);
         setStatus('Refresh complete.', 'ok');
@@ -584,7 +660,7 @@
 
         renderMeta(payload.meta || {});
         renderUpdateStatus(payload.meta || {}, hasUpdate, payload.candidate || null, payload.warning || null, payload.providerStatus || null, null);
-        renderAdvancedUpdateControls(payload.providerStatus || null, payload.branchWarning || null);
+        renderAdvancedUpdateControls(payload.providerStatus || null, payload.branchWarning || null, payload.candidate || null);
         setRunUpdateButtonState();
 
         if (hasUpdate) {
@@ -705,11 +781,67 @@
       return;
     }
     advancedBranchEl.disabled = advancedTrackEl.value !== 'branch';
+    renderAdvancedSource({
+      provider: 'github',
+      repository: 'rubatron/Moode-Extensions-Manager',
+      updateTrack: advancedTrackEl.value,
+      channel: (advancedChannelEl && advancedChannelEl.value) || 'stable',
+      branch: (advancedBranchEl && advancedBranchEl.value) || 'main'
+    }, null);
+  });
+
+  bindIfPresent(advancedChannelEl, 'change', function () {
+    renderAdvancedSource({
+      provider: 'github',
+      repository: 'rubatron/Moode-Extensions-Manager',
+      updateTrack: (advancedTrackEl && advancedTrackEl.value) || 'channel',
+      channel: advancedChannelEl.value || 'stable',
+      branch: (advancedBranchEl && advancedBranchEl.value) || 'main'
+    }, null);
+  });
+
+  bindIfPresent(advancedBranchEl, 'change', function () {
+    renderAdvancedSource({
+      provider: 'github',
+      repository: 'rubatron/Moode-Extensions-Manager',
+      updateTrack: (advancedTrackEl && advancedTrackEl.value) || 'channel',
+      channel: (advancedChannelEl && advancedChannelEl.value) || 'stable',
+      branch: advancedBranchEl.value || 'main'
+    }, null);
+  });
+
+  bindIfPresent(copyAdvancedSourceBtn, 'click', function () {
+    if (!advancedSourceLinkEl) {
+      return;
+    }
+
+    var resolveUrl = advancedSourceLinkEl.getAttribute('data-source-url') || '';
+    var rawBase = advancedSourceLinkEl.getAttribute('data-raw-base-url') || '';
+    var text = resolveUrl;
+    if (rawBase) {
+      text += '\nraw base: ' + rawBase;
+    }
+    if (!text) {
+      return;
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text)
+        .then(function () {
+          setStatus('Advanced source link copied.', 'ok');
+        })
+        .catch(function () {
+          setStatus('Copy failed. Select and copy manually.', 'error');
+        });
+      return;
+    }
+
+    setStatus('Clipboard API unavailable. Select and copy the source link manually.', 'error');
   });
 
   bindIfPresent(saveAdvancedUpdateBtn, 'click', function () {
     var track = (advancedTrackEl && advancedTrackEl.value) || 'channel';
-    var channel = (advancedChannelEl && advancedChannelEl.value) || 'dev';
+    var channel = (advancedChannelEl && advancedChannelEl.value) || 'stable';
     var branch = (advancedBranchEl && advancedBranchEl.value) || 'main';
 
     if (saveAdvancedUpdateBtn) {
@@ -721,11 +853,13 @@
       .then(function (data) {
         var policy = (data && data.data && data.data.releasePolicy) || null;
         renderAdvancedUpdateControls({
+          provider: policy && policy.provider,
+          repository: policy && policy.repository,
           updateTrack: policy && policy.updateTrack,
           channel: policy && policy.channel,
           branch: policy && policy.branch,
           availableBranches: policy && policy.availableBranches
-        }, null);
+        }, null, null);
         setStatus('Advanced update settings saved.', 'ok');
         runCheckUpdate();
       })

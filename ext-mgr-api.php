@@ -116,27 +116,13 @@ function normalizeReleasePolicy($policy) {
         $normalized['devBranch'] = $defaults['devBranch'];
     }
 
-    if (!isset($normalized['availableBranches']) || !is_array($normalized['availableBranches'])) {
-        $normalized['availableBranches'] = $defaults['availableBranches'];
+    $normalized['availableBranches'] = ['main', 'dev'];
+    if (!in_array($normalized['branch'], $normalized['availableBranches'], true)) {
+        $normalized['branch'] = 'main';
     }
-    $branches = [];
-    foreach ($normalized['availableBranches'] as $b) {
-        $clean = trim((string)$b);
-        if ($clean === '' || preg_match('/^[a-zA-Z0-9._\/-]+$/', $clean) !== 1) {
-            continue;
-        }
-        $branches[] = $clean;
+    if (!in_array($normalized['devBranch'], $normalized['availableBranches'], true)) {
+        $normalized['devBranch'] = 'dev';
     }
-    if (count($branches) === 0) {
-        $branches = $defaults['availableBranches'];
-    }
-    if (!in_array($normalized['branch'], $branches, true)) {
-        $branches[] = $normalized['branch'];
-    }
-    if (!in_array($normalized['devBranch'], $branches, true)) {
-        $branches[] = $normalized['devBranch'];
-    }
-    $normalized['availableBranches'] = array_values(array_unique($branches));
 
     $allowedProviders = ['github', 'gitlab', 'custom'];
     if (!in_array($normalized['provider'], $allowedProviders, true)) {
@@ -721,7 +707,7 @@ function resolveRemoteReleaseCandidate($policy, &$error) {
         return resolveRemoteBranchCandidate($repository, $branchName, $error);
     }
 
-    $channel = (string)($policy['channel'] ?? 'dev');
+    $channel = (string)($policy['channel'] ?? 'stable');
     $apiPath = githubReleaseApiPathForChannel($channel);
     $apiUrl = githubApiUrl($repository, $apiPath);
     if ($apiUrl === null) {
@@ -1119,7 +1105,7 @@ function buildMeta($metaPath, $versionPath, $releasePath) {
         'repository' => (string)($policy['repository'] ?? ''),
         'signatureVerification' => (string)($policy['signatureVerification'] ?? 'planned'),
         'systemSettingsHook' => (string)($policy['systemSettingsHook'] ?? 'placeholder'),
-        'channel' => (string)($policy['channel'] ?? 'dev'),
+        'channel' => (string)($policy['channel'] ?? 'stable'),
         'updateTrack' => (string)($policy['updateTrack'] ?? 'channel'),
         'branch' => (string)($policy['branch'] ?? 'main'),
     ];
@@ -1576,14 +1562,7 @@ if ($action === 'check_update') {
     [$meta, $policy] = buildMeta($metaPath, $versionPath, $releasePath);
 
     $branchWarning = null;
-    $remoteBranchError = '';
-    $remoteBranches = resolveAvailableRemoteBranches((string)($policy['repository'] ?? ''), $remoteBranchError);
-    if (is_array($remoteBranches) && count($remoteBranches) > 0) {
-        $policy['availableBranches'] = array_values(array_unique(array_merge((array)($policy['availableBranches'] ?? []), $remoteBranches)));
-        writeJsonFile($releasePath, $policy);
-    } elseif ($remoteBranchError !== '') {
-        $branchWarning = $remoteBranchError;
-    }
+    $policy['availableBranches'] = ['main', 'dev'];
 
     $resolveError = '';
     $candidate = resolveRemoteReleaseCandidate($policy, $resolveError);
@@ -1617,13 +1596,15 @@ if ($action === 'check_update') {
             ],
             'providerStatus' => [
                 'reachable' => is_array($candidate),
+                'provider' => (string)($policy['provider'] ?? 'github'),
+                'repository' => (string)($policy['repository'] ?? ''),
                 'signatureVerification' => (string)($policy['signatureVerification'] ?? 'planned'),
                 'checksumAlgorithm' => (string)($policy['checksumAlgorithm'] ?? 'sha256'),
                 'integrityManifestPath' => (string)($policy['integrityManifestPath'] ?? 'ext-mgr.integrity.json'),
                 'updateTrack' => (string)($policy['updateTrack'] ?? 'channel'),
-                'channel' => (string)($policy['channel'] ?? 'dev'),
+                'channel' => (string)($policy['channel'] ?? 'stable'),
                 'branch' => (string)($policy['branch'] ?? 'main'),
-                'availableBranches' => array_values((array)($policy['availableBranches'] ?? ['main', 'dev'])),
+                'availableBranches' => ['main', 'dev'],
             ],
         ],
     ], JSON_UNESCAPED_SLASHES);
@@ -1786,7 +1767,7 @@ if ($action === 'run_update') {
 
 if ($action === 'set_update_advanced') {
     $track = strtolower(trim((string)($_REQUEST['track'] ?? 'channel')));
-    $channel = strtolower(trim((string)($_REQUEST['channel'] ?? 'dev')));
+    $channel = strtolower(trim((string)($_REQUEST['channel'] ?? 'stable')));
     $branch = trim((string)($_REQUEST['branch'] ?? 'main'));
 
     if ($track !== 'channel' && $track !== 'branch') {
@@ -1801,9 +1782,15 @@ if ($action === 'set_update_advanced') {
         exit;
     }
 
-    if ($branch === '' || preg_match('/^[a-zA-Z0-9._\/-]+$/', $branch) !== 1) {
+    if ($branch === '' || preg_match('/^[a-zA-Z0-9._\/\-]+$/', $branch) !== 1) {
         http_response_code(400);
         echo json_encode(['ok' => false, 'error' => 'Invalid branch name.']);
+        exit;
+    }
+
+    if (!in_array($branch, ['main', 'dev'], true)) {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'Invalid branch. Allowed: main or dev.']);
         exit;
     }
 
@@ -1811,12 +1798,7 @@ if ($action === 'set_update_advanced') {
     $policy['updateTrack'] = $track;
     $policy['channel'] = $channel;
     $policy['branch'] = $branch;
-    if (!isset($policy['availableBranches']) || !is_array($policy['availableBranches'])) {
-        $policy['availableBranches'] = ['main', 'dev'];
-    }
-    if (!in_array($branch, $policy['availableBranches'], true)) {
-        $policy['availableBranches'][] = $branch;
-    }
+    $policy['availableBranches'] = ['main', 'dev'];
 
     if (!writeJsonFile($releasePath, $policy)) {
         http_response_code(500);
