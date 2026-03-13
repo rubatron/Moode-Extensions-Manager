@@ -67,7 +67,7 @@ RB_JS_FILE="/var/www/extensions/installed/radio-browser/assets/radio-browser-mod
 
 ACTION="install"
 REPAIR_FROM_MAIN=0
-SKIP_MODULE1=0
+SKIP_MODULE1=1
 REPAIR_TMP_DIR=""
 ORIG_ARGC="$#"
 
@@ -260,8 +260,8 @@ Options:
   --uninstall            Remove ext-mgr files/symlinks and helpers
   --restore-oobe         Restore moOde OOBE web files using backup script
   --with-radio-browser-integration
-                         Enable radio-browser compatibility patching (default)
-  --skip-module1         Skip radio-browser specific module patching
+                                                 Enable radio-browser compatibility patching (opt-in)
+    --skip-module1         Skip radio-browser specific module patching (default)
   --help, -h             Show this help
 EOF
 }

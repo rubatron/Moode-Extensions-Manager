@@ -135,50 +135,6 @@
     el.addEventListener(eventName, handler);
   }
 
-  function initConfigureModalFix() {
-    function bindWithJquery($) {
-      if (!$ || !$.fn || !$.fn.modal) {
-        return false;
-      }
-
-      $(document)
-        .off('click.extMgrConfigureModalFix')
-        .on(
-          'click.extMgrConfigureModalFix',
-          'a[href="#configure-modal"], a[href*="configure-modal"], [data-target="#configure-modal"]',
-          function (e) {
-            var $modal = $('#configure-modal');
-            if (!$modal.length) {
-              return;
-            }
-
-            e.preventDefault();
-            e.stopPropagation();
-            $modal.removeClass('hide').modal('show');
-          }
-        );
-
-      if (window.location.hash === '#configure-modal' || window.location.hash.indexOf('configure-modal') !== -1) {
-        window.setTimeout(function () {
-          var $modal = $('#configure-modal');
-          if ($modal.length) {
-            $modal.removeClass('hide').modal('show');
-          }
-        }, 0);
-      }
-
-      return true;
-    }
-
-    if (bindWithJquery(window.jQuery || window.$)) {
-      return;
-    }
-
-    document.addEventListener('DOMContentLoaded', function onReady() {
-      bindWithJquery(window.jQuery || window.$);
-    }, { once: true });
-  }
-
   function setImportWizardNote(text, kind) {
     if (!importWizardNoteEl) {
       return;
@@ -1582,8 +1538,6 @@
     }
     submenuToggle.setAttribute('aria-expanded', submenu.classList.contains('is-open') ? 'true' : 'false');
   });
-
-  initConfigureModalFix();
 
   loadStatusAndList(true).then(function () {
     setRunUpdateButtonState();
