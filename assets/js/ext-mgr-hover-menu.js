@@ -303,8 +303,13 @@
 
       var a = document.createElement('a');
       a.href = entryHref;
-      a.className = 'btn btn-large';
-      a.innerHTML = '<i class="fa-solid fa-sharp fa-puzzle-piece"></i><br>' + esc(label);
+      a.className = 'extmgr-mmenu-link';
+      a.style.display = 'block';
+      a.style.padding = '8px 12px';
+      a.style.textDecoration = 'none';
+      a.style.color = 'inherit';
+      a.style.lineHeight = '1.25';
+      a.innerHTML = '<i class="fa-solid fa-sharp fa-puzzle-piece" style="margin-right:.5em;"></i>' + esc(label);
       li.appendChild(a);
       container.appendChild(li);
       return;
@@ -469,10 +474,101 @@
 
       var link = document.createElement('a');
       link.href = entry;
-      link.className = 'btn btn-large';
-      link.innerHTML = '<i class="fa-solid fa-sharp fa-puzzle-piece"></i><br>' + esc(name);
+      link.className = 'extmgr-system-link';
+      link.style.display = 'block';
+      link.style.padding = '8px 12px';
+      link.style.textDecoration = 'none';
+      link.style.color = 'inherit';
+      link.style.lineHeight = '1.25';
+      link.innerHTML = '<i class="fa-solid fa-sharp fa-puzzle-piece" style="margin-right:.5em;"></i>' + esc(name);
       li.appendChild(link);
       container.appendChild(li);
+    }
+  }
+
+  function initConfigureModalGuard() {
+    if (window.__extMgrConfigureModalGuardInit) {
+      return;
+    }
+    window.__extMgrConfigureModalGuardInit = true;
+
+    function ensureBackdrop() {
+      var existing = document.querySelector('.modal-backdrop');
+      if (existing) {
+        return existing;
+      }
+      var backdrop = document.createElement('div');
+      backdrop.className = 'modal-backdrop in';
+      document.body.appendChild(backdrop);
+      return backdrop;
+    }
+
+    function closeModalFallback(modal) {
+      if (!modal) {
+        return;
+      }
+      modal.classList.add('hide');
+      modal.style.display = 'none';
+      modal.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('modal-open');
+      var backdrops = document.querySelectorAll('.modal-backdrop');
+      var i;
+      for (i = 0; i < backdrops.length; i += 1) {
+        if (backdrops[i] && backdrops[i].parentNode) {
+          backdrops[i].parentNode.removeChild(backdrops[i]);
+        }
+      }
+    }
+
+    function openModalFallback(modal) {
+      modal.classList.remove('hide');
+      modal.style.display = 'block';
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('modal-open');
+      ensureBackdrop();
+    }
+
+    function openConfigureModal(e) {
+      var modal = document.getElementById('configure-modal');
+      if (!modal) {
+        return;
+      }
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+
+      if (window.jQuery && window.jQuery.fn && window.jQuery.fn.modal) {
+        window.jQuery(modal).removeClass('hide').modal('show');
+      } else {
+        openModalFallback(modal);
+      }
+    }
+
+    document.addEventListener('click', function (e) {
+      var trigger = e.target && e.target.closest
+        ? e.target.closest('a[href="#configure-modal"], a[href*="#/configure"], a[href*="configure-modal"], [data-target="#configure-modal"], [href*="open-configure"]')
+        : null;
+      if (!trigger) {
+        return;
+      }
+      openConfigureModal(e);
+    }, true);
+
+    document.addEventListener('click', function (e) {
+      var closeTrigger = e.target && e.target.closest
+        ? e.target.closest('#configure-modal [data-dismiss="modal"], #configure-modal .close, .modal-backdrop')
+        : null;
+      if (!closeTrigger) {
+        return;
+      }
+      closeModalFallback(document.getElementById('configure-modal'));
+    }, true);
+
+    if (window.location.hash === '#configure-modal' || window.location.hash.indexOf('configure-modal') !== -1) {
+      window.setTimeout(function () {
+        openConfigureModal();
+      }, 0);
     }
   }
 
@@ -538,6 +634,8 @@
   }
 
   document.addEventListener('DOMContentLoaded', function () {
+    initConfigureModalGuard();
+
     var refs = ensureHostElements();
 
     if (refs) {

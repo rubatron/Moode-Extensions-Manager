@@ -547,21 +547,27 @@
 }
 
 .visibility-toggle {
-  min-width: 118px;
-  border-radius: 5px;
-  letter-spacing: 0.01em;
+  min-width: 146px;
+  border-radius: 4px;
+  letter-spacing: 0;
+  font-size: 0.8rem;
+  line-height: 1.2;
+  padding: 0.22rem 0.56rem;
+  border-color: rgba(132, 139, 146, 0.45);
+  background: rgba(56, 61, 67, 0.2);
+  color: #c6ccd3;
 }
 
 .visibility-toggle.is-on {
-  color: #c6d8cb;
-  border-color: rgba(99, 128, 106, 0.55);
-  background: rgba(48, 67, 53, 0.35);
+  color: #c7d8cd;
+  border-color: rgba(108, 136, 115, 0.45);
+  background: rgba(44, 62, 49, 0.28);
 }
 
 .visibility-toggle.is-off {
-  color: #d5c2c2;
-  border-color: rgba(132, 96, 96, 0.55);
-  background: rgba(70, 48, 48, 0.35);
+  color: #d0c2c5;
+  border-color: rgba(126, 101, 105, 0.42);
+  background: rgba(62, 47, 50, 0.25);
 }
 
 .visibility-toggle:disabled {

@@ -907,6 +907,7 @@
           .then(function () {
             setStatus('Extension state updated for ' + (item.name || item.id) + '.', 'ok');
             runRefresh();
+            reloadPageSoon();
           })
           .catch(function (err) {
             setStatus(err.message, 'error');
@@ -929,6 +930,7 @@
             applyVisibilityButtonState(menuMBtn, 'm', getVisibility(item, 'm'));
             setStatus('M menu visibility updated for ' + (item.name || item.id) + '.', 'ok');
             runRefresh();
+            reloadPageSoon();
           })
           .catch(function (err) {
             setStatus(err.message + (err.message.indexOf('Failed to write registry') !== -1 ? ' Check ext-mgr permissions and restart php-fpm.' : ''), 'error');
@@ -951,6 +953,7 @@
             applyVisibilityButtonState(menuLibraryBtn, 'library', getVisibility(item, 'library'));
             setStatus('Library visibility updated for ' + (item.name || item.id) + '.', 'ok');
             runRefresh();
+            reloadPageSoon();
           })
           .catch(function (err) {
             setStatus(err.message + (err.message.indexOf('Failed to write registry') !== -1 ? ' Check ext-mgr permissions and restart php-fpm.' : ''), 'error');
@@ -973,6 +976,7 @@
             applyVisibilityButtonState(menuSystemBtn, 'system', getVisibility(item, 'system'));
             setStatus('System menu visibility updated for ' + (item.name || item.id) + '.', 'ok');
             runRefresh();
+            reloadPageSoon();
           })
           .catch(function (err) {
             setStatus(err.message + (err.message.indexOf('Failed to write registry') !== -1 ? ' Check ext-mgr permissions and restart php-fpm.' : ''), 'error');
@@ -995,6 +999,7 @@
             applySettingsCardButtonState(settingsCardBtn, getSettingsCardOnly(item));
             setStatus('Settings-card mode updated for ' + (item.name || item.id) + '.', 'ok');
             runRefresh();
+            reloadPageSoon();
           })
           .catch(function (err) {
             setStatus(err.message + (err.message.indexOf('Failed to write registry') !== -1 ? ' Check ext-mgr permissions and restart php-fpm.' : ''), 'error');
@@ -1084,6 +1089,12 @@
       .catch(function (err) {
         setStatus(err.message, 'error');
       });
+  }
+
+  function reloadPageSoon() {
+    window.setTimeout(function () {
+      window.location.reload();
+    }, 220);
   }
 
   function runSystemResources(silent) {
@@ -1186,6 +1197,7 @@
           managerVisibilityNoteEl.classList.add('ok');
         }
         setStatus('Manager visibility updated.', 'ok');
+        reloadPageSoon();
       })
       .catch(function (err) {
         if (managerVisibilityNoteEl) {

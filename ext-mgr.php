@@ -224,22 +224,22 @@ if (file_exists('/var/www/header.php')) {
                             <button id="clear-cache-btn" class="btn btn-small btn-danger" type="button"><i class="fa-solid fa-sharp fa-trash"></i> Clear Cache Folder</button>
                         </div>
                         <div id="maintenance-storage-note" class="extmgr-note">Cache path: /var/www/extensions/cache. Backups are stored in /var/www/extensions/sys/backup.</div>
+                    </div>
+                </div>
 
-                        <div class="extmgr-submenu" id="submenu-manager-visibility">
-                            <button class="extmgr-submenu-header" type="button" data-submenu-toggle aria-expanded="false">
-                                <span>Extension Manager Visibility</span>
-                                <i class="fa-solid fa-angle-down" aria-hidden="true"></i>
-                            </button>
-                            <div class="extmgr-submenu-body">
-                                <p class="config-help-static extmgr-help">Hide/unhide ext-mgr itself in moOde menu areas without disabling the API endpoint.</p>
-                                <div class="extmgr-actions">
-                                    <button id="manager-visibility-header-btn" class="btn btn-small visibility-toggle" type="button">Header: Visible</button>
-                                    <button id="manager-visibility-library-btn" class="btn btn-small visibility-toggle" type="button">Library: Visible</button>
-                                    <button id="manager-visibility-system-btn" class="btn btn-small visibility-toggle" type="button">System: Visible</button>
-                                </div>
-                                <div id="manager-visibility-note" class="extmgr-note">Changes apply on next menu render and page refresh.</div>
-                            </div>
+                <div class="extmgr-submenu" id="submenu-manager-visibility">
+                    <button class="extmgr-submenu-header" type="button" data-submenu-toggle aria-expanded="false">
+                        <span>Extension Manager Visibility</span>
+                        <i class="fa-solid fa-angle-down" aria-hidden="true"></i>
+                    </button>
+                    <div class="extmgr-submenu-body">
+                        <p class="config-help-static extmgr-help">Hide/unhide ext-mgr itself in moOde menu areas without disabling the API endpoint.</p>
+                        <div class="extmgr-actions">
+                            <button id="manager-visibility-header-btn" class="btn btn-small visibility-toggle" type="button">Header: Visible</button>
+                            <button id="manager-visibility-library-btn" class="btn btn-small visibility-toggle" type="button">Library: Visible</button>
+                            <button id="manager-visibility-system-btn" class="btn btn-small visibility-toggle" type="button">System: Visible</button>
                         </div>
+                        <div id="manager-visibility-note" class="extmgr-note">Changes apply on next menu render and page refresh.</div>
                     </div>
                 </div>
 
