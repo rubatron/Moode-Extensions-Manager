@@ -566,6 +566,76 @@
     observer.observe(document.body, { childList: true, subtree: true });
   }
 
+  function buildConfigureModalFallback() {
+    var modal = document.createElement('div');
+    modal.id = 'configure-modal';
+    modal.className = 'modal hide';
+    modal.setAttribute('tabindex', '-1');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-hidden', 'true');
+    modal.innerHTML = '' +
+      '<div class="modal-header">' +
+      '  <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>' +
+      '  <h3>Configure</h3>' +
+      '</div>' +
+      '<div class="modal-body">' +
+      '  <div class="container-fluid">' +
+      '    <ul class="thumbnails txtmid">' +
+      '      <li><a href="lib-config.php" class="btn btn-large"><i class="fa-solid fa-sharp fa-database"></i><br>Library</a></li>' +
+      '      <li><a href="snd-config.php" class="btn btn-large"><i class="fa-solid fa-sharp fa-volume-up"></i><br>Audio</a></li>' +
+      '      <li><a href="net-config.php" class="btn btn-large"><i class="fa-solid fa-sharp fa-sitemap"></i><br>Network</a></li>' +
+      '      <li><a href="sys-config.php" class="btn btn-large"><i class="fa-solid fa-sharp fa-gears"></i><br>System</a></li>' +
+      '      <li><a href="ren-config.php" class="btn btn-large"><i class="fa-solid fa-sharp fa-play-circle"></i><br>Renderers</a></li>' +
+      '      <li><a href="per-config.php" class="btn btn-large"><i class="fa-solid fa-sharp fa-display"></i><br>Peripherals</a></li>' +
+      '      <li><a href="/ext-mgr.php" class="btn btn-large"><i class="fa-solid fa-sharp fa-puzzle-piece"></i><br>Extensions</a></li>' +
+      '    </ul>' +
+      '  </div>' +
+      '</div>' +
+      '<div class="modal-footer">' +
+      '  <button class="btn singleton" data-dismiss="modal" aria-hidden="true">Close</button>' +
+      '</div>';
+    return modal;
+  }
+
+  function installConfigureModalFallback() {
+    var trigger = document.querySelector('a[href="#configure-modal"]');
+    if (!trigger) {
+      return;
+    }
+
+    var modal = document.getElementById('configure-modal');
+    if (!modal) {
+      modal = buildConfigureModalFallback();
+      document.body.appendChild(modal);
+    }
+
+    document.addEventListener('click', function (e) {
+      var openLink = e.target && e.target.closest ? e.target.closest('a[href="#configure-modal"], [data-target="#configure-modal"]') : null;
+      if (openLink) {
+        e.preventDefault();
+        if (window.jQuery && window.jQuery.fn && window.jQuery.fn.modal) {
+          window.jQuery(modal).removeClass('hide').modal('show');
+        } else {
+          modal.classList.remove('hide');
+          modal.style.display = 'block';
+        }
+        return;
+      }
+
+      var closeBtn = e.target && e.target.closest ? e.target.closest('#configure-modal [data-dismiss="modal"], #configure-modal .close') : null;
+      if (!closeBtn) {
+        return;
+      }
+      e.preventDefault();
+      if (window.jQuery && window.jQuery.fn && window.jQuery.fn.modal) {
+        window.jQuery(modal).modal('hide');
+      } else {
+        modal.classList.add('hide');
+        modal.style.display = 'none';
+      }
+    });
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     var refs = ensureHostElements();
 
@@ -607,6 +677,7 @@
       renderSystemMenu(items);
       applyManagerVisibility(payload.meta || {}, refs);
     });
+    installConfigureModalFallback();
     observeMMenu();
   });
 })();
