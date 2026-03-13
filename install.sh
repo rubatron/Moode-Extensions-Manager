@@ -778,5 +778,5 @@ echo "- Verify Configure modal includes Extensions tile"
 echo "- Verify /ext-mgr.php loads in moOde shell"
 
 echo "[10/10] Done."
-echo "Installed: $TARGET_PAGE, $TARGET_API, $TARGET_JS, $TARGET_MODAL_FIX_JS, $TARGET_HOVER_MENU_JS, $TARGET_CSS, $TARGET_META"
+echo "Installed: $TARGET_PAGE, $TARGET_API, $TARGET_JS, $TARGET_HOVER_MENU_JS, $TARGET_CSS, $TARGET_META"
 echo "Root endpoints: /ext-mgr.php, /ext-mgr-api.php, /extensions-manager.php"
