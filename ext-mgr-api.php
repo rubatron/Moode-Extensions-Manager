@@ -41,6 +41,7 @@ function defaultReleasePolicy() {
         'channel' => 'stable',
         'updateTrack' => 'channel',
         'branch' => 'main',
+        'customBaseUrl' => '',
         'devBranch' => 'dev',
         'availableBranches' => ['main', 'dev'],
         'latestVersion' => '0.0.0',
@@ -104,7 +105,7 @@ function normalizeReleasePolicy($policy) {
         $normalized['channel'] = $defaults['channel'];
     }
 
-    $allowedTracks = ['channel', 'branch'];
+    $allowedTracks = ['channel', 'branch', 'custom'];
     if (!in_array((string)$normalized['updateTrack'], $allowedTracks, true)) {
         $normalized['updateTrack'] = $defaults['updateTrack'];
     }
@@ -125,6 +126,14 @@ function normalizeReleasePolicy($policy) {
     }
     if (!in_array($normalized['devBranch'], $normalized['availableBranches'], true)) {
         $normalized['devBranch'] = 'dev';
+    }
+
+    $normalized['customBaseUrl'] = trim((string)($normalized['customBaseUrl'] ?? ''));
+    if ($normalized['customBaseUrl'] !== '' && preg_match('/^https?:\/\//i', $normalized['customBaseUrl']) !== 1) {
+        $normalized['customBaseUrl'] = '';
+    }
+    if ($normalized['customBaseUrl'] !== '') {
+        $normalized['customBaseUrl'] = rtrim($normalized['customBaseUrl'], '/');
     }
 
     $allowedProviders = ['github', 'gitlab', 'custom'];
@@ -504,6 +513,27 @@ function githubRawFileUrl($repository, $ref, $filePath) {
     return 'https://raw.githubusercontent.com/' . rawurlencode($parts[0]) . '/' . rawurlencode($parts[1]) . '/' . rawurlencode($ref) . '/' . implode('/', $pathSegments);
 }
 
+function normalizeCustomBaseUrl($url) {
+    $normalized = trim((string)$url);
+    if ($normalized === '') {
+        return '';
+    }
+    if (preg_match('/^https?:\/\//i', $normalized) !== 1) {
+        return '';
+    }
+    return rtrim($normalized, '/');
+}
+
+function buildCustomFileUrl($baseUrl, $filePath) {
+    $base = normalizeCustomBaseUrl($baseUrl);
+    if ($base === '' || !isSafeManagedPath($filePath)) {
+        return null;
+    }
+
+    $pathSegments = array_map('rawurlencode', explode('/', trim(str_replace('\\', '/', (string)$filePath))));
+    return $base . '/' . implode('/', $pathSegments);
+}
+
 function chooseGithubReleaseByChannel($releases, $channel) {
     $stable = [];
     $prerelease = [];
@@ -763,8 +793,57 @@ function resolveRemoteTagCandidate($repository, $channel, &$error) {
     ];
 }
 
+function resolveCustomBaseCandidate($policy, &$error) {
+    $error = '';
+    $baseUrl = normalizeCustomBaseUrl($policy['customBaseUrl'] ?? '');
+    if ($baseUrl === '') {
+        $error = 'Custom mode requires a valid customBaseUrl (http/https).';
+        return null;
+    }
+
+    $versionUrl = buildCustomFileUrl($baseUrl, 'ext-mgr.version');
+    if ($versionUrl === null) {
+        $error = 'Invalid custom URL for ext-mgr.version.';
+        return null;
+    }
+
+    $networkError = '';
+    $payload = httpGet($versionUrl, $networkError);
+    if ($payload === null) {
+        $error = 'Failed fetching custom version file: ' . $networkError;
+        return null;
+    }
+
+    $versionLine = trim((string)preg_split('/\r?\n/', $payload)[0]);
+    $version = normalizeVersion($versionLine);
+    if ($version === '') {
+        $error = 'Custom ext-mgr.version is empty or invalid.';
+        return null;
+    }
+
+    return [
+        'provider' => 'custom',
+        'repository' => '',
+        'channel' => 'custom',
+        'tag' => 'custom-base',
+        'ref' => 'custom-base',
+        'version' => $version,
+        'name' => 'Custom URL Source',
+        'publishedAt' => '',
+        'prerelease' => false,
+        'draft' => false,
+        'source' => 'custom',
+        'baseUrl' => $baseUrl,
+    ];
+}
+
 function resolveRemoteReleaseCandidate($policy, &$error) {
     $error = '';
+    $updateTrack = (string)($policy['updateTrack'] ?? 'channel');
+    if ($updateTrack === 'custom') {
+        return resolveCustomBaseCandidate($policy, $error);
+    }
+
     $provider = (string)($policy['provider'] ?? 'github');
     if ($provider !== 'github') {
         $error = 'Unsupported provider: ' . $provider;
@@ -778,7 +857,6 @@ function resolveRemoteReleaseCandidate($policy, &$error) {
         return null;
     }
 
-    $updateTrack = (string)($policy['updateTrack'] ?? 'channel');
     if ($updateTrack === 'branch') {
         $branchName = (string)($policy['branch'] ?? 'main');
         return resolveRemoteBranchCandidate($repository, $branchName, $error);
@@ -853,12 +931,10 @@ function fetchManagedFilesFromRelease($policy, $candidate, &$error) {
         return null;
     }
 
+    $source = (string)($candidate['source'] ?? 'releases');
     $repo = (string)($candidate['repository'] ?? '');
     $ref = (string)($candidate['ref'] ?? ($candidate['tag'] ?? ''));
-    if ($repo === '' || $ref === '') {
-        $error = 'Release candidate is missing repository/ref.';
-        return null;
-    }
+    $customBase = normalizeCustomBaseUrl($candidate['baseUrl'] ?? ($policy['customBaseUrl'] ?? ''));
 
     $payloads = [];
     foreach ($files as $filePath) {
@@ -867,10 +943,22 @@ function fetchManagedFilesFromRelease($policy, $candidate, &$error) {
             return null;
         }
         $clean = trim(str_replace('\\', '/', (string)$filePath));
-        $url = githubRawFileUrl($repo, $ref, $clean);
-        if ($url === null) {
-            $error = 'Unable to build raw URL for ' . $clean;
-            return null;
+        if ($source === 'custom') {
+            $url = buildCustomFileUrl($customBase, $clean);
+            if ($url === null) {
+                $error = 'Unable to build custom URL for ' . $clean;
+                return null;
+            }
+        } else {
+            if ($repo === '' || $ref === '') {
+                $error = 'Release candidate is missing repository/ref.';
+                return null;
+            }
+            $url = githubRawFileUrl($repo, $ref, $clean);
+            if ($url === null) {
+                $error = 'Unable to build raw URL for ' . $clean;
+                return null;
+            }
         }
 
         $networkError = '';
@@ -896,24 +984,34 @@ function normalizeDigestValue($value) {
 function fetchIntegrityManifestFromRelease($policy, $candidate, &$error) {
     $error = '';
 
+    $source = (string)($candidate['source'] ?? 'releases');
     $repo = (string)($candidate['repository'] ?? '');
     $tag = (string)($candidate['tag'] ?? '');
+    $customBase = normalizeCustomBaseUrl($candidate['baseUrl'] ?? ($policy['customBaseUrl'] ?? ''));
     $manifestPath = trim(str_replace('\\', '/', (string)($policy['integrityManifestPath'] ?? 'ext-mgr.integrity.json')));
-
-    if ($repo === '' || $tag === '') {
-        $error = 'Release candidate is missing repository/tag for integrity manifest.';
-        return null;
-    }
 
     if (!isSafeManagedPath($manifestPath)) {
         $error = 'Unsafe integrity manifest path configured.';
         return null;
     }
 
-    $url = githubRawFileUrl($repo, $tag, $manifestPath);
-    if ($url === null) {
-        $error = 'Unable to build integrity manifest URL.';
-        return null;
+    if ($source === 'custom') {
+        $url = buildCustomFileUrl($customBase, $manifestPath);
+        if ($url === null) {
+            $error = 'Unable to build custom integrity manifest URL.';
+            return null;
+        }
+    } else {
+        if ($repo === '' || $tag === '') {
+            $error = 'Release candidate is missing repository/tag for integrity manifest.';
+            return null;
+        }
+
+        $url = githubRawFileUrl($repo, $tag, $manifestPath);
+        if ($url === null) {
+            $error = 'Unable to build integrity manifest URL.';
+            return null;
+        }
     }
 
     $networkError = '';
@@ -1185,6 +1283,7 @@ function buildMeta($metaPath, $versionPath, $releasePath) {
         'channel' => (string)($policy['channel'] ?? 'stable'),
         'updateTrack' => (string)($policy['updateTrack'] ?? 'channel'),
         'branch' => (string)($policy['branch'] ?? 'main'),
+        'customBaseUrl' => (string)($policy['customBaseUrl'] ?? ''),
     ];
 
     $meta['versionSources'] = [
@@ -1688,6 +1787,7 @@ if ($action === 'check_update') {
                 'updateTrack' => (string)($policy['updateTrack'] ?? 'channel'),
                 'channel' => (string)($policy['channel'] ?? 'stable'),
                 'branch' => (string)($policy['branch'] ?? 'main'),
+                'customBaseUrl' => (string)($policy['customBaseUrl'] ?? ''),
                 'availableBranches' => ['main', 'dev'],
             ],
         ],
@@ -1853,10 +1953,11 @@ if ($action === 'set_update_advanced') {
     $track = strtolower(trim((string)($_REQUEST['track'] ?? 'channel')));
     $channel = strtolower(trim((string)($_REQUEST['channel'] ?? 'stable')));
     $branch = trim((string)($_REQUEST['branch'] ?? 'main'));
+    $customUrl = normalizeCustomBaseUrl((string)($_REQUEST['custom_url'] ?? ''));
 
-    if ($track !== 'channel' && $track !== 'branch') {
+    if ($track !== 'channel' && $track !== 'branch' && $track !== 'custom') {
         http_response_code(400);
-        echo json_encode(['ok' => false, 'error' => 'Invalid track. Use channel or branch.']);
+        echo json_encode(['ok' => false, 'error' => 'Invalid track. Use channel, branch, or custom.']);
         exit;
     }
 
@@ -1866,22 +1967,32 @@ if ($action === 'set_update_advanced') {
         exit;
     }
 
-    if ($branch === '' || preg_match('/^[a-zA-Z0-9._\/\-]+$/', $branch) !== 1) {
-        http_response_code(400);
-        echo json_encode(['ok' => false, 'error' => 'Invalid branch name.']);
-        exit;
+    if ($track === 'branch') {
+        if ($branch === '' || preg_match('/^[a-zA-Z0-9._\/\-]+$/', $branch) !== 1) {
+            http_response_code(400);
+            echo json_encode(['ok' => false, 'error' => 'Invalid branch name.']);
+            exit;
+        }
+
+        if (!in_array($branch, ['main', 'dev'], true)) {
+            http_response_code(400);
+            echo json_encode(['ok' => false, 'error' => 'Invalid branch. Allowed: main or dev.']);
+            exit;
+        }
     }
 
-    if (!in_array($branch, ['main', 'dev'], true)) {
+    if ($track === 'custom' && $customUrl === '') {
         http_response_code(400);
-        echo json_encode(['ok' => false, 'error' => 'Invalid branch. Allowed: main or dev.']);
+        echo json_encode(['ok' => false, 'error' => 'Custom mode requires a valid custom URL (http/https).']);
         exit;
     }
 
     $policy = readReleasePolicy($releasePath);
     $policy['updateTrack'] = $track;
     $policy['channel'] = $channel;
-    $policy['branch'] = $branch;
+    $policy['branch'] = in_array($branch, ['main', 'dev'], true) ? $branch : 'main';
+    $policy['customBaseUrl'] = $track === 'custom' ? $customUrl : '';
+    $policy['provider'] = $track === 'custom' ? 'custom' : 'github';
     $policy['availableBranches'] = ['main', 'dev'];
 
     if (!writeJsonFile($releasePath, $policy)) {

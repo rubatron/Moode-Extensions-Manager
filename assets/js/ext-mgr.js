@@ -20,9 +20,8 @@
   var metaCreatorEl = document.getElementById('meta-creator');
   var metaLicenseEl = document.getElementById('meta-license');
   var updateNoteEl = document.getElementById('update-note');
-  var advancedTrackEl = document.getElementById('advanced-track');
-  var advancedChannelEl = document.getElementById('advanced-channel');
-  var advancedBranchEl = document.getElementById('advanced-branch');
+  var advancedModeButtons = document.querySelectorAll('[data-advanced-mode]');
+  var advancedCustomUrlEl = document.getElementById('advanced-custom-url');
   var advancedSourceLinkEl = document.getElementById('advanced-source-link');
   var copyAdvancedSourceBtn = document.getElementById('copy-advanced-source-btn');
   var saveAdvancedUpdateBtn = document.getElementById('save-advanced-update-btn');
@@ -43,7 +42,8 @@
   var requirementsDocEl = document.getElementById('requirements-doc');
   var faqDocEl = document.getElementById('faq-doc');
   var localMenuItems = document.querySelectorAll('.extmgr-local-menu-item');
-  var systemRootDetailsEl = document.getElementById('system-root-details');
+  var menuToggleButtons = document.querySelectorAll('[data-menu-toggle]');
+  var submenuToggleButtons = document.querySelectorAll('[data-submenu-toggle]');
 
   var allItems = [];
   var PREF_PREFIX = 'extmgr.list.';
@@ -52,6 +52,10 @@
     candidateVersion: null,
     warning: null,
     integrity: null
+  };
+  var advancedUpdateState = {
+    mode: 'main',
+    customUrl: ''
   };
 
   function setStatus(text, kind) {
@@ -154,9 +158,10 @@
     return {
       provider: p.provider || 'github',
       repository: p.repository || 'rubatron/Moode-Extensions-Manager',
-      updateTrack: p.updateTrack || 'channel',
+      updateTrack: p.updateTrack || 'branch',
       channel: p.channel || 'stable',
       branch: p.branch || 'main',
+      customBaseUrl: p.customBaseUrl || '',
       availableBranches: ['main', 'dev'],
       signatureVerification: p.signatureVerification || 'planned',
       checksumAlgorithm: p.checksumAlgorithm || 'sha256',
@@ -175,6 +180,10 @@
 
   function buildResolveSourceUrl(providerStatus) {
     var status = providerStatus || {};
+    if ((status.updateTrack || 'branch') === 'custom') {
+      return String(status.customBaseUrl || '').trim();
+    }
+
     if ((status.provider || 'github') !== 'github') {
       return '';
     }
@@ -199,6 +208,14 @@
 
   function buildRawManagedBaseUrl(providerStatus, candidate) {
     var status = providerStatus || {};
+    if ((status.updateTrack || 'branch') === 'custom') {
+      var customBase = String((candidate && candidate.baseUrl) || status.customBaseUrl || '').trim();
+      if (!customBase) {
+        return '';
+      }
+      return customBase.replace(/\/+$/, '') + '/';
+    }
+
     if ((status.provider || 'github') !== 'github') {
       return '';
     }
@@ -277,54 +294,79 @@
     updateNoteEl.textContent = 'No update pending. Current version: ' + currentVersion + '. track=' + track + ' channel=' + channel + ' branch=' + branch + ' provider=' + provider + ' signature=' + verification + ' | ' + integrityText;
   }
 
-  function ensureBranchOption(value) {
-    if (!advancedBranchEl || !value) {
-      return;
+  function getAdvancedModeFromStatus(providerStatus) {
+    var status = providerStatus || {};
+    if ((status.updateTrack || '') === 'custom') {
+      return 'custom';
     }
-    var exists = Array.prototype.some.call(advancedBranchEl.options, function (opt) { return opt.value === value; });
-    if (!exists) {
-      var option = document.createElement('option');
-      option.value = value;
-      option.textContent = value;
-      advancedBranchEl.appendChild(option);
+    if ((status.branch || 'main') === 'dev') {
+      return 'dev';
+    }
+    return 'main';
+  }
+
+  function renderAdvancedModeButtons() {
+    advancedModeButtons.forEach(function (btn) {
+      var mode = btn.getAttribute('data-advanced-mode');
+      btn.classList.toggle('is-active', mode === advancedUpdateState.mode);
+      btn.setAttribute('aria-pressed', mode === advancedUpdateState.mode ? 'true' : 'false');
+    });
+
+    if (advancedCustomUrlEl) {
+      advancedCustomUrlEl.disabled = advancedUpdateState.mode !== 'custom';
     }
   }
 
   function renderAdvancedUpdateControls(providerStatus, payloadWarning, candidate) {
-    if (!advancedTrackEl || !advancedChannelEl || !advancedBranchEl) {
+    if (!advancedModeButtons || advancedModeButtons.length === 0) {
       return;
     }
 
-    var track = (providerStatus && providerStatus.updateTrack) || 'channel';
-    var channel = (providerStatus && providerStatus.channel) || 'stable';
-    var branch = (providerStatus && providerStatus.branch) || 'main';
-    var branches = ['main', 'dev'];
+    advancedUpdateState.mode = getAdvancedModeFromStatus(providerStatus);
+    advancedUpdateState.customUrl = String((providerStatus && providerStatus.customBaseUrl) || '').trim();
+    if (advancedCustomUrlEl) {
+      advancedCustomUrlEl.value = advancedUpdateState.customUrl;
+    }
 
-    advancedBranchEl.innerHTML = '';
-    branches.forEach(function (name) {
-      if (!name) {
-        return;
-      }
-      var option = document.createElement('option');
-      option.value = String(name);
-      option.textContent = String(name);
-      advancedBranchEl.appendChild(option);
-    });
-
-    ensureBranchOption('main');
-    ensureBranchOption('dev');
-    ensureBranchOption(branch);
-
-    advancedTrackEl.value = track;
-    advancedChannelEl.value = channel;
-    advancedBranchEl.value = branch;
-    advancedBranchEl.disabled = track !== 'branch';
-    renderAdvancedSource(providerStatus || {}, candidate || null);
+    renderAdvancedModeButtons();
+    var previewStatus = providerStatus || {};
+    if (advancedUpdateState.mode === 'custom') {
+      previewStatus = {
+        provider: 'custom',
+        repository: '',
+        updateTrack: 'custom',
+        channel: 'stable',
+        branch: 'main',
+        customBaseUrl: advancedUpdateState.customUrl
+      };
+    } else if (advancedUpdateState.mode === 'dev') {
+      previewStatus = {
+        provider: (providerStatus && providerStatus.provider) || 'github',
+        repository: (providerStatus && providerStatus.repository) || 'rubatron/Moode-Extensions-Manager',
+        updateTrack: 'branch',
+        channel: 'dev',
+        branch: 'dev',
+        customBaseUrl: ''
+      };
+    } else {
+      previewStatus = {
+        provider: (providerStatus && providerStatus.provider) || 'github',
+        repository: (providerStatus && providerStatus.repository) || 'rubatron/Moode-Extensions-Manager',
+        updateTrack: 'branch',
+        channel: 'stable',
+        branch: 'main',
+        customBaseUrl: ''
+      };
+    }
+    renderAdvancedSource(previewStatus, candidate || null);
 
     if (advancedUpdateNoteEl) {
+      var activeModeLabel = advancedUpdateState.mode === 'custom'
+        ? 'custom URL'
+        : (advancedUpdateState.mode === 'dev' ? 'dev branch' : 'main');
       advancedUpdateNoteEl.textContent = payloadWarning
         ? ('Branch discovery warning: ' + payloadWarning + '. Using stored branch list.')
-        : ('Branch mode limited to main/dev. Active track=' + track + '.');
+        : ('Modes: main, dev branch, custom URL. Active mode=' + activeModeLabel + '.');
     }
   }
 
@@ -858,37 +900,34 @@
       });
   });
 
-  bindIfPresent(advancedTrackEl, 'change', function () {
-    if (!advancedBranchEl) {
+  advancedModeButtons.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var nextMode = btn.getAttribute('data-advanced-mode') || 'main';
+      advancedUpdateState.mode = nextMode;
+      renderAdvancedModeButtons();
+      renderAdvancedSource({
+        provider: 'github',
+        repository: 'rubatron/Moode-Extensions-Manager',
+        updateTrack: nextMode === 'custom' ? 'custom' : 'branch',
+        channel: nextMode === 'dev' ? 'dev' : 'stable',
+        branch: nextMode === 'dev' ? 'dev' : 'main',
+        customBaseUrl: advancedCustomUrlEl ? advancedCustomUrlEl.value : ''
+      }, null);
+    });
+  });
+
+  bindIfPresent(advancedCustomUrlEl, 'input', function () {
+    advancedUpdateState.customUrl = String(advancedCustomUrlEl.value || '').trim();
+    if (advancedUpdateState.mode !== 'custom') {
       return;
     }
-    advancedBranchEl.disabled = advancedTrackEl.value !== 'branch';
     renderAdvancedSource({
-      provider: 'github',
-      repository: 'rubatron/Moode-Extensions-Manager',
-      updateTrack: advancedTrackEl.value,
-      channel: (advancedChannelEl && advancedChannelEl.value) || 'stable',
-      branch: (advancedBranchEl && advancedBranchEl.value) || 'main'
-    }, null);
-  });
-
-  bindIfPresent(advancedChannelEl, 'change', function () {
-    renderAdvancedSource({
-      provider: 'github',
-      repository: 'rubatron/Moode-Extensions-Manager',
-      updateTrack: (advancedTrackEl && advancedTrackEl.value) || 'channel',
-      channel: advancedChannelEl.value || 'stable',
-      branch: (advancedBranchEl && advancedBranchEl.value) || 'main'
-    }, null);
-  });
-
-  bindIfPresent(advancedBranchEl, 'change', function () {
-    renderAdvancedSource({
-      provider: 'github',
-      repository: 'rubatron/Moode-Extensions-Manager',
-      updateTrack: (advancedTrackEl && advancedTrackEl.value) || 'channel',
-      channel: (advancedChannelEl && advancedChannelEl.value) || 'stable',
-      branch: advancedBranchEl.value || 'main'
+      provider: 'custom',
+      repository: '',
+      updateTrack: 'custom',
+      channel: 'stable',
+      branch: 'main',
+      customBaseUrl: advancedUpdateState.customUrl
     }, null);
   });
 
@@ -922,16 +961,23 @@
   });
 
   bindIfPresent(saveAdvancedUpdateBtn, 'click', function () {
-    var track = (advancedTrackEl && advancedTrackEl.value) || 'channel';
-    var channel = (advancedChannelEl && advancedChannelEl.value) || 'stable';
-    var branch = (advancedBranchEl && advancedBranchEl.value) || 'main';
+    var mode = advancedUpdateState.mode || 'main';
+    var track = mode === 'custom' ? 'custom' : 'branch';
+    var channel = mode === 'dev' ? 'dev' : 'stable';
+    var branch = mode === 'dev' ? 'dev' : 'main';
+    var customUrl = advancedCustomUrlEl ? String(advancedCustomUrlEl.value || '').trim() : '';
+
+    if (mode === 'custom' && !customUrl) {
+      setStatus('Enter a custom URL before saving custom mode.', 'error');
+      return;
+    }
 
     if (saveAdvancedUpdateBtn) {
       saveAdvancedUpdateBtn.disabled = true;
     }
 
     setStatus('Saving advanced update settings...', null);
-    api({ action: 'set_update_advanced', track: track, channel: channel, branch: branch })
+    api({ action: 'set_update_advanced', track: track, channel: channel, branch: branch, custom_url: customUrl })
       .then(function (data) {
         var policy = (data && data.data && data.data.releasePolicy) || null;
         renderAdvancedUpdateControls({
@@ -940,6 +986,7 @@
           updateTrack: policy && policy.updateTrack,
           channel: policy && policy.channel,
           branch: policy && policy.branch,
+          customBaseUrl: policy && policy.customBaseUrl,
           availableBranches: policy && policy.availableBranches
         }, null, null);
         setStatus('Advanced update settings saved.', 'ok');
@@ -980,8 +1027,10 @@
       return;
     }
 
-    if (sectionId === 'section-system' && systemRootDetailsEl) {
-      systemRootDetailsEl.open = true;
+    target.classList.add('is-open');
+    var targetMenuToggle = target.querySelector('[data-menu-toggle]');
+    if (targetMenuToggle) {
+      targetMenuToggle.setAttribute('aria-expanded', 'true');
     }
 
     target.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -995,15 +1044,42 @@
     });
   });
 
-  document.querySelectorAll('.extmgr-collapse').forEach(function (detailsEl) {
-    var summary = detailsEl.querySelector('summary');
-    if (!summary) {
+  menuToggleButtons.forEach(function (toggleBtn) {
+    toggleBtn.addEventListener('click', function () {
+      var section = toggleBtn.closest('.extmgr-section');
+      if (!section) {
+        return;
+      }
+      var isOpen = section.classList.toggle('is-open');
+      toggleBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    });
+  });
+
+  submenuToggleButtons.forEach(function (toggleBtn) {
+    toggleBtn.addEventListener('click', function () {
+      var submenu = toggleBtn.closest('.extmgr-submenu');
+      if (!submenu) {
+        return;
+      }
+      var isOpen = submenu.classList.toggle('is-open');
+      toggleBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    });
+  });
+
+  document.querySelectorAll('.extmgr-section').forEach(function (section) {
+    var sectionToggle = section.querySelector('[data-menu-toggle]');
+    if (!sectionToggle) {
       return;
     }
-    summary.addEventListener('click', function (evt) {
-      evt.preventDefault();
-      detailsEl.open = !detailsEl.open;
-    });
+    sectionToggle.setAttribute('aria-expanded', section.classList.contains('is-open') ? 'true' : 'false');
+  });
+
+  document.querySelectorAll('.extmgr-submenu').forEach(function (submenu) {
+    var submenuToggle = submenu.querySelector('[data-submenu-toggle]');
+    if (!submenuToggle) {
+      return;
+    }
+    submenuToggle.setAttribute('aria-expanded', submenu.classList.contains('is-open') ? 'true' : 'false');
   });
 
   loadStatusAndList().then(function () {
