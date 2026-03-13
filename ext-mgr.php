@@ -75,106 +75,107 @@ if (file_exists('/var/www/header.php')) {
         </fieldset>
 
         <fieldset class="extmgr-panel">
+            <legend>Update</legend>
+            <div class="extmgr-text-list">
+                <div class="extmgr-text-row"><span class="extmgr-text-label">Version</span><span id="meta-version" class="extmgr-text-value">-</span></div>
+                <div class="extmgr-text-row"><span class="extmgr-text-label">Author</span><span id="meta-creator" class="extmgr-text-value">-</span></div>
+                <div class="extmgr-text-row"><span class="extmgr-text-label">License</span><span id="meta-license" class="extmgr-text-value">-</span></div>
+            </div>
+
+            <div class="extmgr-actions">
+                <button id="check-update-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-cloud-arrow-down"></i> Check Update</button>
+                <button id="run-update-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-rotate"></i> Run Update</button>
+                <button id="system-update-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-sliders"></i> System Settings Hook</button>
+                <button id="refresh-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-arrows-rotate"></i> Refresh List</button>
+            </div>
+            <div id="update-note" class="extmgr-note">No update info yet.</div>
+
+            <details class="extmgr-collapse extmgr-collapse-inner">
+                <summary>Advanced Update</summary>
+                <div class="extmgr-advanced-grid">
+                    <label for="advanced-track">Track</label>
+                    <select id="advanced-track" aria-label="Advanced update track">
+                        <option value="channel">Channel</option>
+                        <option value="branch">Branch</option>
+                    </select>
+
+                    <label for="advanced-channel">Channel</label>
+                    <select id="advanced-channel" aria-label="Advanced update channel">
+                        <option value="dev">dev</option>
+                        <option value="beta">beta</option>
+                        <option value="stable">stable</option>
+                    </select>
+
+                    <label for="advanced-branch">Branch</label>
+                    <select id="advanced-branch" aria-label="Advanced update branch">
+                        <option value="main">main</option>
+                        <option value="dev">dev</option>
+                    </select>
+                </div>
+                <div class="extmgr-advanced-source">
+                    <span class="extmgr-advanced-source-label">Source</span>
+                    <a id="advanced-source-link" class="extmgr-advanced-source-link" href="#" target="_blank" rel="noopener noreferrer">-</a>
+                    <button id="copy-advanced-source-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-link"></i> Copy Link</button>
+                </div>
+                <div class="extmgr-actions">
+                    <button id="save-advanced-update-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-floppy-disk"></i> Save Advanced Update</button>
+                    <span id="advanced-update-note" class="extmgr-note">Track branch is limited to main/dev. Use Copy Link for quick diagnostics.</span>
+                </div>
+            </details>
+        </fieldset>
+
+        <fieldset class="extmgr-panel">
             <legend>System</legend>
             <details class="extmgr-collapse" open>
             <summary>Open System Panels</summary>
 
-            <div class="extmgr-system-cards">
-                <div class="extmgr-system-card extmgr-system-card-compact">
-                    <h3 class="extmgr-system-card-title">API Status</h3>
-                    <div class="extmgr-grid">
-                        <div class="extmgr-metric"><div class="extmgr-metric-label">API Service</div><div id="api-service" class="extmgr-metric-value">-</div></div>
-                        <div class="extmgr-metric"><div class="extmgr-metric-label">Registry</div><div id="registry-health" class="extmgr-metric-value">-</div></div>
-                        <div class="extmgr-metric"><div class="extmgr-metric-label">Extensions</div><div id="extension-count" class="extmgr-metric-value">-</div></div>
-                        <div class="extmgr-metric"><div class="extmgr-metric-label">Active</div><div id="active-count" class="extmgr-metric-value">-</div></div>
-                        <div class="extmgr-metric"><div class="extmgr-metric-label">Inactive</div><div id="inactive-count" class="extmgr-metric-value">-</div></div>
-                        <div class="extmgr-metric"><div class="extmgr-metric-label">M Menu Visible</div><div id="m-visible-count" class="extmgr-metric-value">-</div></div>
-                        <div class="extmgr-metric"><div class="extmgr-metric-label">Library Visible</div><div id="library-visible-count" class="extmgr-metric-value">-</div></div>
-                        <div class="extmgr-metric"><div class="extmgr-metric-label">Settings Card Mode</div><div id="settings-card-count" class="extmgr-metric-value">-</div></div>
-                        <div class="extmgr-metric"><div class="extmgr-metric-label">ext-mgr RAM %</div><div id="service-mem-pct" class="extmgr-metric-value">-</div></div>
-                    </div>
-
-                    <div class="extmgr-grid extmgr-grid-meta">
-                        <div class="extmgr-metric"><div class="extmgr-metric-label">Version</div><div id="meta-version" class="extmgr-metric-value">-</div></div>
-                        <div class="extmgr-metric"><div class="extmgr-metric-label">Author</div><div id="meta-creator" class="extmgr-metric-value">-</div></div>
-                        <div class="extmgr-metric"><div class="extmgr-metric-label">License</div><div id="meta-license" class="extmgr-metric-value">-</div></div>
-                    </div>
-
-                    <div class="extmgr-actions">
-                        <button id="check-update-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-cloud-arrow-down"></i> Check Update</button>
-                        <button id="run-update-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-rotate"></i> Run Update</button>
-                        <button id="system-update-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-sliders"></i> System Settings Hook</button>
-                        <button id="refresh-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-arrows-rotate"></i> Refresh List</button>
-                    </div>
-                    <div id="update-note" class="extmgr-note">No update info yet.</div>
-
-                    <details class="extmgr-collapse extmgr-collapse-inner">
-                        <summary>Advanced Update</summary>
-                        <div class="extmgr-advanced-grid">
-                            <label for="advanced-track">Track</label>
-                            <select id="advanced-track" aria-label="Advanced update track">
-                                <option value="channel">Channel</option>
-                                <option value="branch">Branch</option>
-                            </select>
-
-                            <label for="advanced-channel">Channel</label>
-                            <select id="advanced-channel" aria-label="Advanced update channel">
-                                <option value="dev">dev</option>
-                                <option value="beta">beta</option>
-                                <option value="stable">stable</option>
-                            </select>
-
-                            <label for="advanced-branch">Branch</label>
-                            <select id="advanced-branch" aria-label="Advanced update branch">
-                                <option value="main">main</option>
-                                <option value="dev">dev</option>
-                            </select>
-                        </div>
-                        <div class="extmgr-advanced-source">
-                            <span class="extmgr-advanced-source-label">Source</span>
-                            <a id="advanced-source-link" class="extmgr-advanced-source-link" href="#" target="_blank" rel="noopener noreferrer">-</a>
-                            <button id="copy-advanced-source-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-link"></i> Copy Link</button>
-                        </div>
-                        <div class="extmgr-actions">
-                            <button id="save-advanced-update-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-floppy-disk"></i> Save Advanced Update</button>
-                            <span id="advanced-update-note" class="extmgr-note">Track branch is limited to main/dev. Use Copy Link for quick diagnostics.</span>
-                        </div>
-                    </details>
+            <details class="extmgr-collapse extmgr-submenu-section" open>
+                <summary>API Status</summary>
+                <div class="extmgr-text-list">
+                    <div class="extmgr-text-row"><span class="extmgr-text-label">API Service</span><span id="api-service" class="extmgr-text-value">-</span></div>
+                    <div class="extmgr-text-row"><span class="extmgr-text-label">Registry</span><span id="registry-health" class="extmgr-text-value">-</span></div>
+                    <div class="extmgr-text-row"><span class="extmgr-text-label">Extensions</span><span id="extension-count" class="extmgr-text-value">-</span></div>
+                    <div class="extmgr-text-row"><span class="extmgr-text-label">Active</span><span id="active-count" class="extmgr-text-value">-</span></div>
+                    <div class="extmgr-text-row"><span class="extmgr-text-label">Inactive</span><span id="inactive-count" class="extmgr-text-value">-</span></div>
+                    <div class="extmgr-text-row"><span class="extmgr-text-label">M Menu Visible</span><span id="m-visible-count" class="extmgr-text-value">-</span></div>
+                    <div class="extmgr-text-row"><span class="extmgr-text-label">Library Visible</span><span id="library-visible-count" class="extmgr-text-value">-</span></div>
+                    <div class="extmgr-text-row"><span class="extmgr-text-label">Settings Card Mode</span><span id="settings-card-count" class="extmgr-text-value">-</span></div>
+                    <div class="extmgr-text-row"><span class="extmgr-text-label">ext-mgr RAM %</span><span id="service-mem-pct" class="extmgr-text-value">-</span></div>
                 </div>
+            </details>
 
-                <div class="extmgr-system-card">
-                    <h3 class="extmgr-system-card-title">Troubleshooting</h3>
-                    <p class="config-help-static extmgr-help">Use these tools to fix common ext-mgr installation issues.</p>
-                    <div class="extmgr-actions">
-                        <button id="repair-btn" class="btn btn-small btn-danger" type="button"><i class="fa-solid fa-sharp fa-wrench"></i> Repair Installation</button>
-                        <button id="sync-registry-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-rotate"></i> Sync Registry</button>
-                    </div>
-                    <div id="maintenance-log" class="extmgr-log">No maintenance actions executed.</div>
+            <details class="extmgr-collapse extmgr-submenu-section" open>
+                <summary>Troubleshooting</summary>
+                <p class="config-help-static extmgr-help">Use these tools to fix common ext-mgr installation issues.</p>
+                <div class="extmgr-actions">
+                    <button id="repair-btn" class="btn btn-small btn-danger" type="button"><i class="fa-solid fa-sharp fa-wrench"></i> Repair Installation</button>
+                    <button id="sync-registry-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-rotate"></i> Sync Registry</button>
                 </div>
+                <div id="maintenance-log" class="extmgr-log">No maintenance actions executed.</div>
+            </details>
 
-                <div class="extmgr-system-card">
-                    <h3 class="extmgr-system-card-title">Developer Requirements and FAQ</h3>
-                    <div class="extmgr-list-summary">Target release focus: ext-mgr 1.2. GitHub-backed update retrieval is active; signature verification policy is still configurable/planned.</div>
-                    <div class="config-help-static extmgr-help">Minimum requirements for ext-mgr import compatibility.</div>
-                    <div class="extmgr-list-summary">Required: manifest.json, info.json, extension entry PHP file, and optional service metadata under ext_mgr.service.</div>
-                    <div class="extmgr-faq-item">
-                        <div class="extmgr-faq-q">How does disable work?</div>
-                        <div class="extmgr-faq-a">Disable marks extension as inactive in registry and menu integrations can hide it or show it as unavailable.</div>
-                    </div>
-                    <div class="extmgr-faq-item">
-                        <div class="extmgr-faq-q">What does repair do?</div>
-                        <div class="extmgr-faq-a">Repair normalizes registry structure and refreshes maintenance timestamps and health metadata.</div>
-                    </div>
-                    <div class="extmgr-faq-item">
-                        <div class="extmgr-faq-q">Can this manage service-based extensions?</div>
-                        <div class="extmgr-faq-a">Yes, import wizard supports extension service metadata and enable/disable lifecycle hooks.</div>
-                    </div>
-                    <div class="extmgr-faq-item">
-                        <div class="extmgr-faq-q">Can I choose where an extension is visible?</div>
-                        <div class="extmgr-faq-a">Yes. Each extension has independent visibility toggles for M menu and Library menu.</div>
-                    </div>
+            <details class="extmgr-collapse extmgr-submenu-section" open>
+                <summary>Developer Requirements and FAQ</summary>
+                <div class="extmgr-list-summary">Target release focus: ext-mgr 1.2. GitHub-backed update retrieval is active; signature verification policy is still configurable/planned.</div>
+                <div class="config-help-static extmgr-help">Minimum requirements for ext-mgr import compatibility.</div>
+                <div class="extmgr-list-summary">Required: manifest.json, info.json, extension entry PHP file, and optional service metadata under ext_mgr.service.</div>
+                <div class="extmgr-faq-item">
+                    <div class="extmgr-faq-q">How does disable work?</div>
+                    <div class="extmgr-faq-a">Disable marks extension as inactive in registry and menu integrations can hide it or show it as unavailable.</div>
                 </div>
-            </div>
+                <div class="extmgr-faq-item">
+                    <div class="extmgr-faq-q">What does repair do?</div>
+                    <div class="extmgr-faq-a">Repair normalizes registry structure and refreshes maintenance timestamps and health metadata.</div>
+                </div>
+                <div class="extmgr-faq-item">
+                    <div class="extmgr-faq-q">Can this manage service-based extensions?</div>
+                    <div class="extmgr-faq-a">Yes, import wizard supports extension service metadata and enable/disable lifecycle hooks.</div>
+                </div>
+                <div class="extmgr-faq-item">
+                    <div class="extmgr-faq-q">Can I choose where an extension is visible?</div>
+                    <div class="extmgr-faq-a">Yes. Each extension has independent visibility toggles for M menu and Library menu.</div>
+                </div>
+            </details>
             </details>
         </fieldset>
     </div>
