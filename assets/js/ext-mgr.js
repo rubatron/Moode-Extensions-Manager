@@ -111,6 +111,17 @@
   };
 
   function setStatus(text, kind) {
+    if (!statusEl) {
+      return;
+    }
+
+    // User preference: suppress success/info toast-style status noise.
+    if (kind === 'ok') {
+      statusEl.textContent = '';
+      statusEl.classList.remove('error', 'ok');
+      return;
+    }
+
     statusEl.textContent = text;
     statusEl.classList.remove('error', 'ok');
     if (kind) {
