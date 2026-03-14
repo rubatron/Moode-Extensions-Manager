@@ -216,13 +216,19 @@
     return size.toFixed(idx === 0 ? 0 : 2) + ' ' + units[idx];
   }
 
+  function managerVisibilityLabel(area, visible) {
+    var name = area === 'header' ? 'Header tab' : (area === 'library' ? 'Library menu' : 'System menu');
+    return name + ': ' + (visible ? 'Visible' : 'Hidden');
+  }
+
   function applyManagerVisibilityButtonState(button, area, visible) {
     if (!button) {
       return;
     }
+    button.classList.add('visibility-toggle');
     button.classList.remove('is-on', 'is-off');
     button.classList.add(visible ? 'is-on' : 'is-off');
-    button.textContent = area + ': ' + (visible ? 'Visible' : 'Hidden');
+    button.textContent = managerVisibilityLabel(area, visible);
   }
 
   function renderManagerVisibility(visibility) {
@@ -231,9 +237,9 @@
     managerVisibilityState.library = v.library !== false;
     managerVisibilityState.system = v.system !== false;
 
-    applyManagerVisibilityButtonState(managerVisibilityHeaderBtn, 'Header', managerVisibilityState.header);
-    applyManagerVisibilityButtonState(managerVisibilityLibraryBtn, 'Library', managerVisibilityState.library);
-    applyManagerVisibilityButtonState(managerVisibilitySystemBtn, 'System', managerVisibilityState.system);
+    applyManagerVisibilityButtonState(managerVisibilityHeaderBtn, 'header', managerVisibilityState.header);
+    applyManagerVisibilityButtonState(managerVisibilityLibraryBtn, 'library', managerVisibilityState.library);
+    applyManagerVisibilityButtonState(managerVisibilitySystemBtn, 'system', managerVisibilityState.system);
   }
 
   function renderMaintenanceStatus(maintenance) {
