@@ -236,10 +236,10 @@
   text-align: center;
   text-transform: uppercase;
   word-spacing: 0;
-  color: #333;
-  background-color: #ddd;
+  color: #ddd;
+  background-color: transparent;
   background-position: 0 0;
-  border: 1px solid #999;
+  border: 1px solid rgba(170, 182, 194, 0.35);
   border-radius: 2px;
   box-sizing: border-box;
   cursor: pointer;
@@ -261,10 +261,10 @@
   text-align: center;
   text-transform: uppercase;
   word-spacing: 0;
-  color: #333;
-  background-color: #ddd;
+  color: #ddd;
+  background-color: transparent;
   background-position: 0 0;
-  border: 1px solid #999;
+  border: 1px solid rgba(170, 182, 194, 0.35);
   border-radius: 2px;
   box-sizing: border-box;
   cursor: pointer;
@@ -277,13 +277,14 @@
 }
 
 .extmgr-mode-group .extmgr-mode-btn.btn.btn-primary.btn-small:hover {
-  background-color: #e7e7e7;
-  border-color: #a8a8a8;
+  background-color: rgba(170, 182, 194, 0.12);
+  border-color: rgba(170, 182, 194, 0.55);
+  color: #fff;
 }
 
 .extmgr-mode-group .extmgr-mode-btn.btn.btn-primary.btn-small.is-active {
   background-color: #d35400;
-  border-color: #b34700;
+  border-color: #d35400;
   color: #fff;
   box-shadow: none;
 }
@@ -396,21 +397,21 @@
   line-height: 1.3;
 }
 
-/* Base button language: white buttons + orange primary buttons */
+/* Base button language: transparent inactive, orange active */
 .extmgr-page-shell .btn.btn-small,
 .extmgr-actions .btn.btn-small,
 .extmgr-import-controls .btn.btn-small {
-  color: #333;
-  background-color: #ddd;
-  border: 1px solid #999;
+  color: #ddd;
+  background-color: transparent;
+  border: 1px solid rgba(170, 182, 194, 0.35);
 }
 
 .extmgr-page-shell .btn.btn-small:hover,
 .extmgr-actions .btn.btn-small:hover,
 .extmgr-import-controls .btn.btn-small:hover {
-  background-color: #e7e7e7;
-  border-color: #a8a8a8;
-  color: #222;
+  background-color: rgba(170, 182, 194, 0.12);
+  border-color: rgba(170, 182, 194, 0.55);
+  color: #fff;
 }
 
 .extmgr-page-shell .btn.btn-primary,
@@ -588,9 +589,9 @@
   font-size: 12.2496px;
   line-height: 1.3;
   padding: 3.36684px 8.57472px;
-  border-color: #999;
-  background: #ddd;
-  color: #333;
+  border: 1px solid rgba(170, 182, 194, 0.35);
+  background: transparent;
+  color: #ddd;
 }
 
 .visibility-toggle.is-on {
@@ -600,9 +601,9 @@
 }
 
 .visibility-toggle.is-off {
-  color: #333;
-  border-color: #8f8f8f;
-  background: #d1d1d1;
+  color: #ddd;
+  border: 1px solid rgba(170, 182, 194, 0.35);
+  background: transparent;
 }
 
 .visibility-toggle:disabled {
@@ -610,14 +611,15 @@
 }
 
 .extmgr-destructive {
-  color: #fff;
-  border-color: #a74300;
-  background: #c84f00;
+  color: #ddd;
+  border: 1px solid rgba(195, 100, 60, 0.5);
+  background: transparent;
 }
 
 .extmgr-destructive:hover {
-  background: #d95a00;
-  border-color: #b94a00;
+  background: rgba(211, 84, 0, 0.18);
+  border-color: rgba(211, 84, 0, 0.7);
+  color: #fff;
 }
 
 .extmgr-destructive:disabled {
