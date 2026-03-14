@@ -574,6 +574,21 @@
   opacity: 0.7;
 }
 
+.extmgr-destructive {
+  color: #cbb8ba;
+  border-color: rgba(140, 100, 105, 0.5);
+  background: rgba(68, 45, 48, 0.3);
+}
+
+.extmgr-destructive:hover {
+  background: rgba(88, 52, 56, 0.45);
+  border-color: rgba(160, 115, 120, 0.65);
+}
+
+.extmgr-destructive:disabled {
+  opacity: 0.7;
+}
+
 .extmgr-faq-item {
   margin-top: 0.55rem;
 }

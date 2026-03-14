@@ -846,9 +846,6 @@
       enableBtn.type = 'button';
       enableBtn.className = 'btn btn-small';
       enableBtn.textContent = item.enabled ? 'Disable' : 'Enable';
-      if (!item.enabled) {
-        enableBtn.className += ' btn-primary';
-      }
       enableBtn.addEventListener('click', function () {
         if (item.enabled) {
           var ok = window.confirm('Disable ' + (item.name || item.id) + '? This can hide it from menu integrations.');
@@ -967,7 +964,7 @@
 
       var repairSymlinkBtn = document.createElement('button');
       repairSymlinkBtn.type = 'button';
-      repairSymlinkBtn.className = 'btn btn-small btn-danger';
+      repairSymlinkBtn.className = 'btn btn-small extmgr-destructive';
       repairSymlinkBtn.textContent = 'Repair Symlink';
       repairSymlinkBtn.addEventListener('click', function () {
         repairSymlinkBtn.disabled = true;
@@ -987,7 +984,7 @@
 
       var removeBtn = document.createElement('button');
       removeBtn.type = 'button';
-      removeBtn.className = 'btn btn-small btn-danger';
+      removeBtn.className = 'btn btn-small extmgr-destructive';
       removeBtn.textContent = 'Remove Extension';
       removeBtn.addEventListener('click', function () {
         var label = item.name || item.id;
