@@ -857,7 +857,7 @@
 
       var enableBtn = document.createElement('button');
       enableBtn.type = 'button';
-      enableBtn.className = 'btn btn-small';
+      enableBtn.className = 'btn btn-small' + (item.enabled ? '' : ' btn-primary');
       enableBtn.textContent = item.enabled ? 'Disable' : 'Enable';
       enableBtn.addEventListener('click', function () {
         if (item.enabled) {
@@ -871,9 +871,13 @@
         enableBtn.disabled = true;
         api({ action: 'set_enabled', id: item.id, value: nextEnabled })
           .then(function () {
+            item.enabled = (nextEnabled === '1');
+            item.state = item.enabled ? 'active' : 'inactive';
+            enableBtn.textContent = item.enabled ? 'Disable' : 'Enable';
+            enableBtn.className = 'btn btn-small' + (item.enabled ? '' : ' btn-primary');
+            applyExtensionActionState(item.enabled);
             setStatus('Extension state updated for ' + (item.name || item.id) + '.', 'ok');
             runRefresh();
-            reloadPageSoon();
           })
           .catch(function (err) {
             setStatus(err.message, 'error');
@@ -1021,6 +1025,33 @@
             removeBtn.disabled = false;
           });
       });
+
+      function applyExtensionActionState(enabled) {
+        var disabled = !enabled;
+        menuMBtn.disabled = disabled;
+        menuLibraryBtn.disabled = disabled;
+        menuSystemBtn.disabled = disabled;
+        settingsCardBtn.disabled = disabled;
+        repairSymlinkBtn.disabled = disabled;
+
+        // Remove can stay available for cleanup even when extension is inactive.
+        removeBtn.disabled = false;
+
+        menuMBtn.classList.toggle('btn-muted', disabled);
+        menuLibraryBtn.classList.toggle('btn-muted', disabled);
+        menuSystemBtn.classList.toggle('btn-muted', disabled);
+        settingsCardBtn.classList.toggle('btn-muted', disabled);
+        repairSymlinkBtn.classList.toggle('btn-muted', disabled);
+
+        var reason = disabled ? 'Disabled while extension is inactive. Enable extension first.' : '';
+        menuMBtn.title = reason;
+        menuLibraryBtn.title = reason;
+        menuSystemBtn.title = reason;
+        settingsCardBtn.title = reason;
+        repairSymlinkBtn.title = reason;
+      }
+
+      applyExtensionActionState(item.enabled);
 
       row.appendChild(left);
       rightWrap.appendChild(enableBtn);

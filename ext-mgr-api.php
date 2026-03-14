@@ -3517,6 +3517,11 @@ if ($action === 'set_menu_visibility') {
 
     foreach ($registry['extensions'] as &$ext) {
         if (($ext['id'] ?? '') === $id) {
+            if (empty($ext['enabled'])) {
+                http_response_code(409);
+                echo json_encode(['ok' => false, 'error' => 'Extension is inactive. Enable it before changing menu visibility.']);
+                exit;
+            }
             if (!isset($ext['menuVisibility']) || !is_array($ext['menuVisibility'])) {
                 $ext['menuVisibility'] = ['m' => true, 'library' => true, 'system' => true];
             }
@@ -3568,6 +3573,11 @@ if ($action === 'set_settings_card_only') {
 
     foreach ($registry['extensions'] as &$ext) {
         if (($ext['id'] ?? '') === $id) {
+            if (empty($ext['enabled'])) {
+                http_response_code(409);
+                echo json_encode(['ok' => false, 'error' => 'Extension is inactive. Enable it before changing settings card mode.']);
+                exit;
+            }
             $ext['settingsCardOnly'] = $enabled;
             $updated = true;
             break;
