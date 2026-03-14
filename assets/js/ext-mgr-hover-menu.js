@@ -233,6 +233,20 @@
     );
   }
 
+  function applyLibraryManagerLinkVisibility(container, visible) {
+    if (!container || !container.querySelectorAll) {
+      return;
+    }
+
+    var links = container.querySelectorAll(
+      'a[href="/ext-mgr.php"], a[href="ext-mgr.php"], button[href="/ext-mgr.php"], button[href="ext-mgr.php"]'
+    );
+    var i;
+    for (i = 0; i < links.length; i += 1) {
+      links[i].style.display = visible ? '' : 'none';
+    }
+  }
+
   function renderLibraryMenu(items, meta) {
     var container = findLibraryMenuContainer();
     if (!container) {
@@ -241,6 +255,9 @@
 
     var managerVisibility = (meta && meta.managerVisibility) || {};
     var showManagerInLibrary = managerVisibility.library !== false;
+  // Keep existing manager links in sync with visibility toggle (hard hide/show).
+  applyLibraryManagerLinkVisibility(container, showManagerInLibrary);
+
     var visibleItems = [];
     var i;
     for (i = 0; i < items.length; i += 1) {
