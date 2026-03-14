@@ -367,7 +367,7 @@
     return area === 'header' ? 'Header tab'
       : area === 'library' ? 'Library menu'
       : area === 'm' ? 'M menu'
-      : 'Extension manager';
+      : 'System context';
   }
 
   function managerVisibilityLabel(area, visible) {
@@ -869,7 +869,7 @@
   }
 
   function visibilityLabel(target, visible) {
-    var name = target === 'm' ? 'M menu' : (target === 'library' ? 'Library menu' : 'System menu');
+    var name = target === 'm' ? 'M menu' : (target === 'library' ? 'Library menu' : 'System context');
     return name + ': ' + (visible ? 'Visible' : 'Hidden');
   }
 
@@ -1178,7 +1178,7 @@
           .then(function () {
             setVisibility(item, 'system', next === '1');
             applyVisibilityButtonState(menuSystemBtn, 'system', getVisibility(item, 'system'), menuSystemControl._stateEl);
-            setStatus('System menu visibility updated for ' + (item.name || item.id) + '.', 'ok');
+            setStatus('System context visibility updated for ' + (item.name || item.id) + '.', 'ok');
             runRefresh();
             reloadPageSoon();
           })
@@ -1215,7 +1215,7 @@
 
       var menuMControl = createInlineSwitchControl('M menu', menuMBtn, showInM ? 'Visible' : 'Hidden');
       var menuLibraryControl = createInlineSwitchControl('Library menu', menuLibraryBtn, showInLibrary ? 'Visible' : 'Hidden');
-      var menuSystemControl = createInlineSwitchControl('System menu', menuSystemBtn, showInSystem ? 'Visible' : 'Hidden');
+      var menuSystemControl = createInlineSwitchControl('System context', menuSystemBtn, showInSystem ? 'Visible' : 'Hidden');
       var settingsCardControl = createInlineSwitchControl('Settings card', settingsCardBtn, getSettingsCardOnly(item) ? 'Enabled' : 'Disabled');
 
       applyVisibilityButtonState(menuMBtn, 'm', showInM, menuMControl._stateEl);

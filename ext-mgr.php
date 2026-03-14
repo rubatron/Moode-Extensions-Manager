@@ -109,9 +109,9 @@ if (file_exists('/var/www/header.php')) {
                         </div>
                     </div>
                     <div class="extmgr-manager-visibility-row">
-                        <span class="extmgr-manager-visibility-label">Extension manager</span>
+                        <span class="extmgr-manager-visibility-label">System context</span>
                         <div class="extmgr-manager-visibility-control">
-                            <button id="manager-visibility-system-btn" class="extmgr-switch" type="button" role="switch" aria-checked="true" aria-label="Extension manager visibility">
+                            <button id="manager-visibility-system-btn" class="extmgr-switch" type="button" role="switch" aria-checked="true" aria-label="System context visibility">
                                 <span class="extmgr-switch-handle" aria-hidden="true"></span>
                             </button>
                             <span id="manager-visibility-system-state" class="extmgr-manager-visibility-state">Visible</span>
@@ -220,7 +220,7 @@ if (file_exists('/var/www/header.php')) {
                             <div class="extmgr-text-row"><span class="extmgr-text-label">Inactive</span><span id="inactive-count" class="extmgr-text-value">-</span></div>
                             <div class="extmgr-text-row"><span class="extmgr-text-label">M Menu Visible</span><span id="m-visible-count" class="extmgr-text-value">-</span></div>
                             <div class="extmgr-text-row"><span class="extmgr-text-label">Library Visible</span><span id="library-visible-count" class="extmgr-text-value">-</span></div>
-                            <div class="extmgr-text-row"><span class="extmgr-text-label">System Menu Visible</span><span id="system-visible-count" class="extmgr-text-value">-</span></div>
+                            <div class="extmgr-text-row"><span class="extmgr-text-label">System Context Visible</span><span id="system-visible-count" class="extmgr-text-value">-</span></div>
                             <div class="extmgr-text-row"><span class="extmgr-text-label">Settings Card Mode</span><span id="settings-card-count" class="extmgr-text-value">-</span></div>
                             <div class="extmgr-text-row"><span class="extmgr-text-label">ext-mgr RAM %</span><span id="service-mem-pct" class="extmgr-text-value">-</span></div>
                         </div>
