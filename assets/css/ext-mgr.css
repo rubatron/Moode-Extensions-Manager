@@ -594,13 +594,17 @@
   color: #ddd;
 }
 
-.visibility-toggle.is-on {
+.extmgr-page-shell .btn.btn-small.visibility-toggle.is-on,
+.extmgr-actions .btn.btn-small.visibility-toggle.is-on,
+.extmgr-import-controls .btn.btn-small.visibility-toggle.is-on {
   color: #fff;
   border: 1px solid #d35400;
   background: #d35400;
 }
 
-.visibility-toggle.is-off {
+.extmgr-page-shell .btn.btn-small.visibility-toggle.is-off,
+.extmgr-actions .btn.btn-small.visibility-toggle.is-off,
+.extmgr-import-controls .btn.btn-small.visibility-toggle.is-off {
   color: #ddd;
   border: 1px solid transparent;
   background: transparent;
