@@ -3,7 +3,7 @@
   "algorithm": "sha256",
   "generatedAt": "2025-07-22T00:00:00.0000000+02:00",
   "files": {
-    "assets/css/ext-mgr.css": "cc518719b311ad2fec8a5a46f6bfb670d7326097f654b0e2e0e887fe86f8591a",
+    "assets/css/ext-mgr.css": "a94bd12c2e8aad26ce8d9341d761321eb3726181ed7f30ea506ebcc71e230c87",
     "assets/js/ext-mgr-logs.js": "5a6d51fe2e6a1b1c2cedaac2cfda04078abc7581d9b92387cb168d09905ec3d7",
     "assets/js/ext-mgr.js": "5d5a03c9e2259c7d40a0cae9fd46002336996f88fff4301b06e74ac91560f7d5",
     "content/developer-requirements.md": "c5bb4256bb733c9eb9a13b88ea4f4ff840b64ca4268f0ce20988505d66b09dfe",
@@ -11,7 +11,7 @@
     "content/guidance.md": "f4de442e617fa194a36b7f58f0824e27c1ffb846c9b2ba9807236dd58e470b03",
     "ext-mgr-api.php": "89459940f76db25868688be9bc576ae643f7be54de5f2f47ec5bb4056ace70b4",
     "ext-mgr.meta.json": "700688652a94af1a22ff71e04499623f85a53912957add3a540e878bf70208bc",
-    "ext-mgr.php": "9497d68e00360f60e41805214587d98932ebfcbcab939aa5f26bc57d59d3d151",
+    "ext-mgr.php": "ce5e67094d4f226c3d226cf6d7651a9917c11acdd380091369b3a84c80e6405d",
     "ext-mgr.release.json": "485e857a27a6fa505bbbe20e5153508f4f89486196656bd03bbb60a06d6ef976",
     "ext-mgr.version": "a64708b010e2bcf628154ddc205ed49688a6347ef93a66a42492430f63f021b1",
     "README.md": "0061924ce8447aa26c0e45a2a97ca3a76a045e3aebb42eda708e3238e19df46e",

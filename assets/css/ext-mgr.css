@@ -197,11 +197,11 @@
   min-width: 0;
 }
 
-  /* moOde .toggle in our layout contexts: reset default margins */
-  .extmgr-manager-visibility-control .toggle,
-  .item-toggle-group .toggle {
-    margin: 0;
-  }
+/* moOde .toggle in our layout contexts: reset default margins */
+.extmgr-manager-visibility-control .toggle,
+.item-toggle-group .toggle {
+  margin: 0;
+}
 
 .extmgr-section {
   padding-top: 0.25rem;
