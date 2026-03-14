@@ -377,19 +377,83 @@
     return managerVisibilityAreaName(area) + ': ' + (visible ? 'Visible' : 'Hidden');
   }
 
-  function applyManagerVisibilityButtonState(button, stateEl, area, visible) {
-    if (!button) {
-      return;
+    function applyMoodeToggleState(toggleEl, visible) {
+      if (!toggleEl) { return; }
+      if (visible) {
+        toggleEl.classList.remove('toggle-off');
+      } else {
+        toggleEl.classList.add('toggle-off');
+      }
+      var onRadio = toggleEl.querySelector('input[value="On"]');
+      var offRadio = toggleEl.querySelector('input[value="Off"]');
+      if (onRadio) { onRadio.checked = !!visible; }
+      if (offRadio) { offRadio.checked = !visible; }
     }
-    button.classList.add('extmgr-switch', 'extmgr-switch-inline');
-    button.classList.remove('is-on', 'is-off');
-    button.classList.add(visible ? 'is-on' : 'is-off');
-    button.setAttribute('aria-checked', visible ? 'true' : 'false');
-    button.title = managerVisibilityLabel(area, visible);
-    if (stateEl) {
-      stateEl.textContent = visible ? 'Visible' : 'Hidden';
+
+    function createMoodeToggle(id, initialVisible, onChange) {
+      var div = document.createElement('div');
+      div.className = 'toggle' + (initialVisible ? '' : ' toggle-off');
+
+      var onLabel = document.createElement('label');
+      onLabel.className = 'toggle-radio';
+      onLabel.setAttribute('for', id + '-off');
+      onLabel.textContent = 'ON';
+
+      var onRadio = document.createElement('input');
+      onRadio.type = 'radio';
+      onRadio.name = id;
+      onRadio.id = id + '-on';
+      onRadio.value = 'On';
+      onRadio.checked = !!initialVisible;
+
+      var offLabel = document.createElement('label');
+      offLabel.className = 'toggle-radio';
+      offLabel.setAttribute('for', id + '-on');
+      offLabel.textContent = 'OFF';
+
+      var offRadio = document.createElement('input');
+      offRadio.type = 'radio';
+      offRadio.name = id;
+      offRadio.id = id + '-off';
+      offRadio.value = 'Off';
+      offRadio.checked = !initialVisible;
+
+      onRadio.addEventListener('change', function () {
+        if (onRadio.checked) {
+          div.classList.remove('toggle-off');
+          if (typeof onChange === 'function') { onChange(true); }
+        }
+      });
+      offRadio.addEventListener('change', function () {
+        if (offRadio.checked) {
+          div.classList.add('toggle-off');
+          if (typeof onChange === 'function') { onChange(false); }
+        }
+      });
+
+      div.appendChild(onLabel);
+      div.appendChild(onRadio);
+      div.appendChild(offLabel);
+      div.appendChild(offRadio);
+
+      div.setVisible = function (v) { applyMoodeToggleState(div, v); };
+      div.setDisabled = function (d) {
+        onRadio.disabled = d;
+        offRadio.disabled = d;
+        div.style.opacity = d ? '0.55' : '';
+        div.style.pointerEvents = d ? 'none' : '';
+      };
+      return div;
     }
-  }
+
+    function applyManagerVisibilityButtonState(toggleEl, stateEl, area, visible) {
+      if (!toggleEl) { return; }
+      applyMoodeToggleState(toggleEl, visible);
+      toggleEl.title = managerVisibilityLabel(area, visible);
+      if (stateEl) {
+        stateEl.textContent = visible ? 'Visible' : 'Hidden';
+      }
+    }
 
   function renderManagerVisibility(visibility) {
     var v = visibility || {};
@@ -897,31 +961,7 @@
   }
 
   function applyVisibilityButtonState(button, target, visible, stateEl) {
-    if (!button) {
-      return;
-    }
-    var handle = button.querySelector('.extmgr-switch-handle');
-    if (!handle) {
-      button.textContent = '';
-      handle = document.createElement('span');
-      handle.className = 'extmgr-switch-handle';
-      handle.setAttribute('aria-hidden', 'true');
-      button.appendChild(handle);
-    }
-
-    button.classList.add('extmgr-switch', 'extmgr-switch-inline');
-    button.classList.remove('visibility-toggle', 'btn', 'btn-small', 'btn-primary');
-    button.classList.remove('is-on', 'is-off');
-    button.classList.add(visible ? 'is-on' : 'is-off');
-    button.setAttribute('role', 'switch');
-    button.setAttribute('aria-checked', visible ? 'true' : 'false');
-    button.title = visibilityLabel(target, visible);
-    if (stateEl) {
-      stateEl.textContent = visible ? 'Visible' : 'Hidden';
-    }
-  }
-
-  function createInlineSwitchControl(labelText, button, stateText) {
+  function createInlineSwitchControl(labelText, toggleEl) {
     var wrap = document.createElement('div');
     wrap.className = 'extmgr-manager-visibility-row extmgr-manager-visibility-row-inline';
 
@@ -948,42 +988,10 @@
     var control = document.createElement('div');
     control.className = 'extmgr-manager-visibility-control';
 
-    var state = document.createElement('span');
-    state.className = 'extmgr-manager-visibility-state extmgr-manager-visibility-state-inline';
-    state.textContent = stateText || 'Hidden';
-
-    control.appendChild(button);
-    control.appendChild(state);
-
+    control.appendChild(toggleEl);
     wrap.appendChild(label);
     wrap.appendChild(control);
-    wrap._stateEl = state;
     return wrap;
-  }
-
-  function applySettingsCardButtonState(button, enabled, stateEl) {
-    if (!button) {
-      return;
-    }
-    var handle = button.querySelector('.extmgr-switch-handle');
-    if (!handle) {
-      button.textContent = '';
-      handle = document.createElement('span');
-      handle.className = 'extmgr-switch-handle';
-      handle.setAttribute('aria-hidden', 'true');
-      button.appendChild(handle);
-    }
-
-    button.classList.add('extmgr-switch', 'extmgr-switch-inline');
-    button.classList.remove('visibility-toggle', 'btn', 'btn-small', 'btn-primary');
-    button.classList.remove('is-on', 'is-off');
-    button.classList.add(enabled ? 'is-on' : 'is-off');
-    button.setAttribute('role', 'switch');
-    button.setAttribute('aria-checked', enabled ? 'true' : 'false');
-    button.title = settingsCardLabel(enabled);
-    if (stateEl) {
-      stateEl.textContent = enabled ? 'Enabled' : 'Disabled';
-    }
   }
 
   function getSettingsCardOnly(item) {
@@ -1140,9 +1148,9 @@
             enableBtn.className = 'btn btn-small' + (item.enabled ? '' : ' btn-primary');
             applyTip(enableBtn, item.enabled ? 'extension.disable' : 'extension.enable');
 
-            applyVisibilityButtonState(menuMBtn, 'm', getVisibility(item, 'm'), menuMControl._stateEl);
-            applyVisibilityButtonState(menuLibraryBtn, 'library', getVisibility(item, 'library'), menuLibraryControl._stateEl);
-            applySettingsCardButtonState(settingsCardBtn, getSettingsCardOnly(item), settingsCardControl._stateEl);
+            menuMBtn.setVisible(getVisibility(item, 'm'));
+            menuLibraryBtn.setVisible(getVisibility(item, 'library'));
+            settingsCardBtn.setVisible(getSettingsCardOnly(item));
             applyExtensionActionState(item.enabled);
             setStatus('Extension state updated for ' + (item.name || item.id) + '.', 'ok');
             runRefresh();
@@ -1155,82 +1163,60 @@
           });
       });
 
-      var menuMBtn = document.createElement('button');
-      menuMBtn.type = 'button';
-      menuMBtn.className = '';
-      applyTip(menuMBtn, 'extension.menu.m');
-      menuMBtn.addEventListener('click', function () {
-        var next = getVisibility(item, 'm') ? '0' : '1';
-        menuMBtn.disabled = true;
-        api({ action: 'set_menu_visibility', id: item.id, menu: 'm', value: next })
-          .then(function () {
-            setVisibility(item, 'm', next === '1');
-            applyVisibilityButtonState(menuMBtn, 'm', getVisibility(item, 'm'), menuMControl._stateEl);
-            setStatus('M menu visibility updated for ' + (item.name || item.id) + '.', 'ok');
-            runRefresh();
-            reloadPageSoon();
-          })
-          .catch(function (err) {
-            setStatus(err.message + (err.message.indexOf('Failed to write registry') !== -1 ? ' Check ext-mgr permissions and restart php-fpm.' : ''), 'error');
-          })
-          .finally(function () {
-            menuMBtn.disabled = false;
-          });
-      });
+        var menuMBtn = createMoodeToggle('extmgr-tgl-m-' + item.id, showInM, function (newVisible) {
+          menuMBtn.setDisabled(true);
+          api({ action: 'set_menu_visibility', id: item.id, menu: 'm', value: newVisible ? '1' : '0' })
+            .then(function () {
+              setVisibility(item, 'm', newVisible);
+              setStatus('M menu visibility updated for ' + (item.name || item.id) + '.', 'ok');
+              runRefresh();
+              reloadPageSoon();
+            })
+            .catch(function (err) {
+              menuMBtn.setVisible(!newVisible);
+              setStatus(err.message + (err.message.indexOf('Failed to write registry') !== -1 ? ' Check ext-mgr permissions and restart php-fpm.' : ''), 'error');
+            })
+            .finally(function () { menuMBtn.setDisabled(false); });
+        });
+        applyTip(menuMBtn, 'extension.menu.m');
 
-      var menuLibraryBtn = document.createElement('button');
-      menuLibraryBtn.type = 'button';
-      menuLibraryBtn.className = '';
-      applyTip(menuLibraryBtn, 'extension.menu.library');
-      menuLibraryBtn.addEventListener('click', function () {
-        var next = getVisibility(item, 'library') ? '0' : '1';
-        menuLibraryBtn.disabled = true;
-        api({ action: 'set_menu_visibility', id: item.id, menu: 'library', value: next })
-          .then(function () {
-            setVisibility(item, 'library', next === '1');
-            applyVisibilityButtonState(menuLibraryBtn, 'library', getVisibility(item, 'library'), menuLibraryControl._stateEl);
-            setStatus('Library visibility updated for ' + (item.name || item.id) + '.', 'ok');
-            runRefresh();
-            reloadPageSoon();
-          })
-          .catch(function (err) {
-            setStatus(err.message + (err.message.indexOf('Failed to write registry') !== -1 ? ' Check ext-mgr permissions and restart php-fpm.' : ''), 'error');
-          })
-          .finally(function () {
-            menuLibraryBtn.disabled = false;
-          });
-      });
+        var menuLibraryBtn = createMoodeToggle('extmgr-tgl-lib-' + item.id, showInLibrary, function (newVisible) {
+          menuLibraryBtn.setDisabled(true);
+          api({ action: 'set_menu_visibility', id: item.id, menu: 'library', value: newVisible ? '1' : '0' })
+            .then(function () {
+              setVisibility(item, 'library', newVisible);
+              setStatus('Library visibility updated for ' + (item.name || item.id) + '.', 'ok');
+              runRefresh();
+              reloadPageSoon();
+            })
+            .catch(function (err) {
+              menuLibraryBtn.setVisible(!newVisible);
+              setStatus(err.message + (err.message.indexOf('Failed to write registry') !== -1 ? ' Check ext-mgr permissions and restart php-fpm.' : ''), 'error');
+            })
+            .finally(function () { menuLibraryBtn.setDisabled(false); });
+        });
+        applyTip(menuLibraryBtn, 'extension.menu.library');
 
-      var settingsCardBtn = document.createElement('button');
-      settingsCardBtn.type = 'button';
-      settingsCardBtn.className = '';
-      applyTip(settingsCardBtn, 'extension.settingsCard');
-      settingsCardBtn.addEventListener('click', function () {
-        var next = getSettingsCardOnly(item) ? '0' : '1';
-        settingsCardBtn.disabled = true;
-        api({ action: 'set_settings_card_only', id: item.id, value: next })
-          .then(function () {
-            item.settingsCardOnly = next === '1';
-            applySettingsCardButtonState(settingsCardBtn, getSettingsCardOnly(item), settingsCardControl._stateEl);
-            setStatus('Settings-card mode updated for ' + (item.name || item.id) + '.', 'ok');
-            runRefresh();
-            reloadPageSoon();
-          })
-          .catch(function (err) {
-            setStatus(err.message + (err.message.indexOf('Failed to write registry') !== -1 ? ' Check ext-mgr permissions and restart php-fpm.' : ''), 'error');
-          })
-          .finally(function () {
-            settingsCardBtn.disabled = false;
-          });
-      });
+        var settingsCardBtn = createMoodeToggle('extmgr-tgl-sc-' + item.id, getSettingsCardOnly(item), function (newEnabled) {
+          settingsCardBtn.setDisabled(true);
+          api({ action: 'set_settings_card_only', id: item.id, value: newEnabled ? '1' : '0' })
+            .then(function () {
+              item.settingsCardOnly = newEnabled;
+              setStatus('Settings-card mode updated for ' + (item.name || item.id) + '.', 'ok');
+              runRefresh();
+              reloadPageSoon();
+            })
+            .catch(function (err) {
+              settingsCardBtn.setVisible(!newEnabled);
+              setStatus(err.message + (err.message.indexOf('Failed to write registry') !== -1 ? ' Check ext-mgr permissions and restart php-fpm.' : ''), 'error');
+            })
+            .finally(function () { settingsCardBtn.setDisabled(false); });
+        });
+        applyTip(settingsCardBtn, 'extension.settingsCard');
 
-      var menuMControl = createInlineSwitchControl('M menu', menuMBtn, showInM ? 'Visible' : 'Hidden');
-      var menuLibraryControl = createInlineSwitchControl('Library menu', menuLibraryBtn, showInLibrary ? 'Visible' : 'Hidden');
-      var settingsCardControl = createInlineSwitchControl('Settings card', settingsCardBtn, getSettingsCardOnly(item) ? 'Enabled' : 'Disabled');
-
-      applyVisibilityButtonState(menuMBtn, 'm', showInM, menuMControl._stateEl);
-      applyVisibilityButtonState(menuLibraryBtn, 'library', showInLibrary, menuLibraryControl._stateEl);
-      applySettingsCardButtonState(settingsCardBtn, getSettingsCardOnly(item), settingsCardControl._stateEl);
+        var menuMControl = createInlineSwitchControl('M menu', menuMBtn);
+        var menuLibraryControl = createInlineSwitchControl('Library menu', menuLibraryBtn);
+        var settingsCardControl = createInlineSwitchControl('Settings card', settingsCardBtn);
 
       var repairSymlinkBtn = document.createElement('button');
       repairSymlinkBtn.type = 'button';
@@ -1283,9 +1269,9 @@
 
       function applyExtensionActionState(enabled) {
         var disabled = !enabled;
-        menuMBtn.disabled = disabled;
-        menuLibraryBtn.disabled = disabled;
-        settingsCardBtn.disabled = disabled;
+          menuMBtn.setDisabled(disabled);
+          menuLibraryBtn.setDisabled(disabled);
+          settingsCardBtn.setDisabled(disabled);
         repairSymlinkBtn.disabled = disabled;
 
         // Remove can stay available for cleanup even when extension is inactive.
@@ -1297,9 +1283,6 @@
         settingsCardControl.style.display = disabled ? 'none' : '';
         repairSymlinkBtn.style.display = disabled ? 'none' : '';
 
-        menuMBtn.classList.toggle('btn-muted', disabled);
-        menuLibraryBtn.classList.toggle('btn-muted', disabled);
-        settingsCardBtn.classList.toggle('btn-muted', disabled);
         repairSymlinkBtn.classList.toggle('btn-muted', disabled);
 
         var reason = disabled ? tip('extension.action.disabled', 'Disabled while extension is inactive. Enable extension first.') : tip('extension.action.ready', '');
@@ -1473,7 +1456,9 @@
     if (!button) {
       return;
     }
-    button.disabled = true;
+    var radios = button.querySelectorAll('input[type="radio"]');
+    radios.forEach(function (r) { r.disabled = true; });
+    button.style.pointerEvents = 'none';
     api({ action: 'set_manager_visibility', area: area, value: visible ? '1' : '0' })
       .then(function (data) {
         var payload = (data && data.data) || {};
@@ -1495,7 +1480,8 @@
         setStatus(err.message, 'error');
       })
       .finally(function () {
-        button.disabled = false;
+        radios.forEach(function (r) { r.disabled = false; });
+        button.style.pointerEvents = '';
       });
   }
 
@@ -1622,17 +1608,19 @@
   bindIfPresent(createBackupBtn, 'click', runCreateBackup);
   bindIfPresent(clearCacheBtn, 'click', runClearCache);
   bindIfPresent(syncRegistryBtn, 'click', runRegistrySync);
-  bindIfPresent(managerVisibilityHeaderBtn, 'click', function () {
-    setManagerVisibility('header', !managerVisibilityState.header, managerVisibilityHeaderBtn);
-  });
-  bindIfPresent(managerVisibilityLibraryBtn, 'click', function () {
-    setManagerVisibility('library', !managerVisibilityState.library, managerVisibilityLibraryBtn);
-  });
-  bindIfPresent(managerVisibilityMBtn, 'click', function () {
-    setManagerVisibility('m', !managerVisibilityState.m, managerVisibilityMBtn);
-  });
-  bindIfPresent(managerVisibilitySystemBtn, 'click', function () {
-    setManagerVisibility('system', !managerVisibilityState.system, managerVisibilitySystemBtn);
+  [
+    [managerVisibilityHeaderBtn, 'header'],
+    [managerVisibilityLibraryBtn, 'library'],
+    [managerVisibilityMBtn, 'm'],
+    [managerVisibilitySystemBtn, 'system'],
+  ].forEach(function (e) {
+    var toggleEl = e[0], area = e[1];
+    if (!toggleEl) { return; }
+    toggleEl.querySelectorAll('input[type="radio"]').forEach(function (radio) {
+      radio.addEventListener('change', function () {
+        if (radio.checked) { setManagerVisibility(area, radio.value === 'On', toggleEl); }
+      });
+    });
   });
   bindIfPresent(importExtensionFileEl, 'change', function () {
     if (!importExtensionFileNameEl) {

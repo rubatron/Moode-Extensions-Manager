@@ -91,37 +91,49 @@ if (file_exists('/var/www/header.php')) {
                         <div class="extmgr-manager-visibility-row">
                             <span class="extmgr-manager-visibility-label">Header tab</span>
                             <div class="extmgr-manager-visibility-control">
-                                <button id="manager-visibility-header-btn" class="extmgr-switch" type="button" role="switch" aria-checked="true" aria-label="Header tab visibility">
-                                    <span class="extmgr-switch-handle" aria-hidden="true"></span>
-                                </button>
-                                <span id="manager-visibility-header-state" class="extmgr-manager-visibility-state">Visible</span>
+                                    <div id="manager-visibility-header-btn" class="toggle toggle-off">
+                                        <label class="toggle-radio" for="manager-visibility-header-off">ON</label>
+                                        <input type="radio" id="manager-visibility-header-on" name="manager-visibility-header" value="On">
+                                        <label class="toggle-radio" for="manager-visibility-header-on">OFF</label>
+                                        <input type="radio" id="manager-visibility-header-off" name="manager-visibility-header" value="Off" checked>
+                                    </div>
+                                    <span id="manager-visibility-header-state" class="extmgr-manager-visibility-state">Hidden</span>
                             </div>
                         </div>
                         <div class="extmgr-manager-visibility-row">
                             <span class="extmgr-manager-visibility-label">Library menu</span>
                             <div class="extmgr-manager-visibility-control">
-                                <button id="manager-visibility-library-btn" class="extmgr-switch" type="button" role="switch" aria-checked="true" aria-label="Library menu visibility">
-                                    <span class="extmgr-switch-handle" aria-hidden="true"></span>
-                                </button>
-                                <span id="manager-visibility-library-state" class="extmgr-manager-visibility-state">Visible</span>
+                                    <div id="manager-visibility-library-btn" class="toggle toggle-off">
+                                        <label class="toggle-radio" for="manager-visibility-library-off">ON</label>
+                                        <input type="radio" id="manager-visibility-library-on" name="manager-visibility-library" value="On">
+                                        <label class="toggle-radio" for="manager-visibility-library-on">OFF</label>
+                                        <input type="radio" id="manager-visibility-library-off" name="manager-visibility-library" value="Off" checked>
+                                    </div>
+                                    <span id="manager-visibility-library-state" class="extmgr-manager-visibility-state">Hidden</span>
                             </div>
                         </div>
                         <div class="extmgr-manager-visibility-row">
                             <span class="extmgr-manager-visibility-label">M menu</span>
                             <div class="extmgr-manager-visibility-control">
-                                <button id="manager-visibility-m-btn" class="extmgr-switch" type="button" role="switch" aria-checked="true" aria-label="M menu visibility">
-                                    <span class="extmgr-switch-handle" aria-hidden="true"></span>
-                                </button>
-                                <span id="manager-visibility-m-state" class="extmgr-manager-visibility-state">Visible</span>
+                                    <div id="manager-visibility-m-btn" class="toggle toggle-off">
+                                        <label class="toggle-radio" for="manager-visibility-m-off">ON</label>
+                                        <input type="radio" id="manager-visibility-m-on" name="manager-visibility-m" value="On">
+                                        <label class="toggle-radio" for="manager-visibility-m-on">OFF</label>
+                                        <input type="radio" id="manager-visibility-m-off" name="manager-visibility-m" value="Off" checked>
+                                    </div>
+                                    <span id="manager-visibility-m-state" class="extmgr-manager-visibility-state">Hidden</span>
                             </div>
                         </div>
                         <div class="extmgr-manager-visibility-row">
                             <span class="extmgr-manager-visibility-label">System context</span>
                             <div class="extmgr-manager-visibility-control">
-                                <button id="manager-visibility-system-btn" class="extmgr-switch" type="button" role="switch" aria-checked="true" aria-label="System context visibility">
-                                    <span class="extmgr-switch-handle" aria-hidden="true"></span>
-                                </button>
-                                <span id="manager-visibility-system-state" class="extmgr-manager-visibility-state">Visible</span>
+                                    <div id="manager-visibility-system-btn" class="toggle toggle-off">
+                                        <label class="toggle-radio" for="manager-visibility-system-off">ON</label>
+                                        <input type="radio" id="manager-visibility-system-on" name="manager-visibility-system" value="On">
+                                        <label class="toggle-radio" for="manager-visibility-system-on">OFF</label>
+                                        <input type="radio" id="manager-visibility-system-off" name="manager-visibility-system" value="Off" checked>
+                                    </div>
+                                    <span id="manager-visibility-system-state" class="extmgr-manager-visibility-state">Hidden</span>
                             </div>
                         </div>
                     </div>
