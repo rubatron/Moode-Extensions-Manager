@@ -881,10 +881,35 @@
     if (!button) {
       return;
     }
-    button.classList.add('visibility-toggle');
+    var handle = button.querySelector('.extmgr-switch-handle');
+    if (!handle) {
+      button.textContent = '';
+      handle = document.createElement('span');
+      handle.className = 'extmgr-switch-handle';
+      handle.setAttribute('aria-hidden', 'true');
+      button.appendChild(handle);
+    }
+
+    button.classList.add('extmgr-switch', 'extmgr-switch-inline');
+    button.classList.remove('visibility-toggle');
     button.classList.remove('is-on', 'is-off');
     button.classList.add(visible ? 'is-on' : 'is-off');
-    button.textContent = visibilityLabel(target, visible);
+    button.setAttribute('role', 'switch');
+    button.setAttribute('aria-checked', visible ? 'true' : 'false');
+    button.title = visibilityLabel(target, visible);
+  }
+
+  function createInlineSwitchControl(labelText, button) {
+    var wrap = document.createElement('div');
+    wrap.className = 'extmgr-inline-toggle';
+
+    var label = document.createElement('span');
+    label.className = 'extmgr-inline-toggle-label';
+    label.textContent = labelText;
+
+    wrap.appendChild(label);
+    wrap.appendChild(button);
+    return wrap;
   }
 
   function applySettingsCardButtonState(button, enabled) {
@@ -1157,6 +1182,10 @@
           });
       });
 
+      var menuMControl = createInlineSwitchControl('M', menuMBtn);
+      var menuLibraryControl = createInlineSwitchControl('Library', menuLibraryBtn);
+      var menuSystemControl = createInlineSwitchControl('System', menuSystemBtn);
+
       var repairSymlinkBtn = document.createElement('button');
       repairSymlinkBtn.type = 'button';
       repairSymlinkBtn.className = 'btn btn-small extmgr-destructive';
@@ -1218,9 +1247,9 @@
         removeBtn.disabled = false;
 
         // Inactive extension: hide action controls from the row to keep state unambiguous.
-        menuMBtn.style.display = disabled ? 'none' : '';
-        menuLibraryBtn.style.display = disabled ? 'none' : '';
-        menuSystemBtn.style.display = disabled ? 'none' : '';
+        menuMControl.style.display = disabled ? 'none' : '';
+        menuLibraryControl.style.display = disabled ? 'none' : '';
+        menuSystemControl.style.display = disabled ? 'none' : '';
         settingsCardBtn.style.display = disabled ? 'none' : '';
         repairSymlinkBtn.style.display = disabled ? 'none' : '';
 
@@ -1242,9 +1271,9 @@
 
       row.appendChild(left);
       rightWrap.appendChild(enableBtn);
-      rightWrap.appendChild(menuMBtn);
-      rightWrap.appendChild(menuLibraryBtn);
-      rightWrap.appendChild(menuSystemBtn);
+      rightWrap.appendChild(menuMControl);
+      rightWrap.appendChild(menuLibraryControl);
+      rightWrap.appendChild(menuSystemControl);
       rightWrap.appendChild(settingsCardBtn);
       rightWrap.appendChild(repairSymlinkBtn);
       rightWrap.appendChild(removeBtn);

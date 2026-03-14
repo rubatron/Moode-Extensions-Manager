@@ -191,6 +191,33 @@
   cursor: default;
 }
 
+.extmgr-inline-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.34rem;
+}
+
+.extmgr-inline-toggle-label {
+  color: #acb4be;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.extmgr-inline-toggle .extmgr-switch.extmgr-switch-inline {
+  width: 42px;
+  height: 20px;
+}
+
+.extmgr-inline-toggle .extmgr-switch.extmgr-switch-inline .extmgr-switch-handle {
+  width: 14px;
+  height: 14px;
+}
+
+.extmgr-inline-toggle .extmgr-switch.extmgr-switch-inline.is-on .extmgr-switch-handle {
+  transform: translateX(22px);
+}
+
 .extmgr-section {
   padding-top: 0.25rem;
 }
