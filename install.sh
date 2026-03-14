@@ -12,12 +12,19 @@ SRC_RELEASE=""
 SRC_VERSION=""
 SRC_INTEGRITY=""
 SRC_JS=""
+SRC_LOGS_JS=""
 SRC_MODAL_FIX_JS=""
 SRC_HOVER_MENU_JS=""
 SRC_SHELL_BRIDGE=""
 SRC_CSS=""
 SRC_REGISTRY_SYNC_SCRIPT=""
 SRC_IMPORT_WIZARD_SCRIPT=""
+SRC_INSTALL_HELPER_SCRIPT=""
+SRC_INSTALL_VARS_FILE=""
+SRC_SERVICE_RUNNER_SCRIPT=""
+SRC_SERVICE_UNIT=""
+SRC_WATCHDOG_SCRIPT=""
+SRC_WATCHDOG_UNIT=""
 SRC_GUIDANCE_MD=""
 SRC_REQUIREMENTS_MD=""
 SRC_FAQ_MD=""
@@ -36,6 +43,7 @@ TARGET_RELEASE="$TARGET_SYS_DIR/ext-mgr.release.json"
 TARGET_VERSION="$TARGET_SYS_DIR/ext-mgr.version"
 TARGET_INTEGRITY="$TARGET_SYS_DIR/ext-mgr.integrity.json"
 TARGET_JS="$TARGET_JS_DIR/ext-mgr.js"
+TARGET_LOGS_JS="$TARGET_JS_DIR/ext-mgr-logs.js"
 TARGET_MODAL_FIX_JS="$TARGET_JS_DIR/ext-mgr-modal-fix.js"
 TARGET_CSS="$TARGET_CSS_DIR/ext-mgr.css"
 TARGET_HOVER_MENU_JS="$TARGET_JS_DIR/ext-mgr-hover-menu.js"
@@ -43,6 +51,12 @@ TARGET_SHELL_BRIDGE="$TARGET_SYS_DIR/ext-mgr-shell-bridge.php"
 TARGET_SCRIPT_DIR="$TARGET_SYS_DIR/scripts"
 TARGET_REGISTRY_SYNC_SCRIPT="$TARGET_SCRIPT_DIR/ext-mgr-registry-sync.sh"
 TARGET_IMPORT_WIZARD_SCRIPT="$TARGET_SCRIPT_DIR/ext-mgr-import-wizard.sh"
+TARGET_INSTALL_HELPER_SCRIPT="/usr/local/bin/moode-extmgr-install-helper.sh"
+TARGET_INSTALL_VARS_FILE="$TARGET_SCRIPT_DIR/ext-mgr-install-vars.json"
+TARGET_SERVICE_RUNNER_SCRIPT="/usr/local/bin/moode-extmgr-service.sh"
+TARGET_SERVICE_UNIT="/etc/systemd/system/moode-extmgr.service"
+TARGET_WATCHDOG_SCRIPT="/usr/local/bin/moode-extmgr-watchdog.sh"
+TARGET_WATCHDOG_UNIT="/etc/systemd/system/moode-extmgr-watchdog.service"
 TARGET_GUIDANCE_MD="$TARGET_CONTENT_DIR/guidance.md"
 TARGET_REQUIREMENTS_MD="$TARGET_CONTENT_DIR/developer-requirements.md"
 TARGET_FAQ_MD="$TARGET_CONTENT_DIR/faq.md"
@@ -53,6 +67,9 @@ TARGET_RUNTIME_ROOT="$TARGET_SYS_DIR/.ext-mgr"
 TARGET_RUNTIME_CACHE="$TARGET_RUNTIME_ROOT/cache"
 TARGET_RUNTIME_DATA="$TARGET_RUNTIME_ROOT/data"
 TARGET_RUNTIME_LOGS="$TARGET_RUNTIME_ROOT/logs"
+TARGET_SYS_LOG_ROOT="$TARGET_SYS_DIR/logs"
+TARGET_SYS_EXT_LOG_ROOT="$TARGET_SYS_LOG_ROOT/extensionslogs"
+TARGET_SYS_MGR_LOG_DIR="$TARGET_SYS_LOG_ROOT/ext-mgr logs"
 
 SYMLINK_HELPER="/usr/local/sbin/ext-mgr-repair-symlink"
 SYMLINK_SUDOERS="/etc/sudoers.d/ext-mgr"
@@ -136,12 +153,19 @@ set_source_root() {
     SRC_VERSION="$root/ext-mgr.version"
     SRC_INTEGRITY="$root/ext-mgr.integrity.json"
     SRC_JS="$root/assets/js/ext-mgr.js"
+    SRC_LOGS_JS="$root/assets/js/ext-mgr-logs.js"
     SRC_MODAL_FIX_JS="$root/assets/js/ext-mgr-modal-fix.js"
     SRC_HOVER_MENU_JS="$root/assets/js/ext-mgr-hover-menu.js"
     SRC_SHELL_BRIDGE="$root/ext-mgr-shell-bridge.php"
     SRC_CSS="$root/assets/css/ext-mgr.css"
     SRC_REGISTRY_SYNC_SCRIPT="$root/scripts/ext-mgr-registry-sync.sh"
     SRC_IMPORT_WIZARD_SCRIPT="$root/scripts/ext-mgr-import-wizard.sh"
+    SRC_INSTALL_HELPER_SCRIPT="$root/scripts/ext-mgr-install-helper.sh"
+    SRC_INSTALL_VARS_FILE="$root/scripts/ext-mgr-install-vars.json"
+    SRC_SERVICE_RUNNER_SCRIPT="$root/scripts/moode-extmgr-service.sh"
+    SRC_SERVICE_UNIT="$root/scripts/moode-extmgr.service"
+    SRC_WATCHDOG_SCRIPT="$root/scripts/moode-extmgr-watchdog.sh"
+    SRC_WATCHDOG_UNIT="$root/scripts/moode-extmgr-watchdog.service"
     SRC_GUIDANCE_MD="$root/content/guidance.md"
     SRC_REQUIREMENTS_MD="$root/content/developer-requirements.md"
     SRC_FAQ_MD="$root/content/faq.md"
@@ -191,6 +215,9 @@ ensure_extmgr_structure_permissions() {
         "$TARGET_RUNTIME_CACHE"
         "$TARGET_RUNTIME_DATA"
         "$TARGET_RUNTIME_LOGS"
+        "$TARGET_SYS_LOG_ROOT"
+        "$TARGET_SYS_EXT_LOG_ROOT"
+        "$TARGET_SYS_MGR_LOG_DIR"
     )
 
     local d
@@ -390,7 +417,7 @@ ensure_install_sources() {
     fi
 
     # Support wget-only flow where only install.sh is downloaded.
-    if [[ -f "$SRC_PAGE" && -f "$SRC_API" && -f "$SRC_JS" && -f "$SRC_CSS" ]]; then
+    if [[ -f "$SRC_PAGE" && -f "$SRC_API" && -f "$SRC_JS" && -f "$SRC_LOGS_JS" && -f "$SRC_CSS" ]]; then
         return 0
     fi
 
@@ -497,6 +524,7 @@ fetch_from_main_branch() {
         "ext-mgr.integrity.json"
         "ext-mgr-shell-bridge.php"
         "assets/js/ext-mgr.js"
+        "assets/js/ext-mgr-logs.js"
         "assets/js/ext-mgr-modal-fix.js"
         "assets/js/ext-mgr-hover-menu.js"
         "assets/css/ext-mgr.css"
@@ -504,6 +532,12 @@ fetch_from_main_branch() {
         "content/developer-requirements.md"
         "content/faq.md"
         "scripts/ext-mgr-import-wizard.sh"
+        "scripts/ext-mgr-install-helper.sh"
+        "scripts/ext-mgr-install-vars.json"
+        "scripts/moode-extmgr-service.sh"
+        "scripts/moode-extmgr.service"
+        "scripts/moode-extmgr-watchdog.sh"
+        "scripts/moode-extmgr-watchdog.service"
         "scripts/ext-mgr-registry-sync.sh"
     )
 
@@ -589,7 +623,7 @@ run_uninstall() {
     cleanup_shell_bridge_includes
 
     echo "[uninstall] Backing up core files where present..."
-    for f in "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_RELEASE" "$TARGET_VERSION" "$TARGET_INTEGRITY" "$TARGET_JS" "$TARGET_MODAL_FIX_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_SHELL_BRIDGE" "$TARGET_REGISTRY" "$TARGET_REGISTRY_SYNC_SCRIPT" "$TARGET_IMPORT_WIZARD_SCRIPT"; do
+    for f in "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_RELEASE" "$TARGET_VERSION" "$TARGET_INTEGRITY" "$TARGET_JS" "$TARGET_LOGS_JS" "$TARGET_MODAL_FIX_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_SHELL_BRIDGE" "$TARGET_REGISTRY" "$TARGET_REGISTRY_SYNC_SCRIPT" "$TARGET_IMPORT_WIZARD_SCRIPT"; do
         if [[ -f "$f" ]]; then
             rel="${f#/var/www/extensions/sys/}"
             if [[ "$rel" == "$f" ]]; then
@@ -600,12 +634,23 @@ run_uninstall() {
         fi
     done
 
+    for f in "$TARGET_INSTALL_HELPER_SCRIPT" "$TARGET_INSTALL_VARS_FILE" "$TARGET_SERVICE_RUNNER_SCRIPT" "$TARGET_SERVICE_UNIT" "$TARGET_WATCHDOG_SCRIPT" "$TARGET_WATCHDOG_UNIT"; do
+        if [[ -f "$f" ]]; then
+            $SUDO cp -a "$f" "$uninstall_backup_dir/$(basename "$f")"
+        fi
+    done
+
     echo "[uninstall] Removing ext-mgr files/symlinks/helpers..."
-    $SUDO rm -f "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_RELEASE" "$TARGET_VERSION" "$TARGET_INTEGRITY" "$TARGET_JS" "$TARGET_MODAL_FIX_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_SHELL_BRIDGE" "$TARGET_REGISTRY_SYNC_SCRIPT" "$TARGET_IMPORT_WIZARD_SCRIPT"
+    $SUDO rm -f "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_RELEASE" "$TARGET_VERSION" "$TARGET_INTEGRITY" "$TARGET_JS" "$TARGET_LOGS_JS" "$TARGET_MODAL_FIX_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_SHELL_BRIDGE" "$TARGET_REGISTRY_SYNC_SCRIPT" "$TARGET_IMPORT_WIZARD_SCRIPT"
     $SUDO rm -f /var/www/extensions/ext-mgr.php /var/www/extensions/ext-mgr-api.php /var/www/extensions/ext-mgr.meta.json /var/www/extensions/ext-mgr.release.json /var/www/extensions/ext-mgr.version /var/www/extensions/ext-mgr.integrity.json /var/www/extensions/registry.json /var/www/extensions/ext-mgr-hover-menu.js
-    $SUDO rm -f /var/www/extensions/assets/js/ext-mgr.js /var/www/extensions/assets/css/ext-mgr.css
+    $SUDO rm -f /var/www/extensions/assets/js/ext-mgr.js /var/www/extensions/assets/js/ext-mgr-logs.js /var/www/extensions/assets/css/ext-mgr.css
     $SUDO rm -f /var/www/ext-mgr.php /var/www/ext-mgr-api.php /var/www/extensions-manager.php
-    $SUDO rm -f "$SYMLINK_HELPER" "$SYMLINK_SUDOERS"
+    if command -v systemctl >/dev/null 2>&1; then
+        $SUDO systemctl disable --now "$(basename "$TARGET_WATCHDOG_UNIT")" >/dev/null 2>&1 || true
+        $SUDO systemctl disable --now "$(basename "$TARGET_SERVICE_UNIT")" >/dev/null 2>&1 || true
+        $SUDO systemctl daemon-reload >/dev/null 2>&1 || true
+    fi
+    $SUDO rm -f "$SYMLINK_HELPER" "$SYMLINK_SUDOERS" "$TARGET_INSTALL_HELPER_SCRIPT" "$TARGET_INSTALL_VARS_FILE" "$TARGET_SERVICE_RUNNER_SCRIPT" "$TARGET_SERVICE_UNIT" "$TARGET_WATCHDOG_SCRIPT" "$TARGET_WATCHDOG_UNIT"
 
     echo "[uninstall] Completed. Registry kept at $TARGET_REGISTRY (if present)."
 }
@@ -757,12 +802,19 @@ require_file "$SRC_RELEASE"
 require_file "$SRC_VERSION"
 require_file "$SRC_INTEGRITY"
 require_file "$SRC_JS"
+require_file "$SRC_LOGS_JS"
 require_file "$SRC_MODAL_FIX_JS"
 require_file "$SRC_HOVER_MENU_JS"
 require_file "$SRC_SHELL_BRIDGE"
 require_file "$SRC_CSS"
 require_file "$SRC_REGISTRY_SYNC_SCRIPT"
 require_file "$SRC_IMPORT_WIZARD_SCRIPT"
+require_file "$SRC_INSTALL_HELPER_SCRIPT"
+require_file "$SRC_INSTALL_VARS_FILE"
+require_file "$SRC_SERVICE_RUNNER_SCRIPT"
+require_file "$SRC_SERVICE_UNIT"
+require_file "$SRC_WATCHDOG_SCRIPT"
+require_file "$SRC_WATCHDOG_UNIT"
 require_file "$SRC_GUIDANCE_MD"
 require_file "$SRC_REQUIREMENTS_MD"
 require_file "$SRC_FAQ_MD"
@@ -802,12 +854,12 @@ PRIMARY_USER="$(detect_primary_user || true)"
 sync_security_user_groups "$PRIMARY_USER"
 
 echo "[1/10] Preparing target directories..."
-$SUDO mkdir -p "$TARGET_EXT_DIR" "$TARGET_SYS_DIR" "$TARGET_ASSETS_DIR" "$TARGET_JS_DIR" "$TARGET_CSS_DIR" "$TARGET_CONTENT_DIR" "$TARGET_SCRIPT_DIR" "$TARGET_CACHE_DIR" "$TARGET_BACKUP_DIR" "$TARGET_INSTALLED_ROOT" "$TARGET_RUNTIME_CACHE" "$TARGET_RUNTIME_DATA" "$TARGET_RUNTIME_LOGS"
+$SUDO mkdir -p "$TARGET_EXT_DIR" "$TARGET_SYS_DIR" "$TARGET_ASSETS_DIR" "$TARGET_JS_DIR" "$TARGET_CSS_DIR" "$TARGET_CONTENT_DIR" "$TARGET_SCRIPT_DIR" "$TARGET_CACHE_DIR" "$TARGET_BACKUP_DIR" "$TARGET_INSTALLED_ROOT" "$TARGET_RUNTIME_CACHE" "$TARGET_RUNTIME_DATA" "$TARGET_RUNTIME_LOGS" "$TARGET_SYS_LOG_ROOT" "$TARGET_SYS_EXT_LOG_ROOT" "$TARGET_SYS_MGR_LOG_DIR"
 
 echo "[2/10] Backing up existing ext-mgr files (if present)..."
 BACKUP_SNAPSHOT_DIR="$TARGET_BACKUP_DIR/install-$STAMP"
 $SUDO mkdir -p "$BACKUP_SNAPSHOT_DIR"
-for f in "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_REGISTRY" "$TARGET_RELEASE" "$TARGET_VERSION" "$TARGET_INTEGRITY" "$TARGET_JS" "$TARGET_MODAL_FIX_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_SHELL_BRIDGE" "$TARGET_REGISTRY_SYNC_SCRIPT" "$TARGET_IMPORT_WIZARD_SCRIPT" "$TARGET_GUIDANCE_MD" "$TARGET_REQUIREMENTS_MD" "$TARGET_FAQ_MD"; do
+for f in "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_REGISTRY" "$TARGET_RELEASE" "$TARGET_VERSION" "$TARGET_INTEGRITY" "$TARGET_JS" "$TARGET_LOGS_JS" "$TARGET_MODAL_FIX_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_SHELL_BRIDGE" "$TARGET_REGISTRY_SYNC_SCRIPT" "$TARGET_IMPORT_WIZARD_SCRIPT" "$TARGET_GUIDANCE_MD" "$TARGET_REQUIREMENTS_MD" "$TARGET_FAQ_MD" "$TARGET_INSTALL_HELPER_SCRIPT" "$TARGET_INSTALL_VARS_FILE" "$TARGET_SERVICE_RUNNER_SCRIPT" "$TARGET_SERVICE_UNIT" "$TARGET_WATCHDOG_SCRIPT" "$TARGET_WATCHDOG_UNIT"; do
     if [[ -f "$f" ]]; then
         rel="${f#/var/www/extensions/sys/}"
         if [[ "$rel" == "$f" ]]; then
@@ -826,6 +878,7 @@ $SUDO install -o www-data -g www-data -m 0644 "$SRC_RELEASE" "$TARGET_RELEASE"
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_VERSION" "$TARGET_VERSION"
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_INTEGRITY" "$TARGET_INTEGRITY"
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_JS" "$TARGET_JS"
+$SUDO install -o www-data -g www-data -m 0644 "$SRC_LOGS_JS" "$TARGET_LOGS_JS"
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_MODAL_FIX_JS" "$TARGET_MODAL_FIX_JS"
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_CSS" "$TARGET_CSS"
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_HOVER_MENU_JS" "$TARGET_HOVER_MENU_JS"
@@ -835,6 +888,12 @@ $SUDO install -o www-data -g www-data -m 0644 "$SRC_REQUIREMENTS_MD" "$TARGET_RE
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_FAQ_MD" "$TARGET_FAQ_MD"
 $SUDO install -o root -g "$SECURITY_GROUP" -m 0750 "$SRC_REGISTRY_SYNC_SCRIPT" "$TARGET_REGISTRY_SYNC_SCRIPT"
 $SUDO install -o root -g "$SECURITY_GROUP" -m 0750 "$SRC_IMPORT_WIZARD_SCRIPT" "$TARGET_IMPORT_WIZARD_SCRIPT"
+$SUDO install -o root -g "$SECURITY_GROUP" -m 0750 "$SRC_INSTALL_HELPER_SCRIPT" "$TARGET_INSTALL_HELPER_SCRIPT"
+$SUDO install -o root -g "$SECURITY_GROUP" -m 0640 "$SRC_INSTALL_VARS_FILE" "$TARGET_INSTALL_VARS_FILE"
+$SUDO install -o root -g "$SECURITY_GROUP" -m 0750 "$SRC_SERVICE_RUNNER_SCRIPT" "$TARGET_SERVICE_RUNNER_SCRIPT"
+$SUDO install -o root -g root -m 0644 "$SRC_SERVICE_UNIT" "$TARGET_SERVICE_UNIT"
+$SUDO install -o root -g root -m 0755 "$SRC_WATCHDOG_SCRIPT" "$TARGET_WATCHDOG_SCRIPT"
+$SUDO install -o root -g root -m 0644 "$SRC_WATCHDOG_UNIT" "$TARGET_WATCHDOG_UNIT"
 
 if [[ -f "$TARGET_REGISTRY" ]]; then
     echo "Existing registry detected, preserving current state at $TARGET_REGISTRY"
@@ -853,6 +912,9 @@ ensure_extmgr_structure_permissions
 
 echo "[5.2/10] Reloading web services to apply updated group memberships..."
 if command -v systemctl >/dev/null 2>&1; then
+    $SUDO systemctl daemon-reload >/dev/null 2>&1 || true
+    $SUDO systemctl enable --now "$(basename "$TARGET_SERVICE_UNIT")" >/dev/null 2>&1 || true
+    $SUDO systemctl enable --now "$(basename "$TARGET_WATCHDOG_UNIT")" >/dev/null 2>&1 || true
     for svc in php8.3-fpm php8.2-fpm php8.1-fpm php-fpm nginx apache2; do
         if systemctl list-unit-files | grep -q "^${svc}\.service"; then
             $SUDO systemctl restart "$svc" || true
@@ -1001,7 +1063,7 @@ echo "- Verify /ext-mgr.php loads in moOde shell"
 
 echo "[10/11] Finalizing services..."
 graceful_finalize_services
-echo "Installed: $TARGET_PAGE, $TARGET_API, $TARGET_JS, $TARGET_HOVER_MENU_JS, $TARGET_SHELL_BRIDGE, $TARGET_CSS, $TARGET_META"
+echo "Installed: $TARGET_PAGE, $TARGET_API, $TARGET_JS, $TARGET_LOGS_JS, $TARGET_HOVER_MENU_JS, $TARGET_SHELL_BRIDGE, $TARGET_CSS, $TARGET_META"
 echo "Root endpoints: /ext-mgr.php, /ext-mgr-api.php, /extensions-manager.php"
 
 HOST_SHORT="$(hostname -s 2>/dev/null || true)"

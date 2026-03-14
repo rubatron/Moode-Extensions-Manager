@@ -1,0 +1,15 @@
+[Unit]
+Description=moOde ext-mgr watchdog
+Requires=moode-extmgr.service
+After=moode-extmgr.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+ExecStart=/usr/local/bin/moode-extmgr-watchdog.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -6,6 +6,16 @@
   }
   window.__extMgrHoverMenuInit = true;
 
+  var PAYLOAD_CACHE = null;
+  var PAYLOAD_CACHE_AT = 0;
+  var PAYLOAD_CACHE_TTL_MS = 10000;
+  var API_URLS = ['/ext-mgr-api.php', '/extensions/sys/ext-mgr-api.php'];
+  var LAST_LIBRARY_SIG = '';
+  var LAST_MMENU_SIG = '';
+  var LAST_SYSTEM_SIG = '';
+  var LAST_CONFIGURE_SIG = '';
+  var LAST_HEADER_SIG = '';
+
   function esc(value) {
     return String(value || '')
       .replace(/&/g, '&amp;')
@@ -39,81 +49,107 @@
     return pinned.concat(rest);
   }
 
-  var PAYLOAD_CACHE = null;
-  var PAYLOAD_CACHE_AT = 0;
-  var PAYLOAD_CACHE_TTL_MS = 10000;
-  var API_URLS = ['/ext-mgr-api.php', '/extensions/sys/ext-mgr-api.php'];
-  var LAST_LIBRARY_SIG = '';
-    function normalizeIconClass(value, fallback) {
-      var raw = String(value || '').trim();
-      if (!raw) {
-        return fallback || 'fa-solid fa-sharp fa-puzzle-piece';
-      }
-      if (raw.indexOf('fa-') === -1) {
-        return fallback || 'fa-solid fa-sharp fa-puzzle-piece';
-      }
-      if (/[^a-z0-9\-\s]/i.test(raw)) {
-        return fallback || 'fa-solid fa-sharp fa-puzzle-piece';
-      }
-      return raw;
+  function normalizeIconClass(value, fallback) {
+    var raw = String(value || '').trim();
+    if (!raw || raw.indexOf('fa-') === -1 || /[^a-z0-9\-\s]/i.test(raw)) {
+      return fallback || 'fa-solid fa-sharp fa-puzzle-piece';
     }
+    return raw;
+  }
 
-    function extensionIcon(item, fallback) {
-      var row = item || {};
-      var info = row.extensionInfo || {};
-      return normalizeIconClass(info.iconClass || row.iconClass, fallback || 'fa-solid fa-sharp fa-globe');
-    }
-
-    function fetchApiListWithFallback() {
-      var urls = API_URLS.slice();
-      var idx = 0;
-
-      function next() {
-        if (idx >= urls.length) {
-          return Promise.resolve({ ok: false, data: { extensions: [], meta: {} } });
-        }
-
-        var url = urls[idx];
-        idx += 1;
-
-        return fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
-          },
-          body: 'action=list'
-        })
-          .then(function (res) {
-            return res.json().catch(function () {
-              return { ok: false };
-            }).then(function (data) {
-              if (res.ok && data && data.ok) {
-                return data;
-              }
-              if (res.status === 404 || res.status === 0) {
-                return next();
-              }
-              return data || { ok: false };
-            });
-          })
-          .catch(function () {
-            return next();
-          });
-      }
-
-      return next();
-    }
-
-  var LAST_MMENU_SIG = '';
-  var LAST_SYSTEM_SIG = '';
-  var LAST_CONFIGURE_SIG = '';
-  var LAST_HEADER_SIG = '';
+  function extensionIcon(item, fallback) {
+    var row = item || {};
+    var info = row.extensionInfo || {};
+    return normalizeIconClass(info.iconClass || row.iconClass, fallback || 'fa-solid fa-sharp fa-globe');
+  }
 
   function toBool(value, fallback) {
     if (typeof value === 'boolean') {
       return value;
     }
     return !!fallback;
+  }
+
+  function fetchApiListWithFallback() {
+    var urls = API_URLS.slice();
+    var index = 0;
+
+    function next() {
+      if (index >= urls.length) {
+        return Promise.resolve({ ok: false, data: { extensions: [], meta: {} } });
+      }
+
+      var url = urls[index];
+      index += 1;
+
+      return fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+        },
+        body: 'action=list'
+      })
+        .then(function (res) {
+          return res.json().catch(function () {
+            return { ok: false };
+          }).then(function (data) {
+            if (res.ok && data && data.ok) {
+              return data;
+            }
+            if (res.status === 404 || res.status === 0) {
+              return next();
+            }
+            return data || { ok: false };
+          });
+        })
+        .catch(function () {
+          return next();
+        });
+    }
+
+    return next();
+  }
+
+  function fetchState() {
+    var now = Date.now();
+    if (PAYLOAD_CACHE && (now - PAYLOAD_CACHE_AT) < PAYLOAD_CACHE_TTL_MS) {
+      return Promise.resolve(PAYLOAD_CACHE);
+    }
+
+    return fetchApiListWithFallback().then(function (payload) {
+      var data = payload && payload.data ? payload.data : { extensions: [], meta: {} };
+      PAYLOAD_CACHE = data;
+      PAYLOAD_CACHE_AT = Date.now();
+      return data;
+    });
+  }
+
+  function renderList(host, items) {
+    if (!host) {
+      return;
+    }
+
+    var ordered = sortPinnedFirst(items || []);
+    var currentPath = normalizePath(window.location.pathname || '');
+    var html = '';
+    var i;
+
+    for (i = 0; i < ordered.length; i += 1) {
+      var item = ordered[i] || {};
+      var id = String(item.id || '');
+      var name = String(item.name || id);
+      var entry = item.menuEntry || item.entry || ('/' + id + '.php');
+
+      if (!item.enabled || !item.menuVisibility || !item.menuVisibility.library) {
+        continue;
+      }
+
+      html += '<a class="btn extmgr-hover-item' + (normalizePath(entry) === currentPath ? ' active' : '') + '" href="' + esc(entry) + '">';
+      html += '<i class="' + esc(extensionIcon(item, 'fa-solid fa-sharp fa-globe')) + '" style="margin-right:.5em;"></i>' + esc(name);
+      html += '</a>';
+    }
+
+    host.innerHTML = html || '<span style="display:block;padding:8px 12px 8px 2.1em;color:#aaa;">No visible extensions</span>';
   }
 
   function applyManagerVisibility(meta, refs) {
@@ -131,12 +167,12 @@
       refs.wrap.style.display = showLibrary ? '' : 'none';
     }
 
-    var systemLinks = document.querySelectorAll(
+    var managerLinks = document.querySelectorAll(
       '#sys-cmds a[href="/ext-mgr.php"], #sys-cmds a[href="ext-mgr.php"], #sys-cmds a[href="/extensions-manager.php"], #sys-cmds a[href="extensions-manager.php"], #configure-modal a[href="/ext-mgr.php"], #configure-modal a[href="ext-mgr.php"], #configure-modal a[href="/extensions-manager.php"], #configure-modal a[href="extensions-manager.php"]'
     );
     var i;
-    for (i = 0; i < systemLinks.length; i += 1) {
-      systemLinks[i].style.display = showSystem ? '' : 'none';
+    for (i = 0; i < managerLinks.length; i += 1) {
+      managerLinks[i].style.display = showSystem ? '' : 'none';
     }
   }
 
@@ -175,69 +211,12 @@
     btn.innerHTML = '<span>Extensions</span><i class="fa-solid fa-sharp fa-puzzle-piece"></i>';
 
     var marker = document.getElementById('per-config-btn');
-    if (marker && marker.parentNode === tabs) {
-      if (marker.nextSibling) {
-        tabs.insertBefore(btn, marker.nextSibling);
-      } else {
-        tabs.appendChild(btn);
-      }
+    if (marker && marker.parentNode === tabs && marker.nextSibling) {
+      tabs.insertBefore(btn, marker.nextSibling);
       return;
     }
 
     tabs.appendChild(btn);
-  }
-
-  function fetchState() {
-    var now = Date.now();
-    if (PAYLOAD_CACHE && (now - PAYLOAD_CACHE_AT) < PAYLOAD_CACHE_TTL_MS) {
-      return Promise.resolve(PAYLOAD_CACHE);
-    }
-
-    return fetchApiListWithFallback()
-      .then(function (data) {
-        PAYLOAD_CACHE = (data && data.data) || {};
-        if (!Array.isArray(PAYLOAD_CACHE.extensions)) {
-          PAYLOAD_CACHE.extensions = [];
-        }
-        PAYLOAD_CACHE_AT = Date.now();
-        return PAYLOAD_CACHE;
-      })
-      .catch(function () {
-        return { extensions: [], meta: {} };
-      });
-  }
-
-  function renderList(host, items) {
-    if (!host) {
-      return;
-    }
-
-    if (!Array.isArray(items) || items.length === 0) {
-      host.innerHTML = '<span style="display:block;padding:8px 12px 8px 2.1em;color:#aaa;">No extensions found</span>';
-      return;
-    }
-
-    var currentPath = window.location.pathname;
-    var ordered = sortPinnedFirst(items);
-    var html = '';
-    var i;
-
-    for (i = 0; i < ordered.length; i += 1) {
-      var item = ordered[i] || {};
-      var id = String(item.id || '');
-      var name = String(item.name || id);
-      var entry = item.menuEntry || item.entry || ('/' + id + '.php');
-
-      if (!item.enabled || !item.menuVisibility || !item.menuVisibility.library) {
-        continue;
-      }
-
-      html += '<a class="btn extmgr-hover-item' + (normalizePath(entry) === currentPath ? ' active' : '') + '" href="' + esc(entry) + '">';
-      html += '<i class="' + esc(extensionIcon(item, 'fa-solid fa-sharp fa-globe')) + '" style="margin-right:.5em;"></i>' + esc(name);
-      html += '</a>';
-    }
-
-    host.innerHTML = html || '<span style="display:block;padding:8px 12px 8px 2.1em;color:#aaa;">No visible extensions</span>';
   }
 
   function findLibraryMenuContainer() {
@@ -255,19 +234,6 @@
         existing[i].parentNode.removeChild(existing[i]);
       }
     }
-  }
-
-  function appendLibraryButton(container, cls, href, iconClass, label) {
-    var button = document.createElement('button');
-    button.className = cls;
-    button.setAttribute('aria-label', label);
-    button.setAttribute('href', '#notarget');
-    button.innerHTML = '<i class="' + iconClass + '"></i> ' + esc(label);
-    button.addEventListener('click', function (e) {
-      e.preventDefault();
-      window.location.href = href;
-    });
-    container.appendChild(button);
   }
 
   function isManagerEntry(item) {
@@ -309,8 +275,7 @@
 
     var managerVisibility = (meta && meta.managerVisibility) || {};
     var showManagerInLibrary = managerVisibility.library !== false;
-  // Keep existing manager links in sync with visibility toggle (hard hide/show).
-  applyLibraryManagerLinkVisibility(container, showManagerInLibrary);
+    applyLibraryManagerLinkVisibility(container, showManagerInLibrary);
 
     var visibleItems = [];
     var i;
@@ -324,7 +289,10 @@
       }
       visibleItems.push(candidate);
     }
-    var sig = String(showManagerInLibrary) + '|' + visibleItems.map(function (row) { return String(row.id || ''); }).join(',');
+
+    var sig = String(showManagerInLibrary) + '|' + visibleItems.map(function (row) {
+      return String(row.id || '');
+    }).join(',');
     if (sig === LAST_LIBRARY_SIG) {
       return;
     }
@@ -336,7 +304,6 @@
       return;
     }
 
-    // Keep Extensions grouped at the bottom with a subtle section header.
     var divider = document.createElement('div');
     divider.className = 'extmgr-library-divider';
     divider.setAttribute('aria-hidden', 'true');
@@ -393,7 +360,6 @@
   }
 
   function findMMenuContainer() {
-    // Primary: the M-menu dropdown ul is aria-labelled by #menu-settings (confirmed from moOde DOM)
     var selectors = [
       'ul[aria-labelledby="menu-settings"]',
       '#menu-settings ~ ul.dropdown-menu',
@@ -453,9 +419,9 @@
 
     var managerVisibility = (meta && meta.managerVisibility) || {};
     var showManagerInM = toBool(managerVisibility.m, true);
-
     var visible = [];
     var i;
+
     for (i = 0; i < items.length; i += 1) {
       var item = items[i] || {};
       if (!item.enabled || !item.menuVisibility || !item.menuVisibility.m) {
@@ -472,7 +438,9 @@
       return;
     }
 
-    var nextSig = String(showManagerInM) + '|' + visible.map(function (row) { return String(row.id || ''); }).join(',');
+    var nextSig = String(showManagerInM) + '|' + visible.map(function (row) {
+      return String(row.id || '');
+    }).join(',');
     if (nextSig === LAST_MMENU_SIG) {
       return;
     }
@@ -512,7 +480,7 @@
       container.appendChild(header);
     }
 
-    if (showManagerInM && !container.querySelector('a[href="/ext-mgr.php"], a[href="ext-mgr.php"]')) {
+    if (showManagerInM) {
       appendMMenuEntry(container, '/ext-mgr.php', 'Extensions Manager', 'fa-solid fa-sharp fa-puzzle-piece', useListItem);
     }
 
@@ -541,78 +509,12 @@
     );
   }
 
-  function renderSystemMenu(items) {
+  function renderSystemMenu() {
     var container = findSystemMenuContainer();
-    if (!container) {
-      return;
+    if (container) {
+      removeExistingSystemMenuInjected(container);
     }
-    if (container.closest && container.closest('#configure-modal')) {
-      return;
-    }
-
-    var visible = [];
-    var i;
-    for (i = 0; i < items.length; i += 1) {
-      var item = items[i] || {};
-      if (!item.enabled || !item.menuVisibility || !item.menuVisibility.system) {
-        continue;
-      }
-      visible.push(item);
-    }
-
-    if (visible.length === 0) {
-      if (LAST_SYSTEM_SIG !== 'empty') {
-        removeExistingSystemMenuInjected(container);
-        LAST_SYSTEM_SIG = 'empty';
-      }
-      return;
-    }
-
-    var nextSig = visible.map(function (row) { return String(row.id || ''); }).join(',');
-    if (nextSig === LAST_SYSTEM_SIG) {
-      return;
-    }
-    LAST_SYSTEM_SIG = nextSig;
-    removeExistingSystemMenuInjected(container);
-
-    var divider = document.createElement('li');
-    divider.className = 'extmgr-system-divider';
-    divider.style.listStyle = 'none';
-    divider.style.borderTop = '1px solid rgba(128,128,128,.25)';
-    divider.style.margin = '6px 0';
-    container.appendChild(divider);
-
-    var header = document.createElement('li');
-    header.className = 'extmgr-system-header';
-    header.style.listStyle = 'none';
-    header.style.padding = '4px 12px';
-    header.style.fontSize = '0.8em';
-    header.style.opacity = '0.8';
-    header.textContent = 'Extensions';
-    container.appendChild(header);
-
-    for (i = 0; i < visible.length; i += 1) {
-      var ext = visible[i] || {};
-      var id = String(ext.id || '');
-      var name = String(ext.name || id || 'Extension');
-      var entry = ext.menuEntry || ext.entry || ('/' + id + '.php');
-
-      var li = document.createElement('li');
-      li.className = 'extmgr-system-entry';
-      li.style.listStyle = 'none';
-
-      var link = document.createElement('a');
-      link.href = entry;
-      link.className = 'extmgr-system-link';
-      link.style.display = 'block';
-      link.style.padding = '8px 12px';
-      link.style.textDecoration = 'none';
-      link.style.color = 'inherit';
-      link.style.lineHeight = '1.25';
-      link.innerHTML = '<i class="' + esc(extensionIcon(ext, 'fa-solid fa-sharp fa-globe')) + '" style="margin-right:.5em;"></i>' + esc(name);
-      li.appendChild(link);
-      container.appendChild(li);
-    }
+    LAST_SYSTEM_SIG = 'disabled';
   }
 
   function findConfigureTileList() {
@@ -632,23 +534,37 @@
     }
   }
 
+  function appendConfigureEntry(list, entry) {
+    var li = document.createElement('li');
+    li.className = 'extmgr-configure-entry';
+
+    var link = document.createElement('a');
+    link.className = 'btn btn-medium btn-primary config-btn';
+    link.href = entry.href || '#';
+    link.setAttribute('data-extmgr-entry', entry.id || '');
+    link.innerHTML = '<i class="' + esc(entry.iconClass || 'fa-solid fa-sharp fa-puzzle-piece') + '"></i><br>' + esc(entry.label || 'Extension');
+    if (entry.title) {
+      link.title = entry.title;
+    }
+
+    li.appendChild(link);
+    list.appendChild(li);
+  }
+
   function renderConfigureTile(items, meta) {
     var list = findConfigureTileList();
     if (!list) {
       return;
     }
 
-    var visibleSystemExtensions = [];
-    var i;
-    for (i = 0; i < items.length; i += 1) {
-      var item = items[i] || {};
-      if (!item.enabled || !item.menuVisibility || !item.menuVisibility.system) {
-        continue;
-      }
-      visibleSystemExtensions.push(String(item.id || ''));
-    }
+    var managerVisible = !!(meta && meta.managerVisibility && meta.managerVisibility.system);
+    var settingsCardItems = (items || []).filter(function (item) {
+      return item && item.enabled && item.settingsCardOnly && (item.menuEntry || item.entry);
+    });
+    var sig = String(managerVisible) + '|' + settingsCardItems.map(function (item) {
+      return [item.id || '', item.menuEntry || item.entry || ''].join(':');
+    }).join('|');
 
-    var sig = 'always|' + visibleSystemExtensions.join(',');
     if (sig === LAST_CONFIGURE_SIG) {
       return;
     }
@@ -656,20 +572,25 @@
 
     removeExistingConfigureTile(list);
 
-    if (list.querySelector('a[href="/ext-mgr.php"], a[href="ext-mgr.php"]')) {
-      return;
+    if (managerVisible) {
+      appendConfigureEntry(list, {
+        id: '__manager__',
+        href: '/ext-mgr.php',
+        iconClass: 'fa-solid fa-sharp fa-puzzle-piece',
+        label: 'Extensions',
+        title: 'Open Extensions manager'
+      });
     }
 
-    var li = document.createElement('li');
-    li.className = 'extmgr-configure-entry';
-
-    var a = document.createElement('a');
-    a.href = '/ext-mgr.php';
-    a.className = 'btn btn-large';
-    a.innerHTML = '<i class="fa-solid fa-sharp fa-puzzle-piece"></i><br>Extensions';
-    li.appendChild(a);
-
-    list.appendChild(li);
+    settingsCardItems.forEach(function (item) {
+      appendConfigureEntry(list, {
+        id: item.id,
+        href: item.menuEntry || item.entry,
+        iconClass: extensionIcon(item, 'fa-solid fa-sharp fa-globe'),
+        label: item.name || item.id,
+        title: 'Open ' + (item.name || item.id)
+      });
+    });
   }
 
   function ensureHostElements() {
@@ -677,26 +598,17 @@
     var panel = document.getElementById('extmgr-hover-panel');
     var listHost = document.getElementById('extmgr-hover-list');
 
-    var folderBtn = document.querySelector(
-      '#viewswitch .folder-view-btn, .viewswitch .folder-view-btn, .dropdown-menu .folder-view-btn, button.folder-view-btn, a.folder-view-btn'
-    );
-
     if (wrap && panel && listHost) {
       var wrapInLibraryMenu = !!wrap.closest('#viewswitch, .viewswitch, .dropdown-menu');
       if (wrapInLibraryMenu) {
         return { wrap: wrap, panel: panel, listHost: listHost };
       }
 
-      // Remove stale misplaced wrapper (older installer patch could inject it in playback area).
       if (wrap.parentNode) {
         wrap.parentNode.removeChild(wrap);
       }
-      wrap = null;
-      panel = null;
-      listHost = null;
     }
 
-    // Do not force-create a hover wrapper; direct Library dropdown rendering is more stable across moOde variants.
     return null;
   }
 
@@ -706,7 +618,7 @@
       renderList(host, items);
       renderLibraryMenu(items, payload.meta || {});
       renderMMenu(items, payload.meta || {});
-      renderSystemMenu(items);
+      renderSystemMenu();
       renderConfigureTile(items, payload.meta || {});
       renderHeaderManagerButton(payload.meta || {});
     });
@@ -727,7 +639,7 @@
           var items = payload.extensions || [];
           renderLibraryMenu(items, payload.meta || {});
           renderMMenu(items, payload.meta || {});
-          renderSystemMenu(items);
+          renderSystemMenu();
           renderConfigureTile(items, payload.meta || {});
           renderHeaderManagerButton(payload.meta || {});
         });
@@ -775,7 +687,7 @@
       var items = payload.extensions || [];
       renderLibraryMenu(items, payload.meta || {});
       renderMMenu(items, payload.meta || {});
-      renderSystemMenu(items);
+      renderSystemMenu();
       renderConfigureTile(items, payload.meta || {});
       renderHeaderManagerButton(payload.meta || {});
       applyManagerVisibility(payload.meta || {}, refs);

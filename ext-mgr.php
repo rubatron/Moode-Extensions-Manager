@@ -62,6 +62,7 @@ if (file_exists('/var/www/header.php')) {
                 <button id="refresh-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-arrows-rotate"></i> Refresh List</button>
                 <button id="sync-registry-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-database"></i> Sync Registry</button>
                 <button id="system-update-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-rotate"></i> Sync Extensions</button>
+                <button id="open-extmgr-logs-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-file-lines"></i> Open ext-mgr Logs</button>
             </div>
 
             <div class="extmgr-submenu-body">
@@ -71,10 +72,14 @@ if (file_exists('/var/www/header.php')) {
                     <input id="import-extension-file" class="extmgr-file-input" type="file" accept=".zip" aria-label="Upload extension package zip">
                     <label for="import-extension-file" id="import-extension-file-trigger" class="btn btn-primary btn-small">Choose File</label>
                     <span id="import-extension-file-name" class="extmgr-file-name">No file chosen</span>
+                    <label class="extmgr-import-flag" for="import-extension-dry-run">
+                        <input id="import-extension-dry-run" type="checkbox" aria-label="Dry-run import">
+                        Dry-run
+                    </label>
                     <button id="import-extension-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-upload"></i> Upload Extension</button>
                     <a id="download-template-btn" class="btn btn-small" href="/ext-mgr-api.php?action=download_extension_template"><i class="fa-solid fa-sharp fa-file-zipper"></i> Download Template Kit</a>
                 </div>
-                <div id="import-wizard-note" class="extmgr-note">Template includes: template.php, template.js, template.css, info.json, install.sh and standard folders.</div>
+                <div id="import-wizard-note" class="extmgr-note">Template includes: template.php, template.js, template.css, info.json, install.sh and standard folders (including logs). Dry-run validates install hooks without writing registry or symlinks.</div>
             </div>
 
             <div class="extmgr-submenu-body" id="submenu-manager-visibility">
@@ -307,6 +312,7 @@ if (file_exists('/var/www/header.php')) {
 <script>
 window.__EXT_MGR_INIT__ = <?php echo json_encode($init, JSON_UNESCAPED_SLASHES); ?>;
 </script>
+<script src="/extensions/sys/assets/js/ext-mgr-logs.js"></script>
 <script src="/extensions/sys/assets/js/ext-mgr.js"></script>
 
 <?php

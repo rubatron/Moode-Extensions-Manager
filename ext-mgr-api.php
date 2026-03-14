@@ -1,7 +1,7 @@
 <?php
 // ext-mgr JSON API endpoint with maintenance actions.
 $action = $_REQUEST['action'] ?? 'list';
-if ($action !== 'download_extension_template') {
+if ($action !== 'download_extension_template' && $action !== 'download_extension_log') {
     header('Content-Type: application/json; charset=utf-8');
 }
 
@@ -15,6 +15,10 @@ $extensionsRootPath = '/var/www/extensions';
 $extensionsInstalledPath = $extensionsRootPath . '/installed';
 $extensionsCachePath = $extensionsRootPath . '/cache';
 $extensionsBackupPath = $baseDir . DIRECTORY_SEPARATOR . 'backup';
+$extensionsSysLogsRootPath = $extensionsRootPath . '/sys/logs';
+$extensionsLogsPath = $extensionsSysLogsRootPath . '/extensionslogs';
+$extMgrLogsPath = $extensionsSysLogsRootPath . '/ext-mgr logs';
+$extMgrRuntimeLogsPath = $extensionsRootPath . '/sys/.ext-mgr/logs';
 
 function defaultMeta() {
     return [
@@ -73,6 +77,7 @@ function defaultReleasePolicy() {
             'ext-mgr.release.json',
             'ext-mgr.version',
             'assets/js/ext-mgr.js',
+            'assets/js/ext-mgr-logs.js',
             'assets/css/ext-mgr.css',
             'scripts/ext-mgr-import-wizard.sh',
             'scripts/ext-mgr-registry-sync.sh',
@@ -338,6 +343,492 @@ function buildRuntimeMemoryHealth() {
         'serviceMemoryMiB' => round($currentMiB, 2),
         'systemMemoryMiB' => is_float($totalMiB) ? round($totalMiB, 2) : null,
         'serviceMemoryPctOfSystem' => is_float($pct) ? round($pct, 4) : null,
+    ];
+}
+
+function readExtMgrServiceHealth() {
+    $statePath = '/var/www/extensions/sys/.ext-mgr/service-state.json';
+    $fallback = [
+        'status' => 'not-installed',
+        'detail' => 'service-state-missing',
+    ];
+
+    if (!is_readable($statePath)) {
+        return $fallback;
+    }
+
+    $data = readJsonFile($statePath, $fallback);
+    if (!is_array($data)) {
+        return $fallback;
+    }
+
+    $updatedAt = isset($data['updatedAt']) ? strtotime((string)$data['updatedAt']) : false;
+    if ($updatedAt === false) {
+        return [
+            'status' => (string)($data['status'] ?? 'unknown'),
+            'detail' => (string)($data['detail'] ?? 'missing-updated-at'),
+        ];
+    }
+
+    $ageSeconds = time() - $updatedAt;
+    $status = (string)($data['status'] ?? 'unknown');
+    if ($ageSeconds > 120 && $status === 'online') {
+        $status = 'stale';
+    }
+
+    return [
+        'status' => $status,
+        'detail' => (string)($data['detail'] ?? 'ok'),
+        'updatedAt' => (string)($data['updatedAt'] ?? ''),
+    ];
+}
+
+function readExtMgrWatchdogHealth() {
+    $statePath = '/var/www/extensions/sys/.ext-mgr/watchdog-state.json';
+    $fallback = [
+        'status' => 'not-installed',
+        'detail' => 'watchdog-state-missing',
+    ];
+
+    if (!is_readable($statePath)) {
+        return $fallback;
+    }
+
+    $data = readJsonFile($statePath, $fallback);
+    if (!is_array($data)) {
+        return $fallback;
+    }
+
+    $updatedAt = isset($data['updatedAt']) ? strtotime((string)$data['updatedAt']) : false;
+    if ($updatedAt === false) {
+        return [
+            'status' => (string)($data['status'] ?? 'unknown'),
+            'detail' => (string)($data['detail'] ?? 'missing-updated-at'),
+        ];
+    }
+
+    $ageSeconds = time() - $updatedAt;
+    $status = (string)($data['status'] ?? 'unknown');
+    if ($ageSeconds > 180 && $status === 'online') {
+        $status = 'stale';
+    }
+
+    return [
+        'status' => $status,
+        'detail' => (string)($data['detail'] ?? 'ok'),
+        'updatedAt' => (string)($data['updatedAt'] ?? ''),
+    ];
+}
+
+function logTypes() {
+    return ['install', 'system', 'error'];
+}
+
+function ensureExtMgrLogLayout() {
+    global $extensionsSysLogsRootPath, $extensionsLogsPath, $extMgrLogsPath;
+
+    ensureDirectory($extensionsSysLogsRootPath, 0775);
+    ensureDirectory($extensionsLogsPath, 0775);
+    ensureDirectory($extMgrLogsPath, 0775);
+
+    foreach (logTypes() as $type) {
+        $path = $extMgrLogsPath . DIRECTORY_SEPARATOR . $type . '.log';
+        if (!file_exists($path)) {
+            @file_put_contents($path, '');
+        }
+    }
+}
+
+function ensureExtensionLogLayout($extensionId) {
+    global $extensionsInstalledPath, $extensionsLogsPath;
+
+    if (!isValidExtensionId($extensionId)) {
+        return;
+    }
+
+    $globalDir = $extensionsLogsPath . DIRECTORY_SEPARATOR . $extensionId;
+    ensureDirectory($globalDir, 0775);
+
+    foreach (logTypes() as $type) {
+        $path = $globalDir . DIRECTORY_SEPARATOR . $type . '.log';
+        if (!file_exists($path)) {
+            @file_put_contents($path, '');
+        }
+    }
+
+    $localDir = $extensionsInstalledPath . DIRECTORY_SEPARATOR . $extensionId . DIRECTORY_SEPARATOR . 'logs';
+    if (is_dir(dirname($localDir)) || is_dir($extensionsInstalledPath . DIRECTORY_SEPARATOR . $extensionId)) {
+        ensureDirectory($localDir, 0775);
+        foreach (logTypes() as $type) {
+            $path = $localDir . DIRECTORY_SEPARATOR . $type . '.log';
+            if (!file_exists($path)) {
+                @file_put_contents($path, '');
+            }
+        }
+    }
+}
+
+function buildLogRow($key, $label, $path, $source) {
+    $exists = is_file($path);
+    $size = $exists ? @filesize($path) : null;
+    $mtime = $exists ? @filemtime($path) : false;
+
+    return [
+        'key' => $key,
+        'label' => $label,
+        'source' => $source,
+        'pathHint' => $path,
+        'exists' => $exists,
+        'sizeBytes' => (is_int($size) || is_float($size)) ? (int)$size : 0,
+        'updatedAt' => $mtime ? date('c', (int)$mtime) : null,
+    ];
+}
+
+function availableLogsForTarget($targetId) {
+    global $extensionsLogsPath, $extMgrLogsPath, $extMgrRuntimeLogsPath, $extensionsInstalledPath;
+
+    ensureExtMgrLogLayout();
+
+    $logs = [];
+
+    if ($targetId === 'ext-mgr') {
+        $logs[] = buildLogRow('install', 'Install Log', $extMgrLogsPath . DIRECTORY_SEPARATOR . 'install.log', 'ext-mgr');
+        $logs[] = buildLogRow('system', 'System Log', $extMgrLogsPath . DIRECTORY_SEPARATOR . 'system.log', 'ext-mgr');
+        $logs[] = buildLogRow('error', 'Error Log', $extMgrLogsPath . DIRECTORY_SEPARATOR . 'error.log', 'ext-mgr');
+        $logs[] = buildLogRow('service', 'Service Runtime Log', $extMgrRuntimeLogsPath . DIRECTORY_SEPARATOR . 'moode-extmgr-service.log', 'runtime');
+        $logs[] = buildLogRow('watchdog', 'Watchdog Runtime Log', $extMgrRuntimeLogsPath . DIRECTORY_SEPARATOR . 'moode-extmgr-watchdog.log', 'runtime');
+        $logs[] = buildLogRow('install-helper', 'Install Helper Log', $extMgrRuntimeLogsPath . DIRECTORY_SEPARATOR . 'install-helper.log', 'runtime');
+        return $logs;
+    }
+
+    ensureExtensionLogLayout($targetId);
+
+    $globalDir = $extensionsLogsPath . DIRECTORY_SEPARATOR . $targetId;
+    $localDir = $extensionsInstalledPath . DIRECTORY_SEPARATOR . $targetId . DIRECTORY_SEPARATOR . 'logs';
+
+    $logs[] = buildLogRow('install', 'Install Log', $globalDir . DIRECTORY_SEPARATOR . 'install.log', 'global');
+    $logs[] = buildLogRow('system', 'System Log', $globalDir . DIRECTORY_SEPARATOR . 'system.log', 'global');
+    $logs[] = buildLogRow('error', 'Error Log', $globalDir . DIRECTORY_SEPARATOR . 'error.log', 'global');
+    $logs[] = buildLogRow('local-install', 'Local Install Log', $localDir . DIRECTORY_SEPARATOR . 'install.log', 'extension');
+    $logs[] = buildLogRow('local-system', 'Local System Log', $localDir . DIRECTORY_SEPARATOR . 'system.log', 'extension');
+    $logs[] = buildLogRow('local-error', 'Local Error Log', $localDir . DIRECTORY_SEPARATOR . 'error.log', 'extension');
+
+    return $logs;
+}
+
+function resolveLogPathForRead($targetId, $key, &$error) {
+    $error = '';
+    $targetId = trim((string)$targetId);
+    $key = trim((string)$key);
+
+    if ($targetId === '') {
+        $error = 'Missing id parameter.';
+        return null;
+    }
+
+    if ($targetId !== 'ext-mgr' && !isValidExtensionId($targetId)) {
+        $error = 'Invalid extension id.';
+        return null;
+    }
+
+    $rows = availableLogsForTarget($targetId);
+    foreach ($rows as $row) {
+        if ((string)($row['key'] ?? '') !== $key) {
+            continue;
+        }
+        return (string)($row['pathHint'] ?? '');
+    }
+
+    $error = 'Unknown log key for target.';
+    return null;
+}
+
+function tailFileContent($path, $lineLimit = 120) {
+    if (!is_string($path) || $path === '' || !is_file($path) || !is_readable($path)) {
+        return '';
+    }
+
+    $lineLimit = max(1, min(400, (int)$lineLimit));
+    $content = @file_get_contents($path);
+    if (!is_string($content) || $content === '') {
+        return '';
+    }
+
+    $lines = preg_split('/\r?\n/', $content);
+    if (!is_array($lines)) {
+        return '';
+    }
+
+    if (count($lines) > $lineLimit) {
+        $lines = array_slice($lines, -$lineLimit);
+    }
+
+    return implode(PHP_EOL, $lines);
+}
+
+function readLogLines($path, $lineLimit = 1200) {
+    if (!is_string($path) || $path === '' || !is_file($path) || !is_readable($path)) {
+        return [];
+    }
+
+    $lineLimit = max(1, min(5000, (int)$lineLimit));
+    $content = @file_get_contents($path);
+    if (!is_string($content) || $content === '') {
+        return [];
+    }
+
+    $lines = preg_split('/\r?\n/', $content);
+    if (!is_array($lines)) {
+        return [];
+    }
+
+    if (count($lines) > $lineLimit) {
+        $lines = array_slice($lines, -$lineLimit);
+    }
+
+    return $lines;
+}
+
+function parseLogLineEvent($line) {
+    $raw = trim((string)$line);
+    if ($raw === '') {
+        return null;
+    }
+
+    $timestamp = null;
+    $message = $raw;
+    if (preg_match('/^\[([0-9]{4}-[0-9]{2}-[0-9]{2}\s+[0-9]{2}:[0-9]{2}:[0-9]{2})\]\s*(.*)$/', $raw, $m) === 1) {
+        $timestamp = (string)$m[1];
+        $message = (string)$m[2];
+    }
+
+    return [
+        'timestamp' => $timestamp,
+        'message' => $message,
+        'raw' => $raw,
+    ];
+}
+
+function normalizeErrorSignature($message) {
+    $msg = strtolower(trim((string)$message));
+    if ($msg === '') {
+        return '';
+    }
+
+    $msg = preg_replace('/\b[0-9]+\b/', '#', $msg);
+    $msg = preg_replace('/\s+/', ' ', (string)$msg);
+    return trim((string)$msg);
+}
+
+function lineLooksError($line) {
+    $l = strtolower((string)$line);
+    return (strpos($l, 'error') !== false
+        || strpos($l, 'failed') !== false
+        || strpos($l, 'exception') !== false
+        || strpos($l, 'degraded') !== false
+        || strpos($l, 'inactive') !== false
+        || strpos($l, 'stale') !== false);
+}
+
+function lineLooksRestartEvent($line) {
+    $l = strtolower((string)$line);
+    return (strpos($l, 'restart') !== false
+        || strpos($l, 'restarting') !== false
+        || strpos($l, 'heartbeat stale') !== false
+        || strpos($l, 'state=failed') !== false
+        || strpos($l, 'state=inactive') !== false);
+}
+
+function summarizeLogsForTarget($targetId, $lineLimit = 1200) {
+    $rows = availableLogsForTarget($targetId);
+
+    $systemLines = 0;
+    $errorLines = 0;
+    $totalLines = 0;
+    $errorBuckets = [];
+    $restartEvents = [];
+
+    foreach ($rows as $row) {
+        $key = (string)($row['key'] ?? '');
+        $path = (string)($row['pathHint'] ?? '');
+        $lines = readLogLines($path, $lineLimit);
+        if (count($lines) === 0) {
+            continue;
+        }
+
+        $totalLines += count($lines);
+        $isSystemSource = (strpos($key, 'system') !== false || $key === 'service' || $key === 'watchdog');
+        $isErrorSource = (strpos($key, 'error') !== false);
+
+        foreach ($lines as $line) {
+            $event = parseLogLineEvent($line);
+            if (!is_array($event)) {
+                continue;
+            }
+
+            if ($isSystemSource) {
+                $systemLines++;
+            }
+
+            $errorMatch = $isErrorSource || lineLooksError($event['message']);
+            if ($errorMatch) {
+                $errorLines++;
+                $sig = normalizeErrorSignature($event['message']);
+                if ($sig !== '') {
+                    if (!isset($errorBuckets[$sig])) {
+                        $errorBuckets[$sig] = 0;
+                    }
+                    $errorBuckets[$sig]++;
+                }
+            }
+
+            if (lineLooksRestartEvent($event['message'])) {
+                $restartEvents[] = [
+                    'id' => $targetId,
+                    'at' => $event['timestamp'],
+                    'message' => $event['message'],
+                ];
+            }
+        }
+    }
+
+    arsort($errorBuckets, SORT_NUMERIC);
+    $topErrors = [];
+    foreach ($errorBuckets as $signature => $count) {
+        $topErrors[] = ['signature' => $signature, 'count' => (int)$count];
+        if (count($topErrors) >= 8) {
+            break;
+        }
+    }
+
+    usort($restartEvents, static function ($a, $b) {
+        $ta = strtotime((string)($a['at'] ?? '')) ?: 0;
+        $tb = strtotime((string)($b['at'] ?? '')) ?: 0;
+        if ($ta === $tb) {
+            return strcmp((string)($a['message'] ?? ''), (string)($b['message'] ?? ''));
+        }
+        return $tb <=> $ta;
+    });
+
+    $denominator = max(1, $systemLines + $errorLines);
+    $errorRatePct = round(($errorLines / $denominator) * 100.0, 2);
+
+    return [
+        'id' => $targetId,
+        'totalLines' => $totalLines,
+        'systemLines' => $systemLines,
+        'errorLines' => $errorLines,
+        'errorRatePct' => $errorRatePct,
+        'topErrors' => $topErrors,
+        'restartEvents' => array_slice($restartEvents, 0, 25),
+    ];
+}
+
+function discoverKnownExtensionIds($registryPath, $extensionsLogsPath) {
+    $ids = [];
+
+    $registry = normalizeRegistry(readRegistry($registryPath));
+    foreach ((array)($registry['extensions'] ?? []) as $ext) {
+        $id = trim((string)($ext['id'] ?? ''));
+        if ($id !== '' && isValidExtensionId($id)) {
+            $ids[$id] = true;
+        }
+    }
+
+    if (is_dir($extensionsLogsPath)) {
+        $entries = @scandir($extensionsLogsPath);
+        if (is_array($entries)) {
+            foreach ($entries as $entry) {
+                if ($entry === '.' || $entry === '..') {
+                    continue;
+                }
+                $full = $extensionsLogsPath . DIRECTORY_SEPARATOR . $entry;
+                if (is_dir($full) && isValidExtensionId($entry)) {
+                    $ids[$entry] = true;
+                }
+            }
+        }
+    }
+
+    return array_values(array_keys($ids));
+}
+
+function buildLogAnalysisPayload($registryPath, $extensionsLogsPath, $targetId = '') {
+    $targetId = trim((string)$targetId);
+
+    if ($targetId !== '') {
+        return [
+            'scope' => 'single',
+            'target' => summarizeLogsForTarget($targetId),
+        ];
+    }
+
+    $ids = discoverKnownExtensionIds($registryPath, $extensionsLogsPath);
+    sort($ids, SORT_STRING);
+
+    $perExtension = [];
+    $globalErrors = [];
+    $restartEvents = summarizeLogsForTarget('ext-mgr')['restartEvents'];
+
+    foreach ($ids as $id) {
+        $summary = summarizeLogsForTarget($id);
+        $perExtension[] = [
+            'id' => $id,
+            'totalLines' => $summary['totalLines'],
+            'systemLines' => $summary['systemLines'],
+            'errorLines' => $summary['errorLines'],
+            'errorRatePct' => $summary['errorRatePct'],
+        ];
+
+        foreach ((array)$summary['topErrors'] as $row) {
+            $sig = (string)($row['signature'] ?? '');
+            $cnt = (int)($row['count'] ?? 0);
+            if ($sig === '' || $cnt <= 0) {
+                continue;
+            }
+            if (!isset($globalErrors[$sig])) {
+                $globalErrors[$sig] = 0;
+            }
+            $globalErrors[$sig] += $cnt;
+        }
+
+        foreach ((array)$summary['restartEvents'] as $event) {
+            $restartEvents[] = $event;
+        }
+    }
+
+    usort($perExtension, static function ($a, $b) {
+        $rateCmp = ((float)$b['errorRatePct'] <=> (float)$a['errorRatePct']);
+        if ($rateCmp !== 0) {
+            return $rateCmp;
+        }
+        return strcmp((string)$a['id'], (string)$b['id']);
+    });
+
+    arsort($globalErrors, SORT_NUMERIC);
+    $topErrors = [];
+    foreach ($globalErrors as $sig => $cnt) {
+        $topErrors[] = ['signature' => $sig, 'count' => (int)$cnt];
+        if (count($topErrors) >= 12) {
+            break;
+        }
+    }
+
+    usort($restartEvents, static function ($a, $b) {
+        $ta = strtotime((string)($a['at'] ?? '')) ?: 0;
+        $tb = strtotime((string)($b['at'] ?? '')) ?: 0;
+        if ($ta === $tb) {
+            return strcmp((string)($a['id'] ?? ''), (string)($b['id'] ?? ''));
+        }
+        return $tb <=> $ta;
+    });
+
+    return [
+        'scope' => 'global',
+        'extensionCount' => count($perExtension),
+        'perExtension' => $perExtension,
+        'topErrors' => $topErrors,
+        'restartEvents' => array_slice($restartEvents, 0, 40),
     ];
 }
 
@@ -830,6 +1321,7 @@ function buildSystemResourceSnapshot($registryExtensions, $extensionsInstalledPa
     $memory = readMemoryOverview();
     $load = sys_getloadavg();
     $runtimeMemory = buildRuntimeMemoryHealth();
+    $serviceHealth = readExtMgrServiceHealth();
 
     return [
         'cpu' => [
@@ -919,6 +1411,20 @@ function buildTemplatePackageFiles($extensionId) {
             ],
             'settingsCardOnly' => true,
             'iconClass' => $defaultIconClass,
+            'service' => [
+                'name' => $extensionId . '.service',
+                'requiresExtMgr' => true,
+                'parentService' => 'moode-extmgr.service',
+            ],
+            'logging' => [
+                'localDir' => 'logs',
+                'globalDir' => '/var/www/extensions/sys/logs/extensionslogs/' . $extensionId,
+                'files' => ['install.log', 'system.log', 'error.log'],
+            ],
+            'install' => [
+                'packages' => [],
+                'script' => 'scripts/install.sh',
+            ],
         ],
     ];
 
@@ -1112,9 +1618,12 @@ function buildTemplatePackageFiles($extensionId) {
         'template.php' => $templatePhp,
         'assets/js/template.js' => $templateJs,
         'assets/css/template.css' => $templateCss,
-        'scripts/install.sh' => "#!/usr/bin/env bash\nset -euo pipefail\n\necho '[{$extensionId}] install.sh placeholder'\n",
-        'README.md' => "# {$displayName}\n\nGenerated by ext-mgr Import Wizard template kit.\n\n## Import behavior\n- Installs into /var/www/extensions/installed/{$extensionId}\n- Creates canonical route /{$extensionId}.php\n- Starts visible in M menu and Library menu, hidden in System/Configure\n- Starts with settings-card mode enabled\n\n## moOde shell requirements\n- Extension pages should include /var/www/header.php and footer integration\n- This guarantees Back arrow, Home button and M menu are available\n- The generated template.php already follows this requirement\n\n## Menu visibility\n- Edit manifest.json -> ext_mgr.menuVisibility\n- Current defaults:\n  1) m=true\n  2) library=true\n  3) system=false\n\n## Icon support\n- info.json now includes iconClass\n- Use the starter icon picker in template.php to pick a class\n- Copy the chosen class to info.json -> iconClass\n\n## Minimum files\n- template.php\n- assets/js/template.js\n- assets/css/template.css\n- info.json\n- scripts/install.sh\n",
+        'scripts/install.sh' => "#!/usr/bin/env bash\nset -euo pipefail\n\nEXT_ID='{$extensionId}'\nROOT=\"/var/www/extensions/installed/$EXT_ID\"\nMANIFEST=\"$ROOT/manifest.json\"\n\nservice_name=\"${EXT_ID}.service\"\nif [[ -f \"$MANIFEST\" ]]; then\n  detected_name=$(php -r '$j=@json_decode(@file_get_contents($argv[1]), true); if(is_array($j) && isset($j["ext_mgr"]["service"]["name"])) echo trim((string)$j["ext_mgr"]["service"]["name"]);' \"$MANIFEST\" 2>/dev/null || true)\n  if [[ -n \"$detected_name\" ]]; then\n    service_name=\"$detected_name\"\n  fi\nfi\n\nservice_file=\"$ROOT/scripts/$service_name\"\nif [[ -f \"$service_file\" && -x /usr/bin/systemctl ]]; then\n  install -o root -g root -m 0644 \"$service_file\" \"/etc/systemd/system/$service_name\"\n  systemctl daemon-reload\n  systemctl enable --now moode-extmgr.service >/dev/null 2>&1 || true\n  systemctl enable --now \"$service_name\" >/dev/null 2>&1 || true\nfi\n\necho \"[${EXT_ID}] install.sh completed\"\n",
+        'scripts/service-runner.sh' => "#!/usr/bin/env bash\nset -euo pipefail\n\nEXT_ID='{$extensionId}'\nwhile true; do\n  echo \"[$(date +'%Y-%m-%d %H:%M:%S')] [$EXT_ID] service heartbeat\"\n  sleep 60\ndone\n",
+        'scripts/' . $extensionId . '.service' => "[Unit]\nDescription={$displayName} extension service\nRequires=moode-extmgr.service\nAfter=moode-extmgr.service network.target\nPartOf=moode-extmgr.service\n\n[Service]\nType=simple\nUser=moode-extmgrusr\nGroup=moode-extmgr\nWorkingDirectory=/var/www/extensions/installed/{$extensionId}\nExecStart=/usr/bin/env bash /var/www/extensions/installed/{$extensionId}/scripts/service-runner.sh\nRestart=always\nRestartSec=5\n\n[Install]\nWantedBy=multi-user.target\n",
+        'README.md' => "# {$displayName}\n\nGenerated by ext-mgr Import Wizard template kit.\n\n## Import behavior\n- Installs into /var/www/extensions/installed/{$extensionId}\n- Creates canonical route /{$extensionId}.php\n- Starts visible in M menu and Library menu, hidden in System/Configure\n- Starts with settings-card mode enabled\n\n## Logging layout\n- Extension global logs: /var/www/extensions/sys/logs/extensionslogs/{$extensionId}\n- Extension local logs: /var/www/extensions/installed/{$extensionId}/logs\n- Default files: install.log, system.log, error.log\n\n## Staged install hooks\n- Optional packages: manifest.json -> ext_mgr.install.packages\n- Optional post-copy script: manifest.json -> ext_mgr.install.script\n- ext-mgr runs the install script under moode-extmgrusr\n- Write files inside /var/www/extensions/installed/{$extensionId}; ext-mgr relocates legacy /var/www/extensions/{$extensionId} writes\n\n## Service parent dependency\n- Template manifest includes ext_mgr.service.name={$extensionId}.service\n- Generated service unit requires and starts after moode-extmgr.service\n- Keep extension daemons under moode-extmgrusr for consistent permissions\n\n## moOde shell requirements\n- Extension pages should include /var/www/header.php and footer integration\n- This guarantees Back arrow, Home button and M menu are available\n- The generated template.php already follows this requirement\n\n## Menu visibility\n- Edit manifest.json -> ext_mgr.menuVisibility\n- Current defaults:\n  1) m=true\n  2) library=true\n  3) system=false\n\n## Icon support\n- info.json now includes iconClass\n- Use the starter icon picker in template.php to pick a class\n- Copy the chosen class to info.json -> iconClass\n\n## Minimum files\n- template.php\n- assets/js/template.js\n- assets/css/template.css\n- info.json\n- logs/.gitkeep\n- scripts/install.sh\n- scripts/service-runner.sh\n- scripts/{$extensionId}.service\n",
         'assets/css/.gitkeep' => "",
+        'logs/.gitkeep' => "",
         'cache/.gitkeep' => "",
         'data/.gitkeep' => "",
     ];
@@ -1425,7 +1934,7 @@ function detectImportSourceDir($extractRoot) {
     return null;
 }
 
-function runImportWizard($wizardPath, $sourceDir, &$error, &$outputText) {
+function runImportWizard($wizardPath, $sourceDir, $dryRun, &$error, &$outputText) {
     $error = '';
     $outputText = '';
 
@@ -1439,9 +1948,10 @@ function runImportWizard($wizardPath, $sourceDir, &$error, &$outputText) {
         return false;
     }
 
+    $modeArg = $dryRun ? '--dry-run ' : '';
     $commands = [
-        escapeshellarg($wizardPath) . ' ' . escapeshellarg($sourceDir) . ' 2>&1',
-        'sudo -n ' . escapeshellarg($wizardPath) . ' ' . escapeshellarg($sourceDir) . ' 2>&1',
+        escapeshellarg($wizardPath) . ' ' . $modeArg . escapeshellarg($sourceDir) . ' 2>&1',
+        'sudo -n ' . escapeshellarg($wizardPath) . ' ' . $modeArg . escapeshellarg($sourceDir) . ' 2>&1',
     ];
 
     foreach ($commands as $command) {
@@ -2547,7 +3057,7 @@ function normalizeRegistry($registry) {
         $ext['state'] = $ext['enabled'] ? 'active' : 'inactive';
         $ext['menuVisibility']['m'] = (bool)$ext['menuVisibility']['m'];
         $ext['menuVisibility']['library'] = (bool)$ext['menuVisibility']['library'];
-        $ext['menuVisibility']['system'] = (bool)$ext['menuVisibility']['system'];
+        $ext['menuVisibility']['system'] = false;
         $ext['extensionInfo'] = loadExtensionInfo(
             (string)$ext['id'],
             (string)$ext['entry'],
@@ -2617,9 +3127,10 @@ function applyImportedExtensionDefaults($registryPath, $extId) {
 }
 
 function responseData($registryPath, $metaPath, $versionPath, $releasePath) {
-    global $extensionsCachePath, $extensionsBackupPath;
+    global $extensionsCachePath, $extensionsBackupPath, $extensionsLogsPath, $extMgrLogsPath;
 
     $registry = normalizeRegistry(readRegistry($registryPath));
+    ensureExtMgrLogLayout();
     [$meta, $policy] = buildMeta($metaPath, $versionPath, $releasePath);
     $guidance = readGuidanceDocs(dirname($registryPath));
     $activeCount = 0;
@@ -2649,6 +3160,8 @@ function responseData($registryPath, $metaPath, $versionPath, $releasePath) {
     }
 
     $runtimeMemory = buildRuntimeMemoryHealth();
+    $serviceHealth = readExtMgrServiceHealth();
+    $watchdogHealth = readExtMgrWatchdogHealth();
 
     return [
         'extensions' => $registry['extensions'],
@@ -2656,7 +3169,7 @@ function responseData($registryPath, $metaPath, $versionPath, $releasePath) {
         'releasePolicy' => $policy,
         'guidance' => $guidance,
         'health' => [
-            'apiService' => 'online',
+            'apiService' => 'online | extmgr=' . $serviceHealth['status'] . ' | watchdog=' . $watchdogHealth['status'],
             'registry' => canWriteJsonPath($registryPath) ? 'writable' : 'read-only',
             'extensionCount' => count($registry['extensions']),
             'activeCount' => $activeCount,
@@ -2668,6 +3181,10 @@ function responseData($registryPath, $metaPath, $versionPath, $releasePath) {
             'serviceMemoryPctOfSystem' => $runtimeMemory['serviceMemoryPctOfSystem'],
             'serviceMemoryMiB' => $runtimeMemory['serviceMemoryMiB'],
             'systemMemoryMiB' => $runtimeMemory['systemMemoryMiB'],
+            'extMgrService' => $serviceHealth,
+            'extMgrWatchdog' => $watchdogHealth,
+            'extensionLogsRoot' => $extensionsLogsPath,
+            'extMgrLogsRoot' => $extMgrLogsPath,
         ],
         'maintenance' => buildMaintenanceStatus($extensionsCachePath, $extensionsBackupPath),
     ];
@@ -3023,6 +3540,9 @@ if ($action === 'import_extension_upload') {
         exit;
     }
 
+    $dryRunRaw = (string)($_REQUEST['dry_run'] ?? '0');
+    $dryRun = ($dryRunRaw === '1' || strtolower($dryRunRaw) === 'true' || strtolower($dryRunRaw) === 'yes');
+
     $upload = $_FILES['package'];
     $uploadError = (int)($upload['error'] ?? UPLOAD_ERR_NO_FILE);
     if ($uploadError !== UPLOAD_ERR_OK) {
@@ -3080,7 +3600,7 @@ if ($action === 'import_extension_upload') {
     $wizardPath = $baseDir . DIRECTORY_SEPARATOR . 'scripts' . DIRECTORY_SEPARATOR . 'ext-mgr-import-wizard.sh';
     $execError = '';
     $wizardOutput = '';
-    if (!runImportWizard($wizardPath, $sourceDir, $execError, $wizardOutput)) {
+    if (!runImportWizard($wizardPath, $sourceDir, $dryRun, $execError, $wizardOutput)) {
         removePathRecursive($workDir);
         http_response_code(500);
         echo json_encode(['ok' => false, 'error' => $execError]);
@@ -3090,9 +3610,10 @@ if ($action === 'import_extension_upload') {
     $manifestData = readJsonFile($sourceDir . DIRECTORY_SEPARATOR . 'manifest.json', []);
     $importedId = sanitizeExtensionId((string)($manifestData['id'] ?? 'unknown'));
 
-    applyImportedExtensionDefaults($registryPath, $importedId);
-
-    syncRegistryWithFilesystem($registryPath, false);
+    if (!$dryRun) {
+        applyImportedExtensionDefaults($registryPath, $importedId);
+        syncRegistryWithFilesystem($registryPath, false);
+    }
     $state = responseData($registryPath, $metaPath, $versionPath, $releasePath);
 
     removePathRecursive($workDir);
@@ -3101,9 +3622,125 @@ if ($action === 'import_extension_upload') {
         'ok' => true,
         'data' => [
             'extensionId' => $importedId,
+            'dryRun' => $dryRun,
             'wizardOutput' => $wizardOutput,
             'state' => $state,
         ],
+    ], JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+if ($action === 'list_extension_logs') {
+    $id = trim((string)($_REQUEST['id'] ?? ''));
+    if ($id === '') {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'Missing id']);
+        exit;
+    }
+
+    if ($id !== 'ext-mgr' && !isValidExtensionId($id)) {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'Invalid extension id']);
+        exit;
+    }
+
+    $logs = availableLogsForTarget($id);
+
+    echo json_encode([
+        'ok' => true,
+        'data' => [
+            'id' => $id,
+            'logs' => $logs,
+        ],
+    ], JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+if ($action === 'read_extension_log') {
+    $id = trim((string)($_REQUEST['id'] ?? ''));
+    $key = trim((string)($_REQUEST['key'] ?? ''));
+    $lines = (int)($_REQUEST['lines'] ?? 120);
+
+    if ($id === '' || $key === '') {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'Missing id or key']);
+        exit;
+    }
+
+    $resolveError = '';
+    $path = resolveLogPathForRead($id, $key, $resolveError);
+    if (!is_string($path) || $path === '') {
+        http_response_code(404);
+        echo json_encode(['ok' => false, 'error' => $resolveError !== '' ? $resolveError : 'Log file not found']);
+        exit;
+    }
+
+    if (!file_exists($path)) {
+        @file_put_contents($path, '');
+    }
+
+    $content = tailFileContent($path, $lines);
+    $row = buildLogRow($key, $key, $path, 'runtime');
+
+    echo json_encode([
+        'ok' => true,
+        'data' => [
+            'id' => $id,
+            'key' => $key,
+            'content' => $content,
+            'log' => $row,
+        ],
+    ], JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+if ($action === 'download_extension_log') {
+    $id = trim((string)($_REQUEST['id'] ?? ''));
+    $key = trim((string)($_REQUEST['key'] ?? ''));
+    if ($id === '' || $key === '') {
+        http_response_code(400);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['ok' => false, 'error' => 'Missing id or key']);
+        exit;
+    }
+
+    $resolveError = '';
+    $path = resolveLogPathForRead($id, $key, $resolveError);
+    if (!is_string($path) || $path === '') {
+        http_response_code(404);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['ok' => false, 'error' => $resolveError !== '' ? $resolveError : 'Log file not found']);
+        exit;
+    }
+
+    if (!file_exists($path)) {
+        @file_put_contents($path, '');
+    }
+
+    $safeName = preg_replace('/[^a-zA-Z0-9._-]+/', '-', $id . '-' . $key . '.log');
+    if (!is_string($safeName) || trim($safeName) === '') {
+        $safeName = 'extension-log.log';
+    }
+
+    header('Content-Type: text/plain; charset=utf-8');
+    header('Content-Disposition: inline; filename="' . $safeName . '"');
+    header('Cache-Control: no-store');
+    readfile($path);
+    exit;
+}
+
+if ($action === 'analyze_logs') {
+    $id = trim((string)($_REQUEST['id'] ?? ''));
+    if ($id !== '' && $id !== 'ext-mgr' && !isValidExtensionId($id)) {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'Invalid extension id']);
+        exit;
+    }
+
+    $payload = buildLogAnalysisPayload($registryPath, $extensionsLogsPath, $id);
+    echo json_encode([
+        'ok' => true,
+        'data' => $payload,
     ], JSON_UNESCAPED_SLASHES);
     exit;
 }
@@ -3704,9 +4341,9 @@ if ($action === 'set_menu_visibility') {
         exit;
     }
 
-    if ($menu !== 'm' && $menu !== 'library' && $menu !== 'system') {
+    if ($menu !== 'm' && $menu !== 'library') {
         http_response_code(400);
-        echo json_encode(['ok' => false, 'error' => 'Invalid menu target. Use m, library, or system.']);
+        echo json_encode(['ok' => false, 'error' => 'Invalid menu target. Use m or library.']);
         exit;
     }
 
@@ -3778,6 +4415,7 @@ if ($action === 'set_settings_card_only') {
                 exit;
             }
             $ext['settingsCardOnly'] = $enabled;
+            $ext['menuVisibility']['system'] = false;
             $updated = true;
             break;
         }

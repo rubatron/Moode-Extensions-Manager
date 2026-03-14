@@ -5,7 +5,7 @@ set -euo pipefail
 # - Imports an extension package into /var/www/extensions/installed/<id>
 # - Applies ext-mgr security principal and permission model
 # - Registers extension in /var/www/extensions/sys/registry.json
-# - Optionally enables/disables extension service from manifest
+# - Supports dry-run validation mode
 
 SECURITY_GROUP="moode-extmgr"
 SECURITY_USER="moode-extmgrusr"
@@ -15,22 +15,49 @@ SQLITE_DB="/var/local/www/db/moode-sqlite3.db"
 MYSQL_SOCKET="/var/run/mysqld/mysqld.sock"
 REGISTRY_PATH="/var/www/extensions/sys/registry.json"
 INSTALLED_ROOT="/var/www/extensions/installed"
-WATCHDOG_SCRIPT="/usr/local/bin/moode-extmgr-watchdog.sh"
-WATCHDOG_SERVICE="/etc/systemd/system/moode-extmgr-watchdog.service"
+INSTALL_HELPER="/usr/local/bin/moode-extmgr-install-helper.sh"
+INSTALL_VARS_FILE="/var/www/extensions/sys/scripts/ext-mgr-install-vars.json"
+SERVICE_SCRIPT="/usr/local/bin/moode-extmgr-service.sh"
+SERVICE_UNIT="/etc/systemd/system/moode-extmgr.service"
+SYS_LOG_ROOT="/var/www/extensions/sys/logs"
+EXT_LOG_ROOT="$SYS_LOG_ROOT/extensionslogs"
+MGR_LOG_DIR="$SYS_LOG_ROOT/ext-mgr logs"
 
-SOURCE_DIR="${1:-}"
 MODE="import"
-if [[ "${1:-}" == "--enable" || "${1:-}" == "--disable" ]]; then
-  MODE="${1#--}"
-  SOURCE_DIR="${2:-}"
-fi
-
-if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
-  MODE="help"
-fi
+DRY_RUN=0
+SOURCE_DIR=""
 
 log() { printf '[%s] %s\n' "$(date +'%Y-%m-%d %H:%M:%S')" "$*"; }
 err() { printf 'ERROR: %s\n' "$*" >&2; }
+
+manager_install_log() {
+  local message="$*"
+  [[ $DRY_RUN -eq 1 ]] && return 0
+  mkdir -p "$MGR_LOG_DIR"
+  printf '[%s] %s\n' "$(date +'%Y-%m-%d %H:%M:%S')" "$message" >> "$MGR_LOG_DIR/install.log"
+}
+
+extension_install_log() {
+  local ext_id="$1"
+  shift
+  local message="$*"
+  [[ $DRY_RUN -eq 1 ]] && return 0
+  [[ -n "$ext_id" ]] || return 0
+
+  local global_dir="$EXT_LOG_ROOT/$ext_id"
+  local local_dir="$INSTALLED_ROOT/$ext_id/logs"
+  mkdir -p "$global_dir" "$local_dir"
+  printf '[%s] %s\n' "$(date +'%Y-%m-%d %H:%M:%S')" "$message" >> "$global_dir/install.log"
+  printf '[%s] %s\n' "$(date +'%Y-%m-%d %H:%M:%S')" "$message" >> "$local_dir/install.log"
+}
+
+ensure_log_roots() {
+  mkdir -p "$SYS_LOG_ROOT" "$EXT_LOG_ROOT" "$MGR_LOG_DIR"
+  if [[ $DRY_RUN -eq 0 ]]; then
+    chown -R "$SECURITY_USER:$SECURITY_GROUP" "$SYS_LOG_ROOT" 2>/dev/null || true
+    chmod 2775 "$SYS_LOG_ROOT" "$EXT_LOG_ROOT" "$MGR_LOG_DIR" 2>/dev/null || true
+  fi
+}
 
 require_root() {
   if [[ $EUID -ne 0 ]]; then
@@ -107,43 +134,35 @@ grant_database_access() {
   fi
 }
 
-install_watchdog_service() {
-  log "Ensuring ext-mgr watchdog service exists"
-
-  cat > "$WATCHDOG_SCRIPT" <<'SH'
-#!/bin/bash
-set -euo pipefail
-LOG_FILE="/var/log/moode_extmgr.log"
-REGISTRY="/var/www/extensions/sys/registry.json"
-touch "$LOG_FILE" 2>/dev/null || true
-while true; do
-  if [[ ! -f "$REGISTRY" ]]; then
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] [extmgr-watchdog] missing registry: $REGISTRY" >> "$LOG_FILE"
+ensure_extmgr_service() {
+  if [[ -x "$SERVICE_SCRIPT" && -f "$SERVICE_UNIT" ]]; then
+    log "Ensuring moode-extmgr service is enabled"
+    systemctl daemon-reload >/dev/null 2>&1 || true
+    systemctl enable --now "$(basename "$SERVICE_UNIT")" >/dev/null 2>&1 || true
+    return 0
   fi
-  sleep 60
-done
-SH
-  chmod 0755 "$WATCHDOG_SCRIPT"
 
-  cat > "$WATCHDOG_SERVICE" <<EOF
-[Unit]
-Description=moOde ext-mgr watchdog
-After=network.target
+  log "moode-extmgr service files not present yet; skipping service bootstrap"
+}
 
-[Service]
-Type=simple
-User=${SECURITY_USER}
-Group=${SECURITY_GROUP}
-ExecStart=${WATCHDOG_SCRIPT}
-Restart=always
-RestartSec=5
+run_install_helper_if_present() {
+  local target="$1"
+  local helper_cmd=("$INSTALL_HELPER")
 
-[Install]
-WantedBy=multi-user.target
-EOF
+  if [[ ! -x "$INSTALL_HELPER" ]]; then
+    log "Install helper not present at $INSTALL_HELPER; using direct import only"
+    return 0
+  fi
 
-  systemctl daemon-reload
-  systemctl enable --now "$(basename "$WATCHDOG_SERVICE")" >/dev/null 2>&1 || true
+  if [[ $DRY_RUN -eq 1 ]]; then
+    helper_cmd+=("--dry-run")
+  fi
+  if [[ -f "$INSTALL_VARS_FILE" ]]; then
+    helper_cmd+=("--vars-file" "$INSTALL_VARS_FILE")
+  fi
+  helper_cmd+=("$target")
+
+  "${helper_cmd[@]}"
 }
 
 json_get() {
@@ -278,7 +297,7 @@ set_extension_permissions() {
 }
 
 toggle_extension_state() {
-  local manifest="$1" target="$2" wanted="$3"
+  local manifest="$1" wanted="$2"
   local service_name
   service_name="$(json_get "$manifest" "ext_mgr.service.name")"
 
@@ -317,7 +336,7 @@ file_put_contents($f, json_encode($j, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES))
 run_import() {
   local source="$1"
 
-  [[ -n "$source" ]] || { err "Usage: $0 <extension-source-dir>"; exit 1; }
+  [[ -n "$source" ]] || { err "Usage: $0 [--dry-run] <extension-source-dir>"; exit 1; }
   [[ -d "$source" ]] || { err "Source dir not found: $source"; exit 1; }
   [[ -f "$source/manifest.json" ]] || { err "manifest.json missing in: $source"; exit 1; }
 
@@ -329,43 +348,69 @@ run_import() {
   [[ -n "$ext_id" ]] || { err "manifest id missing"; exit 1; }
   [[ -n "$main_entry" ]] || { err "manifest main missing"; exit 1; }
 
-  local target="$INSTALLED_ROOT/$ext_id"
-  log "Importing extension '$ext_name' ($ext_id) to $target"
+  local target dry_run_label
+  if [[ $DRY_RUN -eq 1 ]]; then
+    target="$(mktemp -d "/tmp/extmgr_dryrun_${ext_id}_XXXXXX")"
+    dry_run_label=" [dry-run]"
+  else
+    target="$INSTALLED_ROOT/$ext_id"
+    dry_run_label=""
+  fi
 
-  setup_security_principal
-  grant_database_access
-  install_watchdog_service
+  log "Importing extension '$ext_name' ($ext_id) to $target$dry_run_label"
+  ensure_log_roots
+  manager_install_log "import start for $ext_id"
 
-  mkdir -p "$INSTALLED_ROOT"
-  rm -rf "$target"
-  mkdir -p "$target"
+  if [[ $DRY_RUN -eq 0 ]]; then
+    setup_security_principal
+    grant_database_access
+    ensure_extmgr_service
+
+    mkdir -p "$INSTALLED_ROOT"
+    rm -rf "$target"
+    mkdir -p "$target"
+  fi
 
   cp -a "$source/." "$target/"
+  mkdir -p "$target/logs"
+  if [[ $DRY_RUN -eq 0 ]]; then
+    touch "$target/logs/install.log" "$target/logs/system.log" "$target/logs/error.log"
+  fi
+
+  extension_install_log "$ext_id" "import started"
+  run_install_helper_if_present "$target"
 
   if [[ ! -f "$target/$main_entry" ]]; then
     err "Manifest main entry file missing after import: $target/$main_entry"
+    [[ $DRY_RUN -eq 1 ]] && rm -rf "$target"
     exit 1
   fi
-
-  set_extension_permissions "$target"
 
   local version_info ext_version version_source
   version_info="$(detect_extension_version "$source")"
   ext_version="${version_info%%|*}"
   version_source="${version_info##*|}"
 
+  if [[ $DRY_RUN -eq 1 ]]; then
+    log "Dry-run completed for $ext_id. version=$ext_version ($version_source); no registry/symlink writes applied"
+    rm -rf "$target"
+    return 0
+  fi
+
+  set_extension_permissions "$target"
+
   local canonical_main="${ext_id}.php"
   ln -sfn "$target/$main_entry" "/var/www/$canonical_main"
   chown -h "$SECURITY_USER:$SECURITY_GROUP" "/var/www/$canonical_main" 2>/dev/null || true
 
-  # Keep legacy/main entry symlink when manifest main differs from canonical id.php.
   if [[ "$main_entry" != "$canonical_main" ]]; then
     ln -sfn "$target/$main_entry" "/var/www/$main_entry"
     chown -h "$SECURITY_USER:$SECURITY_GROUP" "/var/www/$main_entry" 2>/dev/null || true
   fi
 
   update_registry_entry "$ext_id" "$ext_name" "/$canonical_main" "true" "$ext_version" "$version_source"
-
+  extension_install_log "$ext_id" "import completed; canonical=/$canonical_main"
+  manager_install_log "import completed for $ext_id"
   log "Import completed. Canonical entry point: /$canonical_main | version=$ext_version ($version_source)"
 }
 
@@ -374,16 +419,67 @@ run_mode_toggle() {
   [[ -n "$source" ]] || { err "Usage: $0 --$wanted <extension-source-dir>"; exit 1; }
   [[ -f "$source/manifest.json" ]] || { err "manifest.json missing in: $source"; exit 1; }
 
+  if [[ $DRY_RUN -eq 1 ]]; then
+    err "--dry-run is only supported for import mode."
+    exit 1
+  fi
+
   local ext_id target manifest
   ext_id="$(json_get "$source/manifest.json" "id")"
   target="$INSTALLED_ROOT/$ext_id"
   manifest="$target/manifest.json"
   [[ -f "$manifest" ]] || { err "Installed manifest missing: $manifest"; exit 1; }
 
-  toggle_extension_state "$manifest" "$target" "$wanted"
+  toggle_extension_state "$manifest" "$wanted"
+}
+
+parse_args() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --enable)
+        MODE="enable"
+        shift
+        SOURCE_DIR="${1:-}"
+        ;;
+      --disable)
+        MODE="disable"
+        shift
+        SOURCE_DIR="${1:-}"
+        ;;
+      --dry-run|-n)
+        DRY_RUN=1
+        ;;
+      --help|-h)
+        MODE="help"
+        ;;
+      --)
+        shift
+        break
+        ;;
+      -* )
+        err "Unsupported option: $1"
+        exit 1
+        ;;
+      *)
+        if [[ -z "$SOURCE_DIR" ]]; then
+          SOURCE_DIR="$1"
+        else
+          err "Unexpected argument: $1"
+          exit 1
+        fi
+        ;;
+    esac
+    shift || true
+  done
+
+  if [[ -z "$SOURCE_DIR" && $# -gt 0 ]]; then
+    SOURCE_DIR="$1"
+  fi
 }
 
 main() {
+  parse_args "$@"
+
   require_root
   require_command php
 
@@ -402,15 +498,16 @@ main() {
 ext-mgr-import-wizard
 
 Usage:
-  ext-mgr-import-wizard.sh <extension-source-dir>
+  ext-mgr-import-wizard.sh [--dry-run] <extension-source-dir>
   ext-mgr-import-wizard.sh --enable <extension-source-dir>
   ext-mgr-import-wizard.sh --disable <extension-source-dir>
 
 Behavior:
   - Imports extension into /var/www/extensions/installed/<id>
   - Creates canonical symlink /var/www/<id>.php
-  - Updates /var/www/extensions/registry.json with version transparency
+  - Updates /var/www/extensions/sys/registry.json with version transparency
   - Applies ext-mgr security principal and runtime permission model
+  - --dry-run validates import/install hooks without writing registry or symlinks
 TXT
       ;;
     *)
@@ -420,4 +517,4 @@ TXT
   esac
 }
 
-main
+main "$@"

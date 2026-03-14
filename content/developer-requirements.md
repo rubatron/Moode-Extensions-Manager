@@ -18,9 +18,46 @@ The template kit ships with a hidden-until-ready profile:
 
 Recommended rollout order:
 
-1. Set system=true for internal QA and route checks.
+1. Keep settings-card mode enabled while validating the route and install behavior.
 2. Set m=true after interaction tests in the M menu.
 3. Set library=true after Library UX/content validation.
+
+## Install Hooks
+
+For packages that need extra OS packages or a custom post-copy step, declare them in manifest.json:
+
+```json
+{
+ "ext_mgr": {
+  "install": {
+   "packages": ["python3-requests"],
+   "script": "scripts/install.sh"
+  }
+ }
+}
+```
+
+Rules:
+
+- `ext_mgr.install.packages` is installed by ext-mgr before your install script runs.
+- `ext_mgr.install.script` is executed under `moode-extmgrusr`, not as root.
+- ext-mgr exports `EXT_MGR_EXTENSION_ROOT`, `EXT_MGR_EXTENSION_DIR`, `EXT_MGR_EXTENSION_ID`, and `EXT_MGR_EXTENSION_CANONICAL_LINK`.
+- Write runtime files under `/var/www/extensions/installed/<id>` only.
+- If a legacy install script writes to `/var/www/extensions/<id>`, ext-mgr will relocate that tree into `/var/www/extensions/installed/<id>`.
+- Do not write directly into `/var/www/extensions/sys` from an extension package.
+
+## Service Dependency Rules
+
+- If your extension ships a service, declare `ext_mgr.service.name` in manifest.json.
+- Service unit must include `Requires=moode-extmgr.service` and `After=moode-extmgr.service`.
+- Run extension services as `moode-extmgrusr` unless elevated privileges are strictly required.
+
+## Logging Rules
+
+- Keep local extension logs under `/var/www/extensions/installed/<id>/logs`.
+- ext-mgr watchdog writes global extension logs under `/var/www/extensions/sys/logs/extensionslogs/<id>`.
+- ext-mgr manager logs are reserved under `/var/www/extensions/sys/logs/ext-mgr logs`.
+- Ensure your extension service writes useful runtime events to `system.log` and failures to `error.log`.
 
 ## Route and UI Rules
 
@@ -33,3 +70,4 @@ Recommended rollout order:
 - Page loads in moOde shell without PHP warnings.
 - Menu visibility follows ext_mgr.menuVisibility values.
 - Extension remains functional when visibility is toggled off.
+- Run one ext-mgr Import Wizard dry-run before production import to validate hooks safely.

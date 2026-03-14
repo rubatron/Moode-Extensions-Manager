@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "paths": {
+    "installedRoot": "/var/www/extensions/installed",
+    "legacyExtensionRoot": "/var/www/extensions",
+    "runtimeRoot": "/var/www/extensions/sys/.ext-mgr",
+    "sysLogsRoot": "/var/www/extensions/sys/logs",
+    "extensionsLogsRoot": "/var/www/extensions/sys/logs/extensionslogs",
+    "extMgrLogsRoot": "/var/www/extensions/sys/logs/ext-mgr logs",
+    "registryPath": "/var/www/extensions/sys/registry.json"
+  },
+  "addons": {
+    "candidateRoots": [
+      "/var/www/extensions",
+      "/var/www/addons",
+      "/var/www/extensions/addons"
+    ]
+  },
+  "defaults": {
+    "canonicalLinkPattern": "/var/www/%s.php"
+  }
+}

@@ -4,6 +4,7 @@
   var init = window.__EXT_MGR_INIT__ || {};
   var apiUrl = init.apiUrl || '/ext-mgr-api.php';
   var apiUrls = Array.isArray(init.apiUrls) ? init.apiUrls.slice() : [apiUrl, '/extensions/sys/ext-mgr-api.php'];
+  var extMgrLogsModule = window.ExtMgrLogs || null;
   var tooltipUrl = init.tooltipUrl || '/extensions/sys/assets/data/ext-mgr-tooltips.json';
   var tooltipMap = {};
 
@@ -71,6 +72,7 @@
   var syncRegistryBtn = document.getElementById('sync-registry-btn');
   var importExtensionFileEl = document.getElementById('import-extension-file');
   var importExtensionFileNameEl = document.getElementById('import-extension-file-name');
+  var importExtensionDryRunEl = document.getElementById('import-extension-dry-run');
   var importExtensionBtn = document.getElementById('import-extension-btn');
   var importWizardNoteEl = document.getElementById('import-wizard-note');
   var listFilterEl = document.getElementById('list-filter');
@@ -261,10 +263,11 @@
     }
   }
 
-  function apiUpload(file) {
+  function apiUpload(file, dryRun) {
     var formData = new FormData();
     formData.append('action', 'import_extension_upload');
     formData.append('package', file);
+    formData.append('dry_run', dryRun ? '1' : '0');
 
     var deduped = [];
     apiUrls.forEach(function (candidate) {
@@ -863,7 +866,7 @@
 
   function setVisibility(item, key, value) {
     if (!item.menuVisibility || typeof item.menuVisibility !== 'object') {
-      item.menuVisibility = { m: true, library: true, system: true };
+      item.menuVisibility = { m: true, library: true, system: false };
     }
     item.menuVisibility[key] = !!value;
   }
@@ -908,7 +911,23 @@
 
     var label = document.createElement('span');
     label.className = 'extmgr-manager-visibility-label';
-    label.textContent = labelText;
+    if (labelText === 'M menu') {
+      label.classList.add('extmgr-manager-visibility-label-m');
+
+      var mBadge = document.createElement('span');
+      mBadge.className = 'extmgr-mbrand-badge';
+      mBadge.setAttribute('aria-hidden', 'true');
+      mBadge.textContent = 'm';
+
+      var mText = document.createElement('span');
+      mText.className = 'extmgr-mbrand-text';
+      mText.textContent = 'M menu';
+
+      label.appendChild(mBadge);
+      label.appendChild(mText);
+    } else {
+      label.textContent = labelText;
+    }
 
     var control = document.createElement('div');
     control.className = 'extmgr-manager-visibility-control';
@@ -1002,8 +1021,8 @@
       });
     } else if (sort === 'visibility') {
       result.sort(function (a, b) {
-        var scoreA = (getVisibility(a, 'm') ? 1 : 0) + (getVisibility(a, 'library') ? 1 : 0) + (getVisibility(a, 'system') ? 1 : 0);
-        var scoreB = (getVisibility(b, 'm') ? 1 : 0) + (getVisibility(b, 'library') ? 1 : 0) + (getVisibility(b, 'system') ? 1 : 0);
+        var scoreA = (getVisibility(a, 'm') ? 1 : 0) + (getVisibility(a, 'library') ? 1 : 0) + (getSettingsCardOnly(a) ? 1 : 0);
+        var scoreB = (getVisibility(b, 'm') ? 1 : 0) + (getVisibility(b, 'library') ? 1 : 0) + (getSettingsCardOnly(b) ? 1 : 0);
         if (scoreA === scoreB) {
           return String(a.name || a.id).localeCompare(String(b.name || b.id));
         }
@@ -1042,7 +1061,7 @@
 
       var showInM = getVisibility(item, 'm');
       var showInLibrary = getVisibility(item, 'library');
-      var showInSystem = getVisibility(item, 'system');
+      var showSettingsCard = getSettingsCardOnly(item);
 
       var left = document.createElement('div');
       var stateClass = item.enabled ? 'active' : 'inactive';
@@ -1050,7 +1069,7 @@
       left.innerHTML =
         '<div class="list-top"><div class="list-name">' + escapeHtml(item.name || item.id || 'Unnamed extension') + '</div><span class="badge ' + stateClass + '">' + stateLabel + '</span></div>' +
         '<div class="list-sub">' + escapeHtml(item.path || '#') + '</div>' +
-        '<div class="list-sub">Visibility: ' + escapeHtml(visibilityLabel('m', showInM)) + ' | ' + escapeHtml(visibilityLabel('library', showInLibrary)) + ' | ' + escapeHtml(visibilityLabel('system', showInSystem)) + '</div>' +
+        '<div class="list-sub">Placement: ' + escapeHtml(visibilityLabel('m', showInM)) + ' | ' + escapeHtml(visibilityLabel('library', showInLibrary)) + ' | ' + escapeHtml(settingsCardLabel(showSettingsCard)) + '</div>' +
         '<div class="list-sub">' + escapeHtml(extensionInfoSummary(item)) + '</div>' +
         '<div class="list-sub">' + escapeHtml(extensionDescription(item)) + '</div>';
 
@@ -1107,7 +1126,6 @@
 
             applyVisibilityButtonState(menuMBtn, 'm', getVisibility(item, 'm'), menuMControl._stateEl);
             applyVisibilityButtonState(menuLibraryBtn, 'library', getVisibility(item, 'library'), menuLibraryControl._stateEl);
-            applyVisibilityButtonState(menuSystemBtn, 'system', getVisibility(item, 'system'), menuSystemControl._stateEl);
             applySettingsCardButtonState(settingsCardBtn, getSettingsCardOnly(item), settingsCardControl._stateEl);
             applyExtensionActionState(item.enabled);
             setStatus('Extension state updated for ' + (item.name || item.id) + '.', 'ok');
@@ -1167,29 +1185,6 @@
           });
       });
 
-      var menuSystemBtn = document.createElement('button');
-      menuSystemBtn.type = 'button';
-      menuSystemBtn.className = '';
-      applyTip(menuSystemBtn, 'extension.menu.system');
-      menuSystemBtn.addEventListener('click', function () {
-        var next = getVisibility(item, 'system') ? '0' : '1';
-        menuSystemBtn.disabled = true;
-        api({ action: 'set_menu_visibility', id: item.id, menu: 'system', value: next })
-          .then(function () {
-            setVisibility(item, 'system', next === '1');
-            applyVisibilityButtonState(menuSystemBtn, 'system', getVisibility(item, 'system'), menuSystemControl._stateEl);
-            setStatus('System context visibility updated for ' + (item.name || item.id) + '.', 'ok');
-            runRefresh();
-            reloadPageSoon();
-          })
-          .catch(function (err) {
-            setStatus(err.message + (err.message.indexOf('Failed to write registry') !== -1 ? ' Check ext-mgr permissions and restart php-fpm.' : ''), 'error');
-          })
-          .finally(function () {
-            menuSystemBtn.disabled = false;
-          });
-      });
-
       var settingsCardBtn = document.createElement('button');
       settingsCardBtn.type = 'button';
       settingsCardBtn.className = '';
@@ -1215,12 +1210,10 @@
 
       var menuMControl = createInlineSwitchControl('M menu', menuMBtn, showInM ? 'Visible' : 'Hidden');
       var menuLibraryControl = createInlineSwitchControl('Library menu', menuLibraryBtn, showInLibrary ? 'Visible' : 'Hidden');
-      var menuSystemControl = createInlineSwitchControl('System context', menuSystemBtn, showInSystem ? 'Visible' : 'Hidden');
       var settingsCardControl = createInlineSwitchControl('Settings card', settingsCardBtn, getSettingsCardOnly(item) ? 'Enabled' : 'Disabled');
 
       applyVisibilityButtonState(menuMBtn, 'm', showInM, menuMControl._stateEl);
       applyVisibilityButtonState(menuLibraryBtn, 'library', showInLibrary, menuLibraryControl._stateEl);
-      applyVisibilityButtonState(menuSystemBtn, 'system', showInSystem, menuSystemControl._stateEl);
       applySettingsCardButtonState(settingsCardBtn, getSettingsCardOnly(item), settingsCardControl._stateEl);
 
       var repairSymlinkBtn = document.createElement('button');
@@ -1276,7 +1269,6 @@
         var disabled = !enabled;
         menuMBtn.disabled = disabled;
         menuLibraryBtn.disabled = disabled;
-        menuSystemBtn.disabled = disabled;
         settingsCardBtn.disabled = disabled;
         repairSymlinkBtn.disabled = disabled;
 
@@ -1286,20 +1278,17 @@
         // Inactive extension: hide action controls from the row to keep state unambiguous.
         menuMControl.style.display = disabled ? 'none' : '';
         menuLibraryControl.style.display = disabled ? 'none' : '';
-        menuSystemControl.style.display = disabled ? 'none' : '';
         settingsCardControl.style.display = disabled ? 'none' : '';
         repairSymlinkBtn.style.display = disabled ? 'none' : '';
 
         menuMBtn.classList.toggle('btn-muted', disabled);
         menuLibraryBtn.classList.toggle('btn-muted', disabled);
-        menuSystemBtn.classList.toggle('btn-muted', disabled);
         settingsCardBtn.classList.toggle('btn-muted', disabled);
         repairSymlinkBtn.classList.toggle('btn-muted', disabled);
 
         var reason = disabled ? tip('extension.action.disabled', 'Disabled while extension is inactive. Enable extension first.') : tip('extension.action.ready', '');
         menuMBtn.title = reason;
         menuLibraryBtn.title = reason;
-        menuSystemBtn.title = reason;
         settingsCardBtn.title = reason;
         repairSymlinkBtn.title = reason;
       }
@@ -1310,10 +1299,12 @@
       rightWrap.appendChild(enableBtn);
       toggleGroup.appendChild(menuMControl);
       toggleGroup.appendChild(menuLibraryControl);
-      toggleGroup.appendChild(menuSystemControl);
       toggleGroup.appendChild(settingsCardControl);
       actionGroup.appendChild(repairSymlinkBtn);
       actionGroup.appendChild(removeBtn);
+      if (extMgrLogsModule && typeof extMgrLogsModule.attachExtensionButton === 'function') {
+        extMgrLogsModule.attachExtensionButton(item, actionGroup);
+      }
       rightWrap.appendChild(toggleGroup);
       rightWrap.appendChild(actionGroup);
       row.appendChild(rightWrap);
@@ -1636,6 +1627,7 @@
   });
   bindIfPresent(importExtensionBtn, 'click', function () {
     var files = (importExtensionFileEl && importExtensionFileEl.files) || null;
+    var dryRun = !!(importExtensionDryRunEl && importExtensionDryRunEl.checked);
     if (!files || files.length === 0) {
       setStatus('Select a .zip package first.', 'error');
       setImportWizardNote('Select a .zip package first.', 'error');
@@ -1651,14 +1643,15 @@
     }
 
     importExtensionBtn.disabled = true;
-    setStatus('Uploading and importing extension package...', null);
-    setImportWizardNote('Uploading and importing extension package...', null);
+    setStatus(dryRun ? 'Uploading and validating extension package (dry-run)...' : 'Uploading and importing extension package...', null);
+    setImportWizardNote(dryRun ? 'Uploading and validating extension package (dry-run)...' : 'Uploading and importing extension package...', null);
 
-    apiUpload(file)
+    apiUpload(file, dryRun)
       .then(function (data) {
         var importedId = ((data || {}).data || {}).extensionId || 'unknown';
-        setStatus('Extension imported: ' + importedId, 'ok');
-        setImportWizardNote('Extension imported: ' + importedId, 'ok');
+        var outcome = ((data || {}).data || {}).dryRun ? 'Dry-run validated' : 'Extension imported';
+        setStatus(outcome + ': ' + importedId, 'ok');
+        setImportWizardNote(outcome + ': ' + importedId, 'ok');
         if (importExtensionFileEl) {
           importExtensionFileEl.value = '';
         }
@@ -1883,6 +1876,14 @@
     }
     submenuToggle.setAttribute('aria-expanded', submenu.classList.contains('is-open') ? 'true' : 'false');
   });
+
+  if (extMgrLogsModule && typeof extMgrLogsModule.init === 'function') {
+    extMgrLogsModule.init({
+      apiUrls: apiUrls,
+      statusHandler: setStatus,
+      managerButtonId: 'open-extmgr-logs-btn'
+    });
+  }
 
   loadTooltipSnippets()
     .finally(function () {
