@@ -782,6 +782,22 @@
   row-gap: 0.3rem;
 }
 
+.item-toggle-group,
+.item-action-group {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.item-toggle-group {
+  justify-content: flex-end;
+}
+
+.item-action-group {
+  margin-left: 0.1rem;
+}
+
 .btn-muted {
   opacity: 0.9;
 }
@@ -867,6 +883,12 @@
     justify-content: flex-start;
     gap: 0.35rem;
     row-gap: 0.35rem;
+  }
+
+  .item-toggle-group,
+  .item-action-group {
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .extmgr-manager-visibility-row {

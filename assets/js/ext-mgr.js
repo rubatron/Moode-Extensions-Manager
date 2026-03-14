@@ -1065,6 +1065,12 @@
       var rightWrap = document.createElement('div');
       rightWrap.className = 'item-actions';
 
+      var toggleGroup = document.createElement('div');
+      toggleGroup.className = 'item-toggle-group';
+
+      var actionGroup = document.createElement('div');
+      actionGroup.className = 'item-action-group';
+
       var enableBtn = document.createElement('button');
       enableBtn.type = 'button';
       enableBtn.className = 'btn btn-small' + (item.enabled ? '' : ' btn-primary');
@@ -1301,12 +1307,14 @@
 
       row.appendChild(left);
       rightWrap.appendChild(enableBtn);
-      rightWrap.appendChild(menuMControl);
-      rightWrap.appendChild(menuLibraryControl);
-      rightWrap.appendChild(menuSystemControl);
-      rightWrap.appendChild(settingsCardControl);
-      rightWrap.appendChild(repairSymlinkBtn);
-      rightWrap.appendChild(removeBtn);
+      toggleGroup.appendChild(menuMControl);
+      toggleGroup.appendChild(menuLibraryControl);
+      toggleGroup.appendChild(menuSystemControl);
+      toggleGroup.appendChild(settingsCardControl);
+      actionGroup.appendChild(repairSymlinkBtn);
+      actionGroup.appendChild(removeBtn);
+      rightWrap.appendChild(toggleGroup);
+      rightWrap.appendChild(actionGroup);
       row.appendChild(rightWrap);
       listEl.appendChild(row);
     });
