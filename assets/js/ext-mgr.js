@@ -378,7 +378,7 @@
     if (!button) {
       return;
     }
-    button.classList.add('extmgr-switch');
+    button.classList.add('extmgr-switch', 'extmgr-switch-inline');
     button.classList.remove('is-on', 'is-off');
     button.classList.add(visible ? 'is-on' : 'is-off');
     button.setAttribute('aria-checked', visible ? 'true' : 'false');
@@ -877,7 +877,7 @@
     return 'Settings Card: ' + (enabled ? 'Enabled' : 'Disabled');
   }
 
-  function applyVisibilityButtonState(button, target, visible) {
+  function applyVisibilityButtonState(button, target, visible, stateEl) {
     if (!button) {
       return;
     }
@@ -897,29 +897,57 @@
     button.setAttribute('role', 'switch');
     button.setAttribute('aria-checked', visible ? 'true' : 'false');
     button.title = visibilityLabel(target, visible);
+    if (stateEl) {
+      stateEl.textContent = visible ? 'Visible' : 'Hidden';
+    }
   }
 
-  function createInlineSwitchControl(labelText, button) {
+  function createInlineSwitchControl(labelText, button, stateText) {
     var wrap = document.createElement('div');
-    wrap.className = 'extmgr-inline-toggle';
+    wrap.className = 'extmgr-manager-visibility-row extmgr-manager-visibility-row-inline';
 
     var label = document.createElement('span');
-    label.className = 'extmgr-inline-toggle-label';
+    label.className = 'extmgr-manager-visibility-label';
     label.textContent = labelText;
 
+    var control = document.createElement('div');
+    control.className = 'extmgr-manager-visibility-control';
+
+    var state = document.createElement('span');
+    state.className = 'extmgr-manager-visibility-state extmgr-manager-visibility-state-inline';
+    state.textContent = stateText || 'Hidden';
+
+    control.appendChild(button);
+    control.appendChild(state);
+
     wrap.appendChild(label);
-    wrap.appendChild(button);
+    wrap.appendChild(control);
+    wrap._stateEl = state;
     return wrap;
   }
 
-  function applySettingsCardButtonState(button, enabled) {
+  function applySettingsCardButtonState(button, enabled, stateEl) {
     if (!button) {
       return;
     }
-    button.classList.add('visibility-toggle');
+    var handle = button.querySelector('.extmgr-switch-handle');
+    if (!handle) {
+      button.textContent = '';
+      handle = document.createElement('span');
+      handle.className = 'extmgr-switch-handle';
+      handle.setAttribute('aria-hidden', 'true');
+      button.appendChild(handle);
+    }
+
+    button.classList.add('extmgr-switch', 'extmgr-switch-inline');
     button.classList.remove('is-on', 'is-off');
     button.classList.add(enabled ? 'is-on' : 'is-off');
-    button.textContent = settingsCardLabel(enabled);
+    button.setAttribute('role', 'switch');
+    button.setAttribute('aria-checked', enabled ? 'true' : 'false');
+    button.title = settingsCardLabel(enabled);
+    if (stateEl) {
+      stateEl.textContent = enabled ? 'Enabled' : 'Disabled';
+    }
   }
 
   function getSettingsCardOnly(item) {
@@ -1070,10 +1098,10 @@
             enableBtn.className = 'btn btn-small' + (item.enabled ? '' : ' btn-primary');
             applyTip(enableBtn, item.enabled ? 'extension.disable' : 'extension.enable');
 
-            applyVisibilityButtonState(menuMBtn, 'm', getVisibility(item, 'm'));
-            applyVisibilityButtonState(menuLibraryBtn, 'library', getVisibility(item, 'library'));
-            applyVisibilityButtonState(menuSystemBtn, 'system', getVisibility(item, 'system'));
-            applySettingsCardButtonState(settingsCardBtn, getSettingsCardOnly(item));
+            applyVisibilityButtonState(menuMBtn, 'm', getVisibility(item, 'm'), menuMControl._stateEl);
+            applyVisibilityButtonState(menuLibraryBtn, 'library', getVisibility(item, 'library'), menuLibraryControl._stateEl);
+            applyVisibilityButtonState(menuSystemBtn, 'system', getVisibility(item, 'system'), menuSystemControl._stateEl);
+            applySettingsCardButtonState(settingsCardBtn, getSettingsCardOnly(item), settingsCardControl._stateEl);
             applyExtensionActionState(item.enabled);
             setStatus('Extension state updated for ' + (item.name || item.id) + '.', 'ok');
             runRefresh();
@@ -1089,7 +1117,6 @@
       var menuMBtn = document.createElement('button');
       menuMBtn.type = 'button';
       menuMBtn.className = 'btn btn-small';
-      applyVisibilityButtonState(menuMBtn, 'm', showInM);
       applyTip(menuMBtn, 'extension.menu.m');
       menuMBtn.addEventListener('click', function () {
         var next = getVisibility(item, 'm') ? '0' : '1';
@@ -1097,7 +1124,7 @@
         api({ action: 'set_menu_visibility', id: item.id, menu: 'm', value: next })
           .then(function () {
             setVisibility(item, 'm', next === '1');
-            applyVisibilityButtonState(menuMBtn, 'm', getVisibility(item, 'm'));
+            applyVisibilityButtonState(menuMBtn, 'm', getVisibility(item, 'm'), menuMControl._stateEl);
             setStatus('M menu visibility updated for ' + (item.name || item.id) + '.', 'ok');
             runRefresh();
             reloadPageSoon();
@@ -1113,7 +1140,6 @@
       var menuLibraryBtn = document.createElement('button');
       menuLibraryBtn.type = 'button';
       menuLibraryBtn.className = 'btn btn-small';
-      applyVisibilityButtonState(menuLibraryBtn, 'library', showInLibrary);
       applyTip(menuLibraryBtn, 'extension.menu.library');
       menuLibraryBtn.addEventListener('click', function () {
         var next = getVisibility(item, 'library') ? '0' : '1';
@@ -1121,7 +1147,7 @@
         api({ action: 'set_menu_visibility', id: item.id, menu: 'library', value: next })
           .then(function () {
             setVisibility(item, 'library', next === '1');
-            applyVisibilityButtonState(menuLibraryBtn, 'library', getVisibility(item, 'library'));
+            applyVisibilityButtonState(menuLibraryBtn, 'library', getVisibility(item, 'library'), menuLibraryControl._stateEl);
             setStatus('Library visibility updated for ' + (item.name || item.id) + '.', 'ok');
             runRefresh();
             reloadPageSoon();
@@ -1137,7 +1163,6 @@
       var menuSystemBtn = document.createElement('button');
       menuSystemBtn.type = 'button';
       menuSystemBtn.className = 'btn btn-small';
-      applyVisibilityButtonState(menuSystemBtn, 'system', showInSystem);
       applyTip(menuSystemBtn, 'extension.menu.system');
       menuSystemBtn.addEventListener('click', function () {
         var next = getVisibility(item, 'system') ? '0' : '1';
@@ -1145,7 +1170,7 @@
         api({ action: 'set_menu_visibility', id: item.id, menu: 'system', value: next })
           .then(function () {
             setVisibility(item, 'system', next === '1');
-            applyVisibilityButtonState(menuSystemBtn, 'system', getVisibility(item, 'system'));
+            applyVisibilityButtonState(menuSystemBtn, 'system', getVisibility(item, 'system'), menuSystemControl._stateEl);
             setStatus('System menu visibility updated for ' + (item.name || item.id) + '.', 'ok');
             runRefresh();
             reloadPageSoon();
@@ -1161,7 +1186,6 @@
       var settingsCardBtn = document.createElement('button');
       settingsCardBtn.type = 'button';
       settingsCardBtn.className = 'btn btn-small';
-      applySettingsCardButtonState(settingsCardBtn, getSettingsCardOnly(item));
       applyTip(settingsCardBtn, 'extension.settingsCard');
       settingsCardBtn.addEventListener('click', function () {
         var next = getSettingsCardOnly(item) ? '0' : '1';
@@ -1169,7 +1193,7 @@
         api({ action: 'set_settings_card_only', id: item.id, value: next })
           .then(function () {
             item.settingsCardOnly = next === '1';
-            applySettingsCardButtonState(settingsCardBtn, getSettingsCardOnly(item));
+            applySettingsCardButtonState(settingsCardBtn, getSettingsCardOnly(item), settingsCardControl._stateEl);
             setStatus('Settings-card mode updated for ' + (item.name || item.id) + '.', 'ok');
             runRefresh();
             reloadPageSoon();
@@ -1182,9 +1206,15 @@
           });
       });
 
-      var menuMControl = createInlineSwitchControl('M', menuMBtn);
-      var menuLibraryControl = createInlineSwitchControl('Library', menuLibraryBtn);
-      var menuSystemControl = createInlineSwitchControl('System', menuSystemBtn);
+      var menuMControl = createInlineSwitchControl('M menu', menuMBtn, showInM ? 'Visible' : 'Hidden');
+      var menuLibraryControl = createInlineSwitchControl('Library menu', menuLibraryBtn, showInLibrary ? 'Visible' : 'Hidden');
+      var menuSystemControl = createInlineSwitchControl('System menu', menuSystemBtn, showInSystem ? 'Visible' : 'Hidden');
+      var settingsCardControl = createInlineSwitchControl('Settings card', settingsCardBtn, getSettingsCardOnly(item) ? 'Enabled' : 'Disabled');
+
+      applyVisibilityButtonState(menuMBtn, 'm', showInM, menuMControl._stateEl);
+      applyVisibilityButtonState(menuLibraryBtn, 'library', showInLibrary, menuLibraryControl._stateEl);
+      applyVisibilityButtonState(menuSystemBtn, 'system', showInSystem, menuSystemControl._stateEl);
+      applySettingsCardButtonState(settingsCardBtn, getSettingsCardOnly(item), settingsCardControl._stateEl);
 
       var repairSymlinkBtn = document.createElement('button');
       repairSymlinkBtn.type = 'button';
@@ -1250,7 +1280,7 @@
         menuMControl.style.display = disabled ? 'none' : '';
         menuLibraryControl.style.display = disabled ? 'none' : '';
         menuSystemControl.style.display = disabled ? 'none' : '';
-        settingsCardBtn.style.display = disabled ? 'none' : '';
+        settingsCardControl.style.display = disabled ? 'none' : '';
         repairSymlinkBtn.style.display = disabled ? 'none' : '';
 
         menuMBtn.classList.toggle('btn-muted', disabled);
@@ -1274,7 +1304,7 @@
       rightWrap.appendChild(menuMControl);
       rightWrap.appendChild(menuLibraryControl);
       rightWrap.appendChild(menuSystemControl);
-      rightWrap.appendChild(settingsCardBtn);
+      rightWrap.appendChild(settingsCardControl);
       rightWrap.appendChild(repairSymlinkBtn);
       rightWrap.appendChild(removeBtn);
       row.appendChild(rightWrap);
