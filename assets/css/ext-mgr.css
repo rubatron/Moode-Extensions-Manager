@@ -195,27 +195,31 @@
   display: inline-flex;
   align-items: center;
   gap: 0.34rem;
+  padding: 2px 5px;
+  border: 1px solid rgba(128, 128, 128, 0.18);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.16);
 }
 
 .extmgr-inline-toggle-label {
   color: #acb4be;
-  font-size: 0.68rem;
+  font-size: 0.66rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
 .extmgr-inline-toggle .extmgr-switch.extmgr-switch-inline {
-  width: 42px;
-  height: 20px;
+  width: 40px;
+  height: 19px;
 }
 
 .extmgr-inline-toggle .extmgr-switch.extmgr-switch-inline .extmgr-switch-handle {
-  width: 14px;
-  height: 14px;
+  width: 13px;
+  height: 13px;
 }
 
 .extmgr-inline-toggle .extmgr-switch.extmgr-switch-inline.is-on .extmgr-switch-handle {
-  transform: translateX(22px);
+  transform: translateX(21px);
 }
 
 .extmgr-section {
@@ -744,6 +748,7 @@
 .item-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 0.45rem;
   flex-wrap: wrap;
 }
@@ -830,6 +835,12 @@
 
   .item-actions {
     width: 100%;
+    justify-content: flex-start;
+    gap: 0.35rem;
+  }
+
+  .extmgr-inline-toggle {
+    padding: 2px 4px;
   }
 
   .extmgr-advanced-grid {
