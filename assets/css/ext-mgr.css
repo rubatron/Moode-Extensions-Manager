@@ -90,25 +90,25 @@
 
 #section-manager-options .extmgr-options-buttons .btn.btn-small,
 #section-manager-options .extmgr-import-controls .btn.btn-small {
-  border: 1px solid rgba(170, 182, 194, 0.42);
+  border: 1px solid transparent;
   background-color: rgba(15, 17, 22, 0.5);
 }
 
 #section-manager-options .extmgr-options-buttons .btn.btn-small:hover,
 #section-manager-options .extmgr-import-controls .btn.btn-small:hover {
-  border-color: rgba(197, 205, 214, 0.58);
+  border-color: transparent;
   background-color: rgba(170, 182, 194, 0.16);
 }
 
 #section-manager-options .extmgr-options-buttons .btn.btn-primary,
 #section-manager-options .extmgr-import-controls .btn.btn-primary {
-  border-color: #b34700;
+  border-color: transparent;
   background-color: #d35400;
 }
 
 #section-manager-options .extmgr-options-buttons .btn.btn-primary:hover,
 #section-manager-options .extmgr-import-controls .btn.btn-primary:hover {
-  border-color: #c24e00;
+  border-color: transparent;
   background-color: #e05d00;
 }
 
@@ -421,7 +421,7 @@
   color: #ddd;
   background-color: transparent;
   background-position: 0 0;
-  border: 1px solid rgba(170, 182, 194, 0.35);
+  border: 1px solid transparent;
   border-radius: 2px;
   box-sizing: border-box;
   cursor: pointer;
@@ -446,7 +446,7 @@
   color: #ddd;
   background-color: transparent;
   background-position: 0 0;
-  border: 1px solid rgba(170, 182, 194, 0.35);
+  border: 1px solid transparent;
   border-radius: 2px;
   box-sizing: border-box;
   cursor: pointer;
@@ -460,13 +460,13 @@
 
 .extmgr-mode-group .extmgr-mode-btn.btn.btn-primary.btn-small:hover {
   background-color: rgba(170, 182, 194, 0.12);
-  border-color: rgba(170, 182, 194, 0.55);
+  border-color: transparent;
   color: #fff;
 }
 
 .extmgr-mode-group .extmgr-mode-btn.btn.btn-primary.btn-small.is-active {
   background-color: #d35400;
-  border-color: #d35400;
+  border-color: transparent;
   color: #fff;
   box-shadow: none;
 }
@@ -592,7 +592,7 @@
 .extmgr-actions .btn.btn-small:hover,
 .extmgr-import-controls .btn.btn-small:hover {
   background-color: rgba(170, 182, 194, 0.12);
-  border-color: rgba(170, 182, 194, 0.4);
+  border-color: transparent;
   color: #fff;
 }
 
@@ -612,14 +612,14 @@
 .extmgr-import-controls .btn.btn-primary {
   color: #fff;
   background-color: #d35400;
-  border-color: #b34700;
+  border-color: transparent;
 }
 
 .extmgr-page-shell .btn.btn-primary:hover,
 .extmgr-actions .btn.btn-primary:hover,
 .extmgr-import-controls .btn.btn-primary:hover {
   background-color: #e05d00;
-  border-color: #c24e00;
+  border-color: transparent;
 }
 
 .extmgr-import-controls {
