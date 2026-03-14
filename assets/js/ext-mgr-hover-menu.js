@@ -42,7 +42,68 @@
   var PAYLOAD_CACHE = null;
   var PAYLOAD_CACHE_AT = 0;
   var PAYLOAD_CACHE_TTL_MS = 10000;
+  var API_URLS = ['/ext-mgr-api.php', '/extensions/sys/ext-mgr-api.php'];
   var LAST_LIBRARY_SIG = '';
+    function normalizeIconClass(value, fallback) {
+      var raw = String(value || '').trim();
+      if (!raw) {
+        return fallback || 'fa-solid fa-sharp fa-puzzle-piece';
+      }
+      if (raw.indexOf('fa-') === -1) {
+        return fallback || 'fa-solid fa-sharp fa-puzzle-piece';
+      }
+      if (/[^a-z0-9\-\s]/i.test(raw)) {
+        return fallback || 'fa-solid fa-sharp fa-puzzle-piece';
+      }
+      return raw;
+    }
+
+    function extensionIcon(item, fallback) {
+      var row = item || {};
+      var info = row.extensionInfo || {};
+      return normalizeIconClass(info.iconClass || row.iconClass, fallback || 'fa-solid fa-sharp fa-globe');
+    }
+
+    function fetchApiListWithFallback() {
+      var urls = API_URLS.slice();
+      var idx = 0;
+
+      function next() {
+        if (idx >= urls.length) {
+          return Promise.resolve({ ok: false, data: { extensions: [], meta: {} } });
+        }
+
+        var url = urls[idx];
+        idx += 1;
+
+        return fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+          },
+          body: 'action=list'
+        })
+          .then(function (res) {
+            return res.json().catch(function () {
+              return { ok: false };
+            }).then(function (data) {
+              if (res.ok && data && data.ok) {
+                return data;
+              }
+              if (res.status === 404 || res.status === 0) {
+                return next();
+              }
+              return data || { ok: false };
+            });
+          })
+          .catch(function () {
+            return next();
+          });
+      }
+
+      return next();
+    }
+
   var LAST_MMENU_SIG = '';
   var LAST_SYSTEM_SIG = '';
   var LAST_CONFIGURE_SIG = '';
@@ -132,14 +193,7 @@
       return Promise.resolve(PAYLOAD_CACHE);
     }
 
-    return fetch('/ext-mgr-api.php', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
-      },
-      body: 'action=list'
-    })
-      .then(function (res) { return res.json(); })
+    return fetchApiListWithFallback()
       .then(function (data) {
         PAYLOAD_CACHE = (data && data.data) || {};
         if (!Array.isArray(PAYLOAD_CACHE.extensions)) {
@@ -179,7 +233,7 @@
       }
 
       html += '<a class="btn extmgr-hover-item' + (normalizePath(entry) === currentPath ? ' active' : '') + '" href="' + esc(entry) + '">';
-      html += '<i class="fa-solid fa-sharp fa-globe" style="margin-right:.5em;"></i>' + esc(name);
+      html += '<i class="' + esc(extensionIcon(item, 'fa-solid fa-sharp fa-globe')) + '" style="margin-right:.5em;"></i>' + esc(name);
       html += '</a>';
     }
 
@@ -326,7 +380,7 @@
       extBtn.setAttribute('href', '#notarget');
       extBtn.style.fontSize = '0.92em';
       extBtn.style.opacity = '0.92';
-      extBtn.innerHTML = '<i class="fa-solid fa-sharp fa-globe"></i> ' + esc(name);
+      extBtn.innerHTML = '<i class="' + esc(extensionIcon(item, 'fa-solid fa-sharp fa-globe')) + '"></i> ' + esc(name);
       (function (targetHref) {
         extBtn.addEventListener('click', function (e) {
           e.preventDefault();
@@ -366,7 +420,7 @@
     return null;
   }
 
-  function appendMMenuEntry(container, entryHref, label, useListItem) {
+  function appendMMenuEntry(container, entryHref, label, iconClass, useListItem) {
     if (useListItem) {
       var li = document.createElement('li');
       li.className = 'extmgr-mmenu-entry';
@@ -380,7 +434,7 @@
       a.style.textDecoration = 'none';
       a.style.color = 'inherit';
       a.style.lineHeight = '1.25';
-      a.innerHTML = '<i class="fa-solid fa-sharp fa-puzzle-piece" style="margin-right:.5em;"></i>' + esc(label);
+      a.innerHTML = '<i class="' + esc(iconClass || 'fa-solid fa-sharp fa-puzzle-piece') + '" style="margin-right:.5em;"></i>' + esc(label);
       li.appendChild(a);
       container.appendChild(li);
       return;
@@ -393,7 +447,7 @@
     link.style.padding = '0.7em 1em';
     link.style.textDecoration = 'none';
     link.style.color = 'inherit';
-    link.innerHTML = '<i class="fa-solid fa-sharp fa-puzzle-piece" style="margin-right:.5em;"></i>' + esc(label);
+    link.innerHTML = '<i class="' + esc(iconClass || 'fa-solid fa-sharp fa-puzzle-piece') + '" style="margin-right:.5em;"></i>' + esc(label);
     container.appendChild(link);
   }
 
@@ -468,7 +522,7 @@
     }
 
     if (showManagerInM && !container.querySelector('a[href="/ext-mgr.php"], a[href="ext-mgr.php"]')) {
-      appendMMenuEntry(container, '/ext-mgr.php', 'Extensions Manager', useListItem);
+      appendMMenuEntry(container, '/ext-mgr.php', 'Extensions Manager', 'fa-solid fa-sharp fa-puzzle-piece', useListItem);
     }
 
     for (i = 0; i < visible.length; i += 1) {
@@ -476,7 +530,7 @@
       var id = String(ext.id || '');
       var name = String(ext.name || id || 'Extension');
       var entry = ext.menuEntry || ext.entry || ('/' + id + '.php');
-      appendMMenuEntry(container, entry, name, useListItem);
+      appendMMenuEntry(container, entry, name, extensionIcon(ext, 'fa-solid fa-sharp fa-globe'), useListItem);
     }
   }
 
@@ -564,7 +618,7 @@
       link.style.textDecoration = 'none';
       link.style.color = 'inherit';
       link.style.lineHeight = '1.25';
-      link.innerHTML = '<i class="fa-solid fa-sharp fa-puzzle-piece" style="margin-right:.5em;"></i>' + esc(name);
+      link.innerHTML = '<i class="' + esc(extensionIcon(ext, 'fa-solid fa-sharp fa-globe')) + '" style="margin-right:.5em;"></i>' + esc(name);
       li.appendChild(link);
       container.appendChild(li);
     }

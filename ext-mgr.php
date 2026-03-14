@@ -3,6 +3,8 @@ header('Content-Type: text/html; charset=utf-8');
 
 $init = [
     'apiUrl' => '/ext-mgr-api.php',
+    'apiUrls' => ['/ext-mgr-api.php', '/extensions/sys/ext-mgr-api.php'],
+    'tooltipUrl' => '/extensions/sys/assets/data/ext-mgr-tooltips.json',
 ];
 
 $usingMoodeShell = false;
@@ -91,7 +93,7 @@ if (file_exists('/var/www/header.php')) {
                         <button id="import-extension-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-upload"></i> Upload Extension</button>
                         <a id="download-template-btn" class="btn btn-small" href="/ext-mgr-api.php?action=download_extension_template"><i class="fa-solid fa-sharp fa-file-zipper"></i> Download Template Kit</a>
                     </div>
-                    <div id="import-wizard-note" class="extmgr-note">Template includes: template.php, template.js, info.json, install.sh and standard folders.</div>
+                    <div id="import-wizard-note" class="extmgr-note">Template includes: template.php, template.js, template.css, info.json, install.sh and standard folders.</div>
                 </div>
             </div>
         </section>
@@ -238,7 +240,7 @@ if (file_exists('/var/www/header.php')) {
                             <button id="manager-visibility-header-btn" class="btn btn-small visibility-toggle" type="button">Header tab: Visible</button>
                             <button id="manager-visibility-library-btn" class="btn btn-small visibility-toggle" type="button">Library menu: Visible</button>
                             <button id="manager-visibility-m-btn" class="btn btn-small visibility-toggle" type="button">M menu: Visible</button>
-                            <button id="manager-visibility-system-btn" class="btn btn-small visibility-toggle" type="button">System menu: Visible</button>
+                            <button id="manager-visibility-system-btn" class="btn btn-small visibility-toggle" type="button">Extension manager: Visible</button>
                         </div>
                         <div id="manager-visibility-note" class="extmgr-note">Changes apply on next menu render and page refresh.</div>
                     </div>

@@ -1,0 +1,16 @@
+{
+  "extension.enable": "Enable this extension and re-activate its menu integrations.",
+  "extension.disable": "Disable this extension. It remains installed but menu integrations are paused.",
+  "extension.action.disabled": "This action is unavailable while the extension is inactive. Enable extension first.",
+  "extension.action.ready": "",
+  "extension.menu.m": "Toggle this extension visibility in the M menu.",
+  "extension.menu.library": "Toggle this extension visibility in the Library menu.",
+  "extension.menu.system": "Toggle this extension visibility in the System/Configure surfaces.",
+  "extension.settingsCard": "Toggle settings-card mode for this extension.",
+  "extension.repair": "Repair the canonical route/symlink for this extension.",
+  "extension.remove": "Remove this extension from registry and installed files (backup is kept).",
+  "manager.visibility.header": "Show/hide Extensions Manager in the top header tabs.",
+  "manager.visibility.library": "Show/hide Extensions Manager in the Library dropdown.",
+  "manager.visibility.m": "Show/hide Extensions Manager inside the M menu.",
+  "manager.visibility.system": "Show/hide Extensions Manager in the Configure/System tile surface."
+}

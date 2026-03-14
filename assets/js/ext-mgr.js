@@ -3,6 +3,9 @@
 
   var init = window.__EXT_MGR_INIT__ || {};
   var apiUrl = init.apiUrl || '/ext-mgr-api.php';
+  var apiUrls = Array.isArray(init.apiUrls) ? init.apiUrls.slice() : [apiUrl, '/extensions/sys/ext-mgr-api.php'];
+  var tooltipUrl = init.tooltipUrl || '/extensions/sys/assets/data/ext-mgr-tooltips.json';
+  var tooltipMap = {};
 
   var statusEl = document.getElementById('status');
   var listEl = document.getElementById('list');
@@ -116,18 +119,113 @@
   }
 
   function api(params) {
-    return fetch(apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
-      body: new URLSearchParams(params).toString()
-    }).then(function (res) {
-      return res.json().then(function (data) {
-        if (!res.ok || !data.ok) {
-          throw new Error((data && data.error) || 'Request failed');
-        }
-        return data;
-      });
+    var deduped = [];
+    apiUrls.forEach(function (candidate) {
+      var url = String(candidate || '').trim();
+      if (!url || deduped.indexOf(url) !== -1) {
+        return;
+      }
+      deduped.push(url);
     });
+    if (deduped.length === 0) {
+      deduped.push(apiUrl);
+    }
+
+    var body = new URLSearchParams(params).toString();
+    var lastErr = null;
+
+    function tryAt(idx) {
+      if (idx >= deduped.length) {
+        throw (lastErr || new Error('Request failed'));
+      }
+
+      return fetch(deduped[idx], {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+        body: body
+      }).then(function (res) {
+        return res.json().catch(function () {
+          return { ok: false, error: 'Invalid JSON response from API endpoint.' };
+        }).then(function (data) {
+          if (res.ok && data.ok) {
+            return data;
+          }
+
+          var err = new Error((data && data.error) || ('Request failed (' + res.status + ')'));
+          err.status = res.status;
+          lastErr = err;
+
+          if (res.status === 404 || res.status === 0) {
+            return tryAt(idx + 1);
+          }
+          throw err;
+        });
+      }).catch(function (err) {
+        lastErr = err;
+        return tryAt(idx + 1);
+      });
+    }
+
+    return tryAt(0);
+  }
+
+  function tip(key, fallback) {
+    if (tooltipMap && Object.prototype.hasOwnProperty.call(tooltipMap, key)) {
+      return String(tooltipMap[key] || '');
+    }
+    return String(fallback || '');
+  }
+
+  function applyTip(el, key, fallback) {
+    if (!el) {
+      return;
+    }
+    var text = tip(key, fallback);
+    if (text) {
+      el.title = text;
+    } else {
+      el.removeAttribute('title');
+    }
+  }
+
+  function loadTooltipSnippets() {
+    var urls = [tooltipUrl, '/extensions/sys/assets/data/ext-mgr-tooltips.json'];
+    var deduped = [];
+    urls.forEach(function (candidate) {
+      var url = String(candidate || '').trim();
+      if (!url || deduped.indexOf(url) !== -1) {
+        return;
+      }
+      deduped.push(url);
+    });
+
+    var idx = 0;
+    function next() {
+      if (idx >= deduped.length) {
+        return Promise.resolve({});
+      }
+      var url = deduped[idx];
+      idx += 1;
+      return fetch(url, { cache: 'no-store' })
+        .then(function (res) {
+          if (!res.ok) {
+            return next();
+          }
+          return res.json().catch(function () { return {}; });
+        })
+        .then(function (data) {
+          if (data && typeof data === 'object' && !Array.isArray(data)) {
+            tooltipMap = data;
+            return data;
+          }
+          return next();
+        })
+        .catch(function () {
+          return next();
+        });
+    }
+
+    return next();
   }
 
   function bindIfPresent(el, eventName, handler) {
@@ -153,17 +251,48 @@
     formData.append('action', 'import_extension_upload');
     formData.append('package', file);
 
-    return fetch(apiUrl, {
-      method: 'POST',
-      body: formData
-    }).then(function (res) {
-      return res.json().then(function (data) {
-        if (!res.ok || !data.ok) {
-          throw new Error((data && data.error) || 'Upload failed');
-        }
-        return data;
-      });
+    var deduped = [];
+    apiUrls.forEach(function (candidate) {
+      var url = String(candidate || '').trim();
+      if (!url || deduped.indexOf(url) !== -1) {
+        return;
+      }
+      deduped.push(url);
     });
+    if (deduped.length === 0) {
+      deduped.push(apiUrl);
+    }
+
+    var lastErr = null;
+    function tryAt(idx) {
+      if (idx >= deduped.length) {
+        throw (lastErr || new Error('Upload failed'));
+      }
+      return fetch(deduped[idx], {
+        method: 'POST',
+        body: formData
+      }).then(function (res) {
+        return res.json().catch(function () {
+          return { ok: false, error: 'Invalid JSON response from API endpoint.' };
+        }).then(function (data) {
+          if (res.ok && data.ok) {
+            return data;
+          }
+          var err = new Error((data && data.error) || 'Upload failed');
+          err.status = res.status;
+          lastErr = err;
+          if (res.status === 404 || res.status === 0) {
+            return tryAt(idx + 1);
+          }
+          throw err;
+        });
+      }).catch(function (err) {
+        lastErr = err;
+        return tryAt(idx + 1);
+      });
+    }
+
+    return tryAt(0);
   }
 
   function readPref(key, fallback) {
@@ -222,7 +351,7 @@
     var name = area === 'header' ? 'Header tab'
       : area === 'library' ? 'Library menu'
       : area === 'm' ? 'M menu'
-      : 'System menu';
+      : 'Extension manager';
     return name + ': ' + (visible ? 'Visible' : 'Hidden');
   }
 
@@ -247,6 +376,11 @@
     applyManagerVisibilityButtonState(managerVisibilityLibraryBtn, 'library', managerVisibilityState.library);
     applyManagerVisibilityButtonState(managerVisibilityMBtn, 'm', managerVisibilityState.m);
     applyManagerVisibilityButtonState(managerVisibilitySystemBtn, 'system', managerVisibilityState.system);
+
+    applyTip(managerVisibilityHeaderBtn, 'manager.visibility.header');
+    applyTip(managerVisibilityLibraryBtn, 'manager.visibility.library');
+    applyTip(managerVisibilityMBtn, 'manager.visibility.m');
+    applyTip(managerVisibilitySystemBtn, 'manager.visibility.system');
   }
 
   function renderMaintenanceStatus(maintenance) {
@@ -859,6 +993,7 @@
       enableBtn.type = 'button';
       enableBtn.className = 'btn btn-small' + (item.enabled ? '' : ' btn-primary');
       enableBtn.textContent = item.enabled ? 'Disable' : 'Enable';
+      applyTip(enableBtn, item.enabled ? 'extension.disable' : 'extension.enable');
       enableBtn.addEventListener('click', function () {
         if (item.enabled) {
           var ok = window.confirm('Disable ' + (item.name || item.id) + '? This can hide it from menu integrations.');
@@ -875,6 +1010,7 @@
             item.state = item.enabled ? 'active' : 'inactive';
             enableBtn.textContent = item.enabled ? 'Disable' : 'Enable';
             enableBtn.className = 'btn btn-small' + (item.enabled ? '' : ' btn-primary');
+            applyTip(enableBtn, item.enabled ? 'extension.disable' : 'extension.enable');
             applyExtensionActionState(item.enabled);
             setStatus('Extension state updated for ' + (item.name || item.id) + '.', 'ok');
             runRefresh();
@@ -891,6 +1027,7 @@
       menuMBtn.type = 'button';
       menuMBtn.className = 'btn btn-small';
       applyVisibilityButtonState(menuMBtn, 'm', showInM);
+      applyTip(menuMBtn, 'extension.menu.m');
       menuMBtn.addEventListener('click', function () {
         var next = getVisibility(item, 'm') ? '0' : '1';
         menuMBtn.disabled = true;
@@ -914,6 +1051,7 @@
       menuLibraryBtn.type = 'button';
       menuLibraryBtn.className = 'btn btn-small';
       applyVisibilityButtonState(menuLibraryBtn, 'library', showInLibrary);
+      applyTip(menuLibraryBtn, 'extension.menu.library');
       menuLibraryBtn.addEventListener('click', function () {
         var next = getVisibility(item, 'library') ? '0' : '1';
         menuLibraryBtn.disabled = true;
@@ -937,6 +1075,7 @@
       menuSystemBtn.type = 'button';
       menuSystemBtn.className = 'btn btn-small';
       applyVisibilityButtonState(menuSystemBtn, 'system', showInSystem);
+      applyTip(menuSystemBtn, 'extension.menu.system');
       menuSystemBtn.addEventListener('click', function () {
         var next = getVisibility(item, 'system') ? '0' : '1';
         menuSystemBtn.disabled = true;
@@ -960,6 +1099,7 @@
       settingsCardBtn.type = 'button';
       settingsCardBtn.className = 'btn btn-small';
       applySettingsCardButtonState(settingsCardBtn, getSettingsCardOnly(item));
+      applyTip(settingsCardBtn, 'extension.settingsCard');
       settingsCardBtn.addEventListener('click', function () {
         var next = getSettingsCardOnly(item) ? '0' : '1';
         settingsCardBtn.disabled = true;
@@ -983,6 +1123,7 @@
       repairSymlinkBtn.type = 'button';
       repairSymlinkBtn.className = 'btn btn-small extmgr-destructive';
       repairSymlinkBtn.textContent = 'Repair Symlink';
+      applyTip(repairSymlinkBtn, 'extension.repair');
       repairSymlinkBtn.addEventListener('click', function () {
         repairSymlinkBtn.disabled = true;
         api({ action: 'repair_symlink', id: item.id })
@@ -1003,6 +1144,7 @@
       removeBtn.type = 'button';
       removeBtn.className = 'btn btn-small extmgr-destructive';
       removeBtn.textContent = 'Remove Extension';
+      applyTip(removeBtn, 'extension.remove');
       removeBtn.addEventListener('click', function () {
         var label = item.name || item.id;
         var ok = window.confirm('Remove extension "' + label + '"?\n\nThis removes its installed files and route. A backup is kept in ext-mgr backup/removed-extensions.');
@@ -1043,7 +1185,7 @@
         settingsCardBtn.classList.toggle('btn-muted', disabled);
         repairSymlinkBtn.classList.toggle('btn-muted', disabled);
 
-        var reason = disabled ? 'Disabled while extension is inactive. Enable extension first.' : '';
+        var reason = disabled ? tip('extension.action.disabled', 'Disabled while extension is inactive. Enable extension first.') : tip('extension.action.ready', '');
         menuMBtn.title = reason;
         menuLibraryBtn.title = reason;
         menuSystemBtn.title = reason;
@@ -1217,7 +1359,8 @@
         var payload = (data && data.data) || {};
         renderManagerVisibility(payload.visibility || {});
         if (managerVisibilityNoteEl) {
-          managerVisibilityNoteEl.textContent = 'Manager visibility updated for ' + area + '.';
+          var label = managerVisibilityLabel(area, true).replace(': Visible', '');
+          managerVisibilityNoteEl.textContent = 'Manager visibility updated for ' + label + '.';
           managerVisibilityNoteEl.classList.remove('error');
           managerVisibilityNoteEl.classList.add('ok');
         }
@@ -1581,6 +1724,9 @@
       }
       var isOpen = section.classList.toggle('is-open');
       toggleBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      if (section.id) {
+        writePref('section.open.' + section.id, isOpen ? '1' : '0');
+      }
     });
   });
 
@@ -1592,10 +1738,19 @@
       }
       var isOpen = submenu.classList.toggle('is-open');
       toggleBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      if (submenu.id) {
+        writePref('submenu.open.' + submenu.id, isOpen ? '1' : '0');
+      }
     });
   });
 
   document.querySelectorAll('.extmgr-section').forEach(function (section) {
+    if (section.id) {
+      var storedSection = readPref('section.open.' + section.id, '');
+      if (storedSection === '1' || storedSection === '0') {
+        section.classList.toggle('is-open', storedSection === '1');
+      }
+    }
     var sectionToggle = section.querySelector('[data-menu-toggle]');
     if (!sectionToggle) {
       return;
@@ -1604,6 +1759,12 @@
   });
 
   document.querySelectorAll('.extmgr-submenu').forEach(function (submenu) {
+    if (submenu.id) {
+      var storedSubmenu = readPref('submenu.open.' + submenu.id, '');
+      if (storedSubmenu === '1' || storedSubmenu === '0') {
+        submenu.classList.toggle('is-open', storedSubmenu === '1');
+      }
+    }
     var submenuToggle = submenu.querySelector('[data-submenu-toggle]');
     if (!submenuToggle) {
       return;
@@ -1611,8 +1772,11 @@
     submenuToggle.setAttribute('aria-expanded', submenu.classList.contains('is-open') ? 'true' : 'false');
   });
 
-  loadStatusAndList(true).then(function () {
-    setRunUpdateButtonState();
-    clearStatus();
-  });
+  loadTooltipSnippets()
+    .finally(function () {
+      loadStatusAndList(true).then(function () {
+        setRunUpdateButtonState();
+        clearStatus();
+      });
+    });
 })();
