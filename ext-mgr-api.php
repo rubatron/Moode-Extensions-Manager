@@ -3475,6 +3475,23 @@ if ($action === 'set_enabled') {
         if (($ext['id'] ?? '') === $id) {
             $ext['enabled'] = $enabled;
             $ext['state'] = $enabled ? 'active' : 'inactive';
+            if (!isset($ext['menuVisibility']) || !is_array($ext['menuVisibility'])) {
+                $ext['menuVisibility'] = ['m' => true, 'library' => true, 'system' => true];
+            }
+            if ($enabled) {
+                // Requested defaults on re-enable: M + Library visible, System hidden.
+                $ext['menuVisibility']['m'] = true;
+                $ext['menuVisibility']['library'] = true;
+                $ext['menuVisibility']['system'] = false;
+            } else {
+                // Disabled extensions should not remain visible in menu integrations.
+                $ext['menuVisibility']['m'] = false;
+                $ext['menuVisibility']['library'] = false;
+                $ext['menuVisibility']['system'] = false;
+                $ext['settingsCardOnly'] = false;
+            }
+            $ext['showInMMenu'] = (bool)$ext['menuVisibility']['m'];
+            $ext['showInLibrary'] = (bool)$ext['menuVisibility']['library'];
             $updated = true;
             break;
         }

@@ -312,6 +312,35 @@
     }
   }
 
+  function moveManagerVisibilityToTop() {
+    var submenu = document.getElementById('submenu-manager-visibility');
+    var installedSection = document.getElementById('section-installed');
+    var pageShell = document.querySelector('.extmgr-page-shell');
+    if (!submenu || !installedSection || !pageShell) {
+      return;
+    }
+
+    if (submenu.closest('#section-manager-visibility-top')) {
+      return;
+    }
+
+    var panel = document.getElementById('section-manager-visibility-top');
+    if (!panel) {
+      panel = document.createElement('section');
+      panel.id = 'section-manager-visibility-top';
+      panel.className = 'extmgr-panel';
+
+      var heading = document.createElement('h2');
+      heading.className = 'extmgr-static-heading';
+      heading.textContent = 'Extension Manager Visibility';
+      panel.appendChild(heading);
+
+      pageShell.insertBefore(panel, installedSection);
+    }
+
+    panel.appendChild(submenu);
+  }
+
   function setText(el, value) {
     if (!el) {
       return;
@@ -1008,9 +1037,24 @@
           .then(function () {
             item.enabled = (nextEnabled === '1');
             item.state = item.enabled ? 'active' : 'inactive';
+            if (item.enabled) {
+              setVisibility(item, 'm', true);
+              setVisibility(item, 'library', true);
+              setVisibility(item, 'system', false);
+            } else {
+              setVisibility(item, 'm', false);
+              setVisibility(item, 'library', false);
+              setVisibility(item, 'system', false);
+              item.settingsCardOnly = false;
+            }
             enableBtn.textContent = item.enabled ? 'Disable' : 'Enable';
             enableBtn.className = 'btn btn-small' + (item.enabled ? '' : ' btn-primary');
             applyTip(enableBtn, item.enabled ? 'extension.disable' : 'extension.enable');
+
+            applyVisibilityButtonState(menuMBtn, 'm', getVisibility(item, 'm'));
+            applyVisibilityButtonState(menuLibraryBtn, 'library', getVisibility(item, 'library'));
+            applyVisibilityButtonState(menuSystemBtn, 'system', getVisibility(item, 'system'));
+            applySettingsCardButtonState(settingsCardBtn, getSettingsCardOnly(item));
             applyExtensionActionState(item.enabled);
             setStatus('Extension state updated for ' + (item.name || item.id) + '.', 'ok');
             runRefresh();
@@ -1178,6 +1222,13 @@
 
         // Remove can stay available for cleanup even when extension is inactive.
         removeBtn.disabled = false;
+
+        // Inactive extension: hide action controls from the row to keep state unambiguous.
+        menuMBtn.style.display = disabled ? 'none' : '';
+        menuLibraryBtn.style.display = disabled ? 'none' : '';
+        menuSystemBtn.style.display = disabled ? 'none' : '';
+        settingsCardBtn.style.display = disabled ? 'none' : '';
+        repairSymlinkBtn.style.display = disabled ? 'none' : '';
 
         menuMBtn.classList.toggle('btn-muted', disabled);
         menuLibraryBtn.classList.toggle('btn-muted', disabled);
@@ -1492,6 +1543,8 @@
   if (listSearchEl) {
     listSearchEl.value = readPref('search', '');
   }
+
+  moveManagerVisibilityToTop();
 
   bindIfPresent(refreshBtn, 'click', runRefresh);
   bindIfPresent(checkUpdateBtn, 'click', runCheckUpdate);
