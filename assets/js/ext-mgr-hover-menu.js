@@ -71,7 +71,7 @@
     }
 
     var systemLinks = document.querySelectorAll(
-      '#context-menu a[href="/ext-mgr.php"], #context-menu a[href="ext-mgr.php"], #sys-cmds a[href="/ext-mgr.php"], #sys-cmds a[href="ext-mgr.php"], #configure-modal a[href="/ext-mgr.php"], #configure-modal a[href="ext-mgr.php"]'
+      '#sys-cmds a[href="/ext-mgr.php"], #sys-cmds a[href="ext-mgr.php"], #configure-modal a[href="/ext-mgr.php"], #configure-modal a[href="ext-mgr.php"]'
     );
     var i;
     for (i = 0; i < systemLinks.length; i += 1) {
@@ -394,7 +394,7 @@
     }
 
     var managerVisibility = (meta && meta.managerVisibility) || {};
-    var showManagerInM = toBool(managerVisibility.header, true);
+    var showManagerInM = toBool(managerVisibility.m, true);
 
     var visible = [];
     var i;
@@ -580,9 +580,6 @@
       return;
     }
 
-    var managerVisibility = (meta && meta.managerVisibility) || {};
-    var showSystem = toBool(managerVisibility.system, true);
-
     var visibleSystemExtensions = [];
     var i;
     for (i = 0; i < items.length; i += 1) {
@@ -593,16 +590,13 @@
       visibleSystemExtensions.push(String(item.id || ''));
     }
 
-    var sig = String(showSystem) + '|' + visibleSystemExtensions.join(',');
+    var sig = 'always|' + visibleSystemExtensions.join(',');
     if (sig === LAST_CONFIGURE_SIG) {
       return;
     }
     LAST_CONFIGURE_SIG = sig;
 
     removeExistingConfigureTile(list);
-    if (!showSystem) {
-      return;
-    }
 
     if (list.querySelector('a[href="/ext-mgr.php"], a[href="ext-mgr.php"]')) {
       return;

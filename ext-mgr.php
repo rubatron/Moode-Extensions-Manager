@@ -235,9 +235,10 @@ if (file_exists('/var/www/header.php')) {
                     <div class="extmgr-submenu-body">
                         <p class="config-help-static extmgr-help">Hide/unhide ext-mgr itself in moOde menu areas without disabling the API endpoint.</p>
                         <div class="extmgr-actions">
-                            <button id="manager-visibility-header-btn" class="btn btn-small visibility-toggle" type="button">Header: Visible</button>
-                            <button id="manager-visibility-library-btn" class="btn btn-small visibility-toggle" type="button">Library: Visible</button>
-                            <button id="manager-visibility-system-btn" class="btn btn-small visibility-toggle" type="button">System: Visible</button>
+                            <button id="manager-visibility-header-btn" class="btn btn-small visibility-toggle" type="button">Header tab: Visible</button>
+                            <button id="manager-visibility-library-btn" class="btn btn-small visibility-toggle" type="button">Library menu: Visible</button>
+                            <button id="manager-visibility-m-btn" class="btn btn-small visibility-toggle" type="button">M menu: Visible</button>
+                            <button id="manager-visibility-system-btn" class="btn btn-small visibility-toggle" type="button">System menu: Visible</button>
                         </div>
                         <div id="manager-visibility-note" class="extmgr-note">Changes apply on next menu render and page refresh.</div>
                     </div>

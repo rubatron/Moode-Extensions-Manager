@@ -42,6 +42,7 @@ function defaultMeta() {
             'header' => true,
             'library' => true,
             'system' => true,
+            'm' => true,
         ],
     ];
 }
@@ -3454,18 +3455,18 @@ if ($action === 'create_backup_snapshot') {
 if ($action === 'set_manager_visibility') {
     $area = strtolower(trim((string)($_REQUEST['area'] ?? '')));
     $value = (string)($_REQUEST['value'] ?? '1');
-    $allowed = ['header', 'library', 'system'];
+    $allowed = ['header', 'library', 'system', 'm'];
 
     if (!in_array($area, $allowed, true)) {
         http_response_code(400);
-        echo json_encode(['ok' => false, 'error' => 'Invalid area. Use header, library, or system.']);
+        echo json_encode(['ok' => false, 'error' => 'Invalid area. Use header, library, system, or m.']);
         exit;
     }
 
     $visible = ($value === '1' || strtolower($value) === 'true');
     $meta = readMeta($metaPath);
     if (!isset($meta['managerVisibility']) || !is_array($meta['managerVisibility'])) {
-        $meta['managerVisibility'] = ['header' => true, 'library' => true, 'system' => true];
+        $meta['managerVisibility'] = ['header' => true, 'library' => true, 'system' => true, 'm' => true];
     }
 
     $meta['managerVisibility'][$area] = $visible;

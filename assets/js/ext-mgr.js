@@ -35,6 +35,7 @@
   var maintenanceStorageNoteEl = document.getElementById('maintenance-storage-note');
   var managerVisibilityHeaderBtn = document.getElementById('manager-visibility-header-btn');
   var managerVisibilityLibraryBtn = document.getElementById('manager-visibility-library-btn');
+  var managerVisibilityMBtn = document.getElementById('manager-visibility-m-btn');
   var managerVisibilitySystemBtn = document.getElementById('manager-visibility-system-btn');
   var managerVisibilityNoteEl = document.getElementById('manager-visibility-note');
 
@@ -90,6 +91,7 @@
   var managerVisibilityState = {
     header: true,
     library: true,
+    m: true,
     system: true
   };
   var currentProviderStatus = {
@@ -217,7 +219,10 @@
   }
 
   function managerVisibilityLabel(area, visible) {
-    var name = area === 'header' ? 'Header tab' : (area === 'library' ? 'Library menu' : 'System menu');
+    var name = area === 'header' ? 'Header tab'
+      : area === 'library' ? 'Library menu'
+      : area === 'm' ? 'M menu'
+      : 'System menu';
     return name + ': ' + (visible ? 'Visible' : 'Hidden');
   }
 
@@ -235,10 +240,12 @@
     var v = visibility || {};
     managerVisibilityState.header = v.header !== false;
     managerVisibilityState.library = v.library !== false;
+    managerVisibilityState.m = v.m !== false;
     managerVisibilityState.system = v.system !== false;
 
     applyManagerVisibilityButtonState(managerVisibilityHeaderBtn, 'header', managerVisibilityState.header);
     applyManagerVisibilityButtonState(managerVisibilityLibraryBtn, 'library', managerVisibilityState.library);
+    applyManagerVisibilityButtonState(managerVisibilityMBtn, 'm', managerVisibilityState.m);
     applyManagerVisibilityButtonState(managerVisibilitySystemBtn, 'system', managerVisibilityState.system);
   }
 
@@ -1327,6 +1334,9 @@
   });
   bindIfPresent(managerVisibilityLibraryBtn, 'click', function () {
     setManagerVisibility('library', !managerVisibilityState.library, managerVisibilityLibraryBtn);
+  });
+  bindIfPresent(managerVisibilityMBtn, 'click', function () {
+    setManagerVisibility('m', !managerVisibilityState.m, managerVisibilityMBtn);
   });
   bindIfPresent(managerVisibilitySystemBtn, 'click', function () {
     setManagerVisibility('system', !managerVisibilityState.system, managerVisibilitySystemBtn);
