@@ -985,6 +985,33 @@
           });
       });
 
+      var removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'btn btn-small btn-danger';
+      removeBtn.textContent = 'Remove Extension';
+      removeBtn.addEventListener('click', function () {
+        var label = item.name || item.id;
+        var ok = window.confirm('Remove extension "' + label + '"?\n\nThis removes its installed files and route. A backup is kept in ext-mgr backup/removed-extensions.');
+        if (!ok) {
+          return;
+        }
+
+        removeBtn.disabled = true;
+        api({ action: 'remove_extension', id: item.id })
+          .then(function (data) {
+            var payload = (data && data.data) || {};
+            setStatus('Removed ' + label + '. Backup: ' + (payload.backupPath || 'n/a'), 'ok');
+            runRefresh();
+            reloadPageSoon();
+          })
+          .catch(function (err) {
+            setStatus(err.message, 'error');
+          })
+          .finally(function () {
+            removeBtn.disabled = false;
+          });
+      });
+
       row.appendChild(left);
       rightWrap.appendChild(enableBtn);
       rightWrap.appendChild(menuMBtn);
@@ -992,6 +1019,7 @@
       rightWrap.appendChild(menuSystemBtn);
       rightWrap.appendChild(settingsCardBtn);
       rightWrap.appendChild(repairSymlinkBtn);
+      rightWrap.appendChild(removeBtn);
       row.appendChild(rightWrap);
       listEl.appendChild(row);
     });

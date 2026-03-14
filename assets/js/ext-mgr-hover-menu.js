@@ -46,6 +46,7 @@
   var LAST_MMENU_SIG = '';
   var LAST_SYSTEM_SIG = '';
   var LAST_CONFIGURE_SIG = '';
+  var LAST_HEADER_SIG = '';
 
   function toBool(value, fallback) {
     if (typeof value === 'boolean') {
@@ -76,6 +77,53 @@
     for (i = 0; i < systemLinks.length; i += 1) {
       systemLinks[i].style.display = showSystem ? '' : 'none';
     }
+  }
+
+  function renderHeaderManagerButton(meta) {
+    var managerVisibility = (meta && meta.managerVisibility) || {};
+    var showHeader = toBool(managerVisibility.header, true);
+    var sig = String(showHeader);
+    if (sig === LAST_HEADER_SIG) {
+      return;
+    }
+    LAST_HEADER_SIG = sig;
+
+    var tabs = document.getElementById('config-tabs');
+    if (!tabs) {
+      return;
+    }
+
+    var existing = document.getElementById('ext-mgr-btn');
+    if (!showHeader) {
+      if (existing) {
+        existing.style.display = 'none';
+      }
+      return;
+    }
+
+    if (existing) {
+      existing.href = '/ext-mgr.php';
+      existing.style.display = '';
+      return;
+    }
+
+    var btn = document.createElement('a');
+    btn.id = 'ext-mgr-btn';
+    btn.className = 'btn extmgr-header-entry';
+    btn.href = '/ext-mgr.php';
+    btn.innerHTML = '<span>Extensions</span><i class="fa-solid fa-sharp fa-puzzle-piece"></i>';
+
+    var marker = document.getElementById('per-config-btn');
+    if (marker && marker.parentNode === tabs) {
+      if (marker.nextSibling) {
+        tabs.insertBefore(btn, marker.nextSibling);
+      } else {
+        tabs.appendChild(btn);
+      }
+      return;
+    }
+
+    tabs.appendChild(btn);
   }
 
   function fetchState() {
@@ -344,7 +392,7 @@
     container.appendChild(link);
   }
 
-  function renderMMenu(items) {
+  function renderMMenu(items, meta) {
     var container = findMMenuContainer();
     if (!container) {
       return;
@@ -352,6 +400,9 @@
     if (container.closest && container.closest('#configure-modal')) {
       return;
     }
+
+    var managerVisibility = (meta && meta.managerVisibility) || {};
+    var showManagerInM = toBool(managerVisibility.header, true);
 
     var visible = [];
     var i;
@@ -363,7 +414,7 @@
       visible.push(item);
     }
 
-    if (visible.length === 0) {
+    if (!showManagerInM && visible.length === 0) {
       if (LAST_MMENU_SIG !== 'empty') {
         removeExistingMMenuInjected(container);
         LAST_MMENU_SIG = 'empty';
@@ -371,7 +422,7 @@
       return;
     }
 
-    var nextSig = visible.map(function (row) { return String(row.id || ''); }).join(',');
+    var nextSig = String(showManagerInM) + '|' + visible.map(function (row) { return String(row.id || ''); }).join(',');
     if (nextSig === LAST_MMENU_SIG) {
       return;
     }
@@ -409,6 +460,10 @@
       header.style.opacity = '0.8';
       header.textContent = 'Extensions';
       container.appendChild(header);
+    }
+
+    if (showManagerInM && !container.querySelector('a[href="/ext-mgr.php"], a[href="ext-mgr.php"]')) {
+      appendMMenuEntry(container, '/ext-mgr.php', 'Extensions Manager', useListItem);
     }
 
     for (i = 0; i < visible.length; i += 1) {
@@ -606,9 +661,10 @@
       var items = payload.extensions || [];
       renderList(host, items);
       renderLibraryMenu(items, payload.meta || {});
-      renderMMenu(items);
+      renderMMenu(items, payload.meta || {});
       renderSystemMenu(items);
       renderConfigureTile(items, payload.meta || {});
+      renderHeaderManagerButton(payload.meta || {});
     });
   }
 
@@ -626,9 +682,10 @@
         fetchState().then(function (payload) {
           var items = payload.extensions || [];
           renderLibraryMenu(items, payload.meta || {});
-          renderMMenu(items);
+          renderMMenu(items, payload.meta || {});
           renderSystemMenu(items);
           renderConfigureTile(items, payload.meta || {});
+          renderHeaderManagerButton(payload.meta || {});
         });
       }, 120);
     });
@@ -673,9 +730,10 @@
     fetchState().then(function (payload) {
       var items = payload.extensions || [];
       renderLibraryMenu(items, payload.meta || {});
-      renderMMenu(items);
+      renderMMenu(items, payload.meta || {});
       renderSystemMenu(items);
       renderConfigureTile(items, payload.meta || {});
+      renderHeaderManagerButton(payload.meta || {});
       applyManagerVisibility(payload.meta || {}, refs);
     });
     observeMMenu();

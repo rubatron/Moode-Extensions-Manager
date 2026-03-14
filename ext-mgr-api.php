@@ -2705,6 +2705,97 @@ function runPrivilegedSymlinkRepair($extId, $entryPath, &$error) {
     ];
 }
 
+function removeExtensionById($extId, $registryPath, $backupRoot, &$error) {
+    $error = '';
+
+    if (!isValidExtensionId($extId)) {
+        $error = 'Invalid extension id.';
+        return null;
+    }
+
+    if ($extId === 'ext-mgr') {
+        $error = 'Removing ext-mgr itself is not supported from this action.';
+        return null;
+    }
+
+    $registry = normalizeRegistry(readRegistry($registryPath));
+    $found = false;
+    $nextExtensions = [];
+    foreach ($registry['extensions'] as $ext) {
+        if (($ext['id'] ?? '') === $extId) {
+            $found = true;
+            continue;
+        }
+        $nextExtensions[] = $ext;
+    }
+
+    if (!$found) {
+        $error = 'Extension not found in registry.';
+        return null;
+    }
+
+    $registry['extensions'] = $nextExtensions;
+    $registry['generated_at'] = date('c');
+    if (!writeJsonFile($registryPath, sanitizeRegistryForPersist($registry))) {
+        $error = formatWriteFailure($registryPath, 'registry');
+        return null;
+    }
+
+    $installedDir = '/var/www/extensions/installed/' . $extId;
+    $linkPath = '/var/www/' . $extId . '.php';
+    $backupDir = rtrim($backupRoot, '/\\') . DIRECTORY_SEPARATOR . 'removed-extensions' . DIRECTORY_SEPARATOR . $extId . '-' . date('Ymd-His');
+
+    if (!is_dir($backupDir) && !mkdir($backupDir, 0775, true) && !is_dir($backupDir)) {
+        $error = 'Extension removed from registry but failed to create backup directory: ' . $backupDir;
+        return [
+            'id' => $extId,
+            'removedFromRegistry' => true,
+            'removedInstallDir' => false,
+            'removedRoute' => false,
+            'backupPath' => $backupDir,
+            'warning' => $error,
+        ];
+    }
+
+    $removedInstallDir = false;
+    if (is_dir($installedDir)) {
+        $targetInstalledBackup = $backupDir . DIRECTORY_SEPARATOR . 'installed';
+        if (@rename($installedDir, $targetInstalledBackup)) {
+            $removedInstallDir = true;
+        } else {
+            $error = 'Extension removed from registry but failed to move installed directory: ' . $installedDir;
+        }
+    }
+
+    $removedRoute = false;
+    if (is_link($linkPath)) {
+        $linkTarget = @readlink($linkPath);
+        if (is_string($linkTarget) && $linkTarget !== '') {
+            @file_put_contents($backupDir . DIRECTORY_SEPARATOR . 'route-link-target.txt', $linkTarget . PHP_EOL);
+        }
+        $removedRoute = @unlink($linkPath);
+        if (!$removedRoute && $error === '') {
+            $error = 'Failed to remove canonical route symlink: ' . $linkPath;
+        }
+    } elseif (is_file($linkPath)) {
+        $targetRouteBackup = $backupDir . DIRECTORY_SEPARATOR . basename($linkPath);
+        if (@rename($linkPath, $targetRouteBackup)) {
+            $removedRoute = true;
+        } elseif ($error === '') {
+            $error = 'Failed to move canonical route file to backup: ' . $linkPath;
+        }
+    }
+
+    return [
+        'id' => $extId,
+        'removedFromRegistry' => true,
+        'removedInstallDir' => $removedInstallDir,
+        'removedRoute' => $removedRoute,
+        'backupPath' => $backupDir,
+        'warning' => $error !== '' ? $error : null,
+    ];
+}
+
 if ($action === 'download_extension_template') {
     $templateId = sanitizeExtensionId((string)($_REQUEST['template_id'] ?? 'template-extension'));
     $tmpZip = tempnam(sys_get_temp_dir(), 'extmgr_tpl_');
@@ -3269,6 +3360,29 @@ if ($action === 'repair_symlink') {
             'linkPath' => $result['linkPath'],
             'targetPath' => $result['targetPath'],
         ],
+    ], JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+if ($action === 'remove_extension') {
+    $id = (string)($_REQUEST['id'] ?? '');
+    if ($id === '') {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'Missing id']);
+        exit;
+    }
+
+    $removeError = '';
+    $result = removeExtensionById($id, $registryPath, $extensionsBackupPath, $removeError);
+    if (!is_array($result)) {
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'error' => $removeError !== '' ? $removeError : 'Failed to remove extension']);
+        exit;
+    }
+
+    echo json_encode([
+        'ok' => true,
+        'data' => $result,
     ], JSON_UNESCAPED_SLASHES);
     exit;
 }
