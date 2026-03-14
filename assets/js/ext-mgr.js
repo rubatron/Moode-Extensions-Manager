@@ -323,34 +323,6 @@
     }
   }
 
-  function moveManagerVisibilityToTop() {
-    var submenu = document.getElementById('submenu-manager-visibility');
-    var installedSection = document.getElementById('section-installed');
-    var pageShell = document.querySelector('.extmgr-page-shell');
-    if (!submenu || !installedSection || !pageShell) {
-      return;
-    }
-
-    if (submenu.closest('#section-manager-visibility-top')) {
-      return;
-    }
-
-    var panel = document.getElementById('section-manager-visibility-top');
-    if (!panel) {
-      panel = document.createElement('section');
-      panel.id = 'section-manager-visibility-top';
-      panel.className = 'extmgr-panel';
-
-      var heading = document.createElement('h2');
-      heading.className = 'extmgr-static-heading';
-      heading.textContent = 'Extension Manager Visibility';
-      panel.appendChild(heading);
-
-      pageShell.insertBefore(panel, installedSection);
-    }
-
-    panel.appendChild(submenu);
-  }
 
   function setText(el, value) {
     if (!el) {
@@ -1554,8 +1526,6 @@
   if (listSearchEl) {
     listSearchEl.value = readPref('search', '');
   }
-
-  moveManagerVisibilityToTop();
 
   bindIfPresent(refreshBtn, 'click', runRefresh);
   bindIfPresent(checkUpdateBtn, 'click', runCheckUpdate);

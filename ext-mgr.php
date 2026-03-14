@@ -55,6 +55,41 @@ if (file_exists('/var/www/header.php')) {
 
         <div id="status" class="extmgr-status"></div>
 
+        <section class="extmgr-panel" id="section-manager-options">
+            <h2 class="extmgr-static-heading">Extension Manager Options</h2>
+
+            <div class="extmgr-actions">
+                <button id="refresh-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-arrows-rotate"></i> Refresh List</button>
+                <button id="sync-registry-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-database"></i> Sync Registry</button>
+                <button id="system-update-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-rotate"></i> Sync Extensions</button>
+            </div>
+
+            <div class="extmgr-submenu-body">
+                <h3 class="extmgr-static-heading">Import Extension Wizard</h3>
+                <p class="config-help-static extmgr-help">Upload a prepared extension package (.zip) or download a starter template kit.</p>
+                <div class="extmgr-import-controls">
+                    <input id="import-extension-file" class="extmgr-file-input" type="file" accept=".zip" aria-label="Upload extension package zip">
+                    <label for="import-extension-file" id="import-extension-file-trigger" class="btn btn-primary btn-small">Choose File</label>
+                    <span id="import-extension-file-name" class="extmgr-file-name">No file chosen</span>
+                    <button id="import-extension-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-upload"></i> Upload Extension</button>
+                    <a id="download-template-btn" class="btn btn-small" href="/ext-mgr-api.php?action=download_extension_template"><i class="fa-solid fa-sharp fa-file-zipper"></i> Download Template Kit</a>
+                </div>
+                <div id="import-wizard-note" class="extmgr-note">Template includes: template.php, template.js, template.css, info.json, install.sh and standard folders.</div>
+            </div>
+
+            <div class="extmgr-submenu-body" id="submenu-manager-visibility">
+                <h3 class="extmgr-static-heading">Extension Manager Visibility</h3>
+                <p class="config-help-static extmgr-help">Hide/unhide ext-mgr itself in moOde menu areas without disabling the API endpoint.</p>
+                <div class="extmgr-actions">
+                    <button id="manager-visibility-header-btn" class="btn btn-small visibility-toggle" type="button">Header tab: Visible</button>
+                    <button id="manager-visibility-library-btn" class="btn btn-small visibility-toggle" type="button">Library menu: Visible</button>
+                    <button id="manager-visibility-m-btn" class="btn btn-small visibility-toggle" type="button">M menu: Visible</button>
+                    <button id="manager-visibility-system-btn" class="btn btn-small visibility-toggle" type="button">Extension manager: Visible</button>
+                </div>
+                <div id="manager-visibility-note" class="extmgr-note">Changes apply on next menu render and page refresh.</div>
+            </div>
+        </section>
+
         <section class="extmgr-panel" id="section-installed">
             <h2 class="extmgr-static-heading">Installed Extensions</h2>
             <div class="config-help-static extmgr-help">Inactive extensions remain in registry but are marked unavailable in menu integrations.</div>
@@ -73,29 +108,6 @@ if (file_exists('/var/www/header.php')) {
             </div>
             <div id="list-summary" class="extmgr-list-summary">-</div>
             <div id="list" class="extmgr-list" aria-live="polite"></div>
-            <div class="extmgr-actions">
-                <button id="refresh-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-arrows-rotate"></i> Refresh List</button>
-                <button id="sync-registry-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-database"></i> Sync Registry</button>
-                <button id="system-update-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-rotate"></i> Sync Extensions</button>
-            </div>
-
-            <div class="extmgr-submenu" id="submenu-import-wizard">
-                <button class="extmgr-submenu-header" type="button" data-submenu-toggle aria-expanded="false">
-                    <span>Import Extension Wizard</span>
-                    <i class="fa-solid fa-angle-down" aria-hidden="true"></i>
-                </button>
-                <div class="extmgr-submenu-body">
-                    <p class="config-help-static extmgr-help">Upload a prepared extension package (.zip) or download a starter template kit.</p>
-                    <div class="extmgr-import-controls">
-                        <input id="import-extension-file" class="extmgr-file-input" type="file" accept=".zip" aria-label="Upload extension package zip">
-                        <label for="import-extension-file" id="import-extension-file-trigger" class="btn btn-primary btn-small">Choose File</label>
-                        <span id="import-extension-file-name" class="extmgr-file-name">No file chosen</span>
-                        <button id="import-extension-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-upload"></i> Upload Extension</button>
-                        <a id="download-template-btn" class="btn btn-small" href="/ext-mgr-api.php?action=download_extension_template"><i class="fa-solid fa-sharp fa-file-zipper"></i> Download Template Kit</a>
-                    </div>
-                    <div id="import-wizard-note" class="extmgr-note">Template includes: template.php, template.js, template.css, info.json, install.sh and standard folders.</div>
-                </div>
-            </div>
         </section>
 
         <section class="extmgr-panel extmgr-section" id="section-system">
@@ -226,23 +238,6 @@ if (file_exists('/var/www/header.php')) {
                             <button id="clear-cache-btn" class="btn btn-small btn-danger" type="button"><i class="fa-solid fa-sharp fa-trash"></i> Clear Cache Folder</button>
                         </div>
                         <div id="maintenance-storage-note" class="extmgr-note">Cache path: /var/www/extensions/cache. Backups are stored in /var/www/extensions/sys/backup.</div>
-                    </div>
-                </div>
-
-                <div class="extmgr-submenu" id="submenu-manager-visibility">
-                    <button class="extmgr-submenu-header" type="button" data-submenu-toggle aria-expanded="false">
-                        <span>Extension Manager Visibility</span>
-                        <i class="fa-solid fa-angle-down" aria-hidden="true"></i>
-                    </button>
-                    <div class="extmgr-submenu-body">
-                        <p class="config-help-static extmgr-help">Hide/unhide ext-mgr itself in moOde menu areas without disabling the API endpoint.</p>
-                        <div class="extmgr-actions">
-                            <button id="manager-visibility-header-btn" class="btn btn-small visibility-toggle" type="button">Header tab: Visible</button>
-                            <button id="manager-visibility-library-btn" class="btn btn-small visibility-toggle" type="button">Library menu: Visible</button>
-                            <button id="manager-visibility-m-btn" class="btn btn-small visibility-toggle" type="button">M menu: Visible</button>
-                            <button id="manager-visibility-system-btn" class="btn btn-small visibility-toggle" type="button">Extension manager: Visible</button>
-                        </div>
-                        <div id="manager-visibility-note" class="extmgr-note">Changes apply on next menu render and page refresh.</div>
                     </div>
                 </div>
 
