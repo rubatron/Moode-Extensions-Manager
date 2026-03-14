@@ -891,7 +891,7 @@
     }
 
     button.classList.add('extmgr-switch', 'extmgr-switch-inline');
-    button.classList.remove('visibility-toggle');
+    button.classList.remove('visibility-toggle', 'btn', 'btn-small', 'btn-primary');
     button.classList.remove('is-on', 'is-off');
     button.classList.add(visible ? 'is-on' : 'is-off');
     button.setAttribute('role', 'switch');
@@ -940,6 +940,7 @@
     }
 
     button.classList.add('extmgr-switch', 'extmgr-switch-inline');
+    button.classList.remove('visibility-toggle', 'btn', 'btn-small', 'btn-primary');
     button.classList.remove('is-on', 'is-off');
     button.classList.add(enabled ? 'is-on' : 'is-off');
     button.setAttribute('role', 'switch');
@@ -1122,7 +1123,7 @@
 
       var menuMBtn = document.createElement('button');
       menuMBtn.type = 'button';
-      menuMBtn.className = 'btn btn-small';
+      menuMBtn.className = '';
       applyTip(menuMBtn, 'extension.menu.m');
       menuMBtn.addEventListener('click', function () {
         var next = getVisibility(item, 'm') ? '0' : '1';
@@ -1145,7 +1146,7 @@
 
       var menuLibraryBtn = document.createElement('button');
       menuLibraryBtn.type = 'button';
-      menuLibraryBtn.className = 'btn btn-small';
+      menuLibraryBtn.className = '';
       applyTip(menuLibraryBtn, 'extension.menu.library');
       menuLibraryBtn.addEventListener('click', function () {
         var next = getVisibility(item, 'library') ? '0' : '1';
@@ -1168,7 +1169,7 @@
 
       var menuSystemBtn = document.createElement('button');
       menuSystemBtn.type = 'button';
-      menuSystemBtn.className = 'btn btn-small';
+      menuSystemBtn.className = '';
       applyTip(menuSystemBtn, 'extension.menu.system');
       menuSystemBtn.addEventListener('click', function () {
         var next = getVisibility(item, 'system') ? '0' : '1';
@@ -1191,7 +1192,7 @@
 
       var settingsCardBtn = document.createElement('button');
       settingsCardBtn.type = 'button';
-      settingsCardBtn.className = 'btn btn-small';
+      settingsCardBtn.className = '';
       applyTip(settingsCardBtn, 'extension.settingsCard');
       settingsCardBtn.addEventListener('click', function () {
         var next = getSettingsCardOnly(item) ? '0' : '1';
