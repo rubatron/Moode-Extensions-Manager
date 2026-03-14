@@ -14,6 +14,7 @@ SRC_INTEGRITY=""
 SRC_JS=""
 SRC_MODAL_FIX_JS=""
 SRC_HOVER_MENU_JS=""
+SRC_SHELL_BRIDGE=""
 SRC_CSS=""
 SRC_REGISTRY_SYNC_SCRIPT=""
 SRC_IMPORT_WIZARD_SCRIPT=""
@@ -38,6 +39,7 @@ TARGET_JS="$TARGET_JS_DIR/ext-mgr.js"
 TARGET_MODAL_FIX_JS="$TARGET_JS_DIR/ext-mgr-modal-fix.js"
 TARGET_CSS="$TARGET_CSS_DIR/ext-mgr.css"
 TARGET_HOVER_MENU_JS="$TARGET_JS_DIR/ext-mgr-hover-menu.js"
+TARGET_SHELL_BRIDGE="$TARGET_SYS_DIR/ext-mgr-shell-bridge.php"
 TARGET_SCRIPT_DIR="$TARGET_SYS_DIR/scripts"
 TARGET_REGISTRY_SYNC_SCRIPT="$TARGET_SCRIPT_DIR/ext-mgr-registry-sync.sh"
 TARGET_IMPORT_WIZARD_SCRIPT="$TARGET_SCRIPT_DIR/ext-mgr-import-wizard.sh"
@@ -136,6 +138,7 @@ set_source_root() {
     SRC_JS="$root/assets/js/ext-mgr.js"
     SRC_MODAL_FIX_JS="$root/assets/js/ext-mgr-modal-fix.js"
     SRC_HOVER_MENU_JS="$root/assets/js/ext-mgr-hover-menu.js"
+    SRC_SHELL_BRIDGE="$root/ext-mgr-shell-bridge.php"
     SRC_CSS="$root/assets/css/ext-mgr.css"
     SRC_REGISTRY_SYNC_SCRIPT="$root/scripts/ext-mgr-registry-sync.sh"
     SRC_IMPORT_WIZARD_SCRIPT="$root/scripts/ext-mgr-import-wizard.sh"
@@ -492,6 +495,7 @@ fetch_from_main_branch() {
         "ext-mgr.release.json"
         "ext-mgr.version"
         "ext-mgr.integrity.json"
+        "ext-mgr-shell-bridge.php"
         "assets/js/ext-mgr.js"
         "assets/js/ext-mgr-modal-fix.js"
         "assets/js/ext-mgr-hover-menu.js"
@@ -545,14 +549,47 @@ cleanup_tmp_dir() {
 
 trap cleanup_tmp_dir EXIT
 
+cleanup_shell_bridge_includes() {
+    $SUDO python3 - <<'PY'
+from pathlib import Path
+import re
+
+files = [
+    Path('/var/www/header.php'),
+    Path('/var/www/footer.min.php'),
+    Path('/var/www/footer.php'),
+    Path('/var/www/templates/indextpl.min.html'),
+]
+
+for p in files:
+    if not p.exists():
+        continue
+
+    s = p.read_text(encoding='utf-8', errors='ignore')
+    s = re.sub(r'<\?php\s*/\* EXT_MGR_SHELL_BRIDGE_START \*/.*?/\* EXT_MGR_SHELL_BRIDGE_END \*/\s*\?>\s*', '', s, flags=re.S)
+    s = s.replace('<script src="/extensions/sys/assets/js/ext-mgr-hover-menu.js" defer></script>', '')
+    s = re.sub(r'\s*<a id="ext-mgr-btn" class="btn" href="/?ext-mgr\.php"><span>Extensions</span><i class="fa-solid fa-sharp fa-puzzle-piece"></i></a>', '', s)
+    s = s.replace('<li><a href="/ext-mgr.php" class="btn btn-large"><i class="fa-solid fa-sharp fa-puzzle-piece"></i><br>Extensions</a></li>', '')
+    s = s.replace('<li><a href="ext-mgr.php" class="btn btn-large"><i class="fa-solid fa-sharp fa-puzzle-piece"></i><br>Extensions</a></li>', '')
+    s = re.sub(r'<span class="extmgr-hover-menu"[^>]*>.*?<div id="extmgr-hover-list"></div>\s*</div>\s*</span>\s*', '', s, flags=re.S)
+
+    p.write_text(s, encoding='utf-8')
+
+print('cleaned ext-mgr bridge and legacy injections')
+PY
+}
+
 run_uninstall() {
     local stamp
     stamp="$(date +%Y%m%d-%H%M%S)"
     local uninstall_backup_dir="$TARGET_BACKUP_DIR/uninstall-$stamp"
     $SUDO mkdir -p "$uninstall_backup_dir"
 
+    echo "[uninstall] Cleaning ext-mgr bridge markers from moOde shell files..."
+    cleanup_shell_bridge_includes
+
     echo "[uninstall] Backing up core files where present..."
-    for f in "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_RELEASE" "$TARGET_VERSION" "$TARGET_INTEGRITY" "$TARGET_JS" "$TARGET_MODAL_FIX_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_REGISTRY" "$TARGET_REGISTRY_SYNC_SCRIPT" "$TARGET_IMPORT_WIZARD_SCRIPT"; do
+    for f in "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_RELEASE" "$TARGET_VERSION" "$TARGET_INTEGRITY" "$TARGET_JS" "$TARGET_MODAL_FIX_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_SHELL_BRIDGE" "$TARGET_REGISTRY" "$TARGET_REGISTRY_SYNC_SCRIPT" "$TARGET_IMPORT_WIZARD_SCRIPT"; do
         if [[ -f "$f" ]]; then
             rel="${f#/var/www/extensions/sys/}"
             if [[ "$rel" == "$f" ]]; then
@@ -564,7 +601,7 @@ run_uninstall() {
     done
 
     echo "[uninstall] Removing ext-mgr files/symlinks/helpers..."
-    $SUDO rm -f "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_RELEASE" "$TARGET_VERSION" "$TARGET_INTEGRITY" "$TARGET_JS" "$TARGET_MODAL_FIX_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_REGISTRY_SYNC_SCRIPT" "$TARGET_IMPORT_WIZARD_SCRIPT"
+    $SUDO rm -f "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_RELEASE" "$TARGET_VERSION" "$TARGET_INTEGRITY" "$TARGET_JS" "$TARGET_MODAL_FIX_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_SHELL_BRIDGE" "$TARGET_REGISTRY_SYNC_SCRIPT" "$TARGET_IMPORT_WIZARD_SCRIPT"
     $SUDO rm -f /var/www/extensions/ext-mgr.php /var/www/extensions/ext-mgr-api.php /var/www/extensions/ext-mgr.meta.json /var/www/extensions/ext-mgr.release.json /var/www/extensions/ext-mgr.version /var/www/extensions/ext-mgr.integrity.json /var/www/extensions/registry.json /var/www/extensions/ext-mgr-hover-menu.js
     $SUDO rm -f /var/www/extensions/assets/js/ext-mgr.js /var/www/extensions/assets/css/ext-mgr.css
     $SUDO rm -f /var/www/ext-mgr.php /var/www/ext-mgr-api.php /var/www/extensions-manager.php
@@ -594,6 +631,7 @@ s = s.replace('/extensions-manager.php', '/ext-mgr.php')
 s = re.sub(r'<span class="extmgr-hover-menu"[^>]*>.*?<div id="extmgr-hover-list"></div>\s*</div>\s*</span>\s*', '', s, flags=re.S)
 s = s.replace(' <button aria-label="Extensions" class="btn extensions-manager-btn menu-separator" href="#notarget" onclick="window.location.href=\'/ext-mgr.php\';"><i class="fa-solid fa-sharp fa-puzzle-piece"></i> Extensions</button>', ' ')
 s = s.replace('<button aria-label="Extensions" class="btn extensions-manager-btn menu-separator" href="#notarget" onclick="window.location.href=\'/ext-mgr.php\';"><i class="fa-solid fa-sharp fa-puzzle-piece"></i> Extensions</button>', '')
+s = s.replace('<script src="/extensions/sys/assets/js/ext-mgr-hover-menu.js" defer></script>', '')
 
 p.write_text(s, encoding='utf-8')
 print('normalized index template (non-invasive)')
@@ -602,65 +640,76 @@ PY
 
 patch_header_and_footer_menu() {
     if [[ -f "$HEADER_FILE" ]]; then
+        $SUDO cp -a "$HEADER_FILE" "$HEADER_FILE.bak-extmgr-$STAMP"
         $SUDO python3 - <<'PY'
 from pathlib import Path
+import re
 
 p = Path('/var/www/header.php')
 s = p.read_text(encoding='utf-8', errors='ignore')
 
-s = s.replace('id="ext-mgr-btn" class="btn" href="ext-mgr.php"', 'id="ext-mgr-btn" class="btn" href="/ext-mgr.php"')
+# Cleanup legacy ext-mgr injections in header.
+s = s.replace('<script src="/extensions/sys/assets/js/ext-mgr-hover-menu.js" defer></script>', '')
+s = re.sub(r'\s*<a id="ext-mgr-btn" class="btn" href="/?ext-mgr\.php"><span>Extensions</span><i class="fa-solid fa-sharp fa-puzzle-piece"></i></a>', '', s)
 
-btn = '<a id="ext-mgr-btn" class="btn" href="/ext-mgr.php"><span>Extensions</span><i class="fa-solid fa-sharp fa-puzzle-piece"></i></a>'
-if 'id="ext-mgr-btn"' not in s:
-    marker = '<a id="per-config-btn" class="btn" href="per-config.php"><span>Peripherals</span><i class="fa-solid fa-sharp fa-display"></i></a>'
-    if marker in s:
-        s = s.replace(marker, marker + '\n\t\t\t\t\t' + btn, 1)
+start_marker = '/* EXT_MGR_SHELL_BRIDGE_START */'
+end_marker = '/* EXT_MGR_SHELL_BRIDGE_END */'
+bridge_block = "<?php " + start_marker + " if (file_exists('/var/www/extensions/sys/ext-mgr-shell-bridge.php')) { include_once '/var/www/extensions/sys/ext-mgr-shell-bridge.php'; } " + end_marker + " ?>"
+
+s = re.sub(r'<\?php\s*/\* EXT_MGR_SHELL_BRIDGE_START \*/.*?/\* EXT_MGR_SHELL_BRIDGE_END \*/\s*\?>\s*', '', s, flags=re.S)
+
+if '</head>' in s:
+    s = s.replace('</head>', bridge_block + '\n</head>', 1)
+elif '</body>' in s:
+    s = s.replace('</body>', bridge_block + '\n</body>', 1)
+else:
+    s += '\n' + bridge_block + '\n'
 
 p.write_text(s, encoding='utf-8')
-print('patched header')
+print('patched header bridge include')
 PY
     else
         echo "WARN: $HEADER_FILE not found, skipping top tabs extension button patch" >&2
     fi
 
+    if [[ -f "$FOOTER_MIN_FILE" ]]; then
+        $SUDO cp -a "$FOOTER_MIN_FILE" "$FOOTER_MIN_FILE.bak-extmgr-$STAMP"
+    fi
+    if [[ -f "$FOOTER_FILE" ]]; then
+        $SUDO cp -a "$FOOTER_FILE" "$FOOTER_FILE.bak-extmgr-$STAMP"
+    fi
+
     $SUDO python3 - <<'PY'
 from pathlib import Path
-
-script_tag = '<script src="/extensions/sys/assets/js/ext-mgr-hover-menu.js" defer></script>'
+import re
 
 for p in [Path('/var/www/footer.min.php'), Path('/var/www/footer.php')]:
     if not p.exists():
         continue
 
     s = p.read_text(encoding='utf-8', errors='ignore')
-    s = s.replace('href="ext-mgr.php" class="btn btn-large"', 'href="/ext-mgr.php" class="btn btn-large"')
 
-    # Keep native moOde configure modal untouched; remove any legacy ext-mgr tile injections.
+    # Cleanup legacy ext-mgr injections in footer and keep native moOde modal untouched.
+    s = s.replace('<script src="/extensions/sys/assets/js/ext-mgr-hover-menu.js" defer></script>', '')
     s = s.replace('<li><a href="/ext-mgr.php" class="btn btn-large"><i class="fa-solid fa-sharp fa-puzzle-piece"></i><br>Extensions</a></li>', '')
     s = s.replace('<li><a href="ext-mgr.php" class="btn btn-large"><i class="fa-solid fa-sharp fa-puzzle-piece"></i><br>Extensions</a></li>', '')
 
-    if 'href="/ext-mgr.php" class="btn btn-large"' in s:
-        if script_tag not in s:
-            if '</body>' in s:
-                s = s.replace('</body>', script_tag + '\n</body>', 1)
-            elif '</html>' in s:
-                s = s.replace('</html>', script_tag + '\n</html>', 1)
-            else:
-                s += '\n' + script_tag + '\n'
-        p.write_text(s, encoding='utf-8')
-        continue
+    start_marker = '/* EXT_MGR_SHELL_BRIDGE_START */'
+    end_marker = '/* EXT_MGR_SHELL_BRIDGE_END */'
+    bridge_block = "<?php " + start_marker + " if (file_exists('/var/www/extensions/sys/ext-mgr-shell-bridge.php')) { include_once '/var/www/extensions/sys/ext-mgr-shell-bridge.php'; } " + end_marker + " ?>"
 
-    if script_tag not in s:
-        if '</body>' in s:
-            s = s.replace('</body>', script_tag + '\n</body>', 1)
-        elif '</html>' in s:
-            s = s.replace('</html>', script_tag + '\n</html>', 1)
-        else:
-            s += '\n' + script_tag + '\n'
+    s = re.sub(r'<\?php\s*/\* EXT_MGR_SHELL_BRIDGE_START \*/.*?/\* EXT_MGR_SHELL_BRIDGE_END \*/\s*\?>\s*', '', s, flags=re.S)
+
+    if '</body>' in s:
+        s = s.replace('</body>', bridge_block + '\n</body>', 1)
+    elif '</html>' in s:
+        s = s.replace('</html>', bridge_block + '\n</html>', 1)
+    else:
+        s += '\n' + bridge_block + '\n'
 
     p.write_text(s, encoding='utf-8')
 
-print('patched footer')
+print('patched footer bridge include')
 PY
 }
 
@@ -710,6 +759,7 @@ require_file "$SRC_INTEGRITY"
 require_file "$SRC_JS"
 require_file "$SRC_MODAL_FIX_JS"
 require_file "$SRC_HOVER_MENU_JS"
+require_file "$SRC_SHELL_BRIDGE"
 require_file "$SRC_CSS"
 require_file "$SRC_REGISTRY_SYNC_SCRIPT"
 require_file "$SRC_IMPORT_WIZARD_SCRIPT"
@@ -757,7 +807,7 @@ $SUDO mkdir -p "$TARGET_EXT_DIR" "$TARGET_SYS_DIR" "$TARGET_ASSETS_DIR" "$TARGET
 echo "[2/10] Backing up existing ext-mgr files (if present)..."
 BACKUP_SNAPSHOT_DIR="$TARGET_BACKUP_DIR/install-$STAMP"
 $SUDO mkdir -p "$BACKUP_SNAPSHOT_DIR"
-for f in "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_REGISTRY" "$TARGET_RELEASE" "$TARGET_VERSION" "$TARGET_INTEGRITY" "$TARGET_JS" "$TARGET_MODAL_FIX_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_REGISTRY_SYNC_SCRIPT" "$TARGET_IMPORT_WIZARD_SCRIPT" "$TARGET_GUIDANCE_MD" "$TARGET_REQUIREMENTS_MD" "$TARGET_FAQ_MD"; do
+for f in "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_REGISTRY" "$TARGET_RELEASE" "$TARGET_VERSION" "$TARGET_INTEGRITY" "$TARGET_JS" "$TARGET_MODAL_FIX_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_SHELL_BRIDGE" "$TARGET_REGISTRY_SYNC_SCRIPT" "$TARGET_IMPORT_WIZARD_SCRIPT" "$TARGET_GUIDANCE_MD" "$TARGET_REQUIREMENTS_MD" "$TARGET_FAQ_MD"; do
     if [[ -f "$f" ]]; then
         rel="${f#/var/www/extensions/sys/}"
         if [[ "$rel" == "$f" ]]; then
@@ -779,6 +829,7 @@ $SUDO install -o www-data -g www-data -m 0644 "$SRC_JS" "$TARGET_JS"
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_MODAL_FIX_JS" "$TARGET_MODAL_FIX_JS"
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_CSS" "$TARGET_CSS"
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_HOVER_MENU_JS" "$TARGET_HOVER_MENU_JS"
+$SUDO install -o www-data -g www-data -m 0644 "$SRC_SHELL_BRIDGE" "$TARGET_SHELL_BRIDGE"
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_GUIDANCE_MD" "$TARGET_GUIDANCE_MD"
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_REQUIREMENTS_MD" "$TARGET_REQUIREMENTS_MD"
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_FAQ_MD" "$TARGET_FAQ_MD"
@@ -932,7 +983,7 @@ JS
     php -l "$RB_FILE"
 fi
 
-echo "[7/10] Applying Module 3 menu integration..."
+echo "[7/10] Applying Module 3 shell bridge (idempotent include markers)..."
 if [[ -f "$INDEX_TEMPLATE_FILE" ]]; then
     $SUDO cp -a "$INDEX_TEMPLATE_FILE" "$INDEX_TEMPLATE_FILE.bak-extmgr-$STAMP"
 fi
@@ -950,5 +1001,5 @@ echo "- Verify /ext-mgr.php loads in moOde shell"
 
 echo "[10/11] Done."
 graceful_finalize_services
-echo "Installed: $TARGET_PAGE, $TARGET_API, $TARGET_JS, $TARGET_HOVER_MENU_JS, $TARGET_CSS, $TARGET_META"
+echo "Installed: $TARGET_PAGE, $TARGET_API, $TARGET_JS, $TARGET_HOVER_MENU_JS, $TARGET_SHELL_BRIDGE, $TARGET_CSS, $TARGET_META"
 echo "Root endpoints: /ext-mgr.php, /ext-mgr-api.php, /extensions-manager.php"
