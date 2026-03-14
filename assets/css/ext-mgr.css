@@ -38,6 +38,7 @@
 
 .extmgr-panel {
   margin-bottom: 0.95rem;
+  padding-bottom: 0.1rem;
 }
 
 .extmgr-static-heading {
@@ -50,7 +51,7 @@
 
 #section-manager-options {
   margin-bottom: 1.05rem;
-  padding: 0.35rem 0 0.55rem;
+  padding: 0.4rem 0 0.62rem;
   border-bottom: 1px solid rgba(128, 128, 128, 0.24);
 }
 
@@ -110,9 +111,9 @@
 }
 
 .extmgr-manager-visibility-grid {
-  margin-top: 0.55rem;
+  margin-top: 0.58rem;
   display: grid;
-  gap: 0.45rem;
+  gap: 0.42rem;
 }
 
 .extmgr-manager-visibility-row {
@@ -123,7 +124,13 @@
   border: 1px solid rgba(128, 128, 128, 0.25);
   background: rgba(0, 0, 0, 0.16);
   border-radius: 6px;
-  padding: 0.4rem 0.55rem;
+  padding: 0.42rem 0.58rem;
+  transition: background-color 0.16s ease, border-color 0.16s ease;
+}
+
+.extmgr-manager-visibility-row:hover {
+  background: rgba(10, 12, 16, 0.28);
+  border-color: rgba(170, 182, 194, 0.32);
 }
 
 .extmgr-manager-visibility-label {
@@ -154,7 +161,7 @@
   border-radius: 999px;
   background: rgba(128, 128, 128, 0.3);
   cursor: pointer;
-  transition: background-color 0.18s ease;
+  transition: background-color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .extmgr-switch .extmgr-switch-handle {
@@ -166,10 +173,12 @@
   border-radius: 999px;
   background: #d9d9d9;
   transition: transform 0.18s ease, background-color 0.18s ease;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
 }
 
 .extmgr-switch.is-on {
   background: #d35400;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
 }
 
 .extmgr-switch.is-on .extmgr-switch-handle {
@@ -182,8 +191,8 @@
 }
 
 .extmgr-switch:focus-visible {
-  outline: 1px dashed rgba(211, 84, 0, 0.85);
-  outline-offset: 2px;
+  outline: 0;
+  box-shadow: 0 0 0 2px rgba(211, 84, 0, 0.22);
 }
 
 .extmgr-switch:disabled {
@@ -199,6 +208,12 @@
   border: 1px solid rgba(128, 128, 128, 0.18);
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.16);
+  transition: border-color 0.16s ease, background-color 0.16s ease;
+}
+
+.extmgr-inline-toggle:hover {
+  border-color: rgba(170, 182, 194, 0.3);
+  background: rgba(10, 12, 16, 0.26);
 }
 
 .extmgr-inline-toggle-label {
@@ -588,6 +603,17 @@
   color: #fff;
 }
 
+.extmgr-page-shell .btn.btn-small:focus-visible,
+.extmgr-actions .btn.btn-small:focus-visible,
+.extmgr-import-controls .btn.btn-small:focus-visible,
+.extmgr-mode-btn:focus-visible,
+.extmgr-icon-btn:focus-visible,
+.extmgr-menu-header:focus-visible,
+.extmgr-submenu-header:focus-visible {
+  outline: 0;
+  box-shadow: 0 0 0 2px rgba(211, 84, 0, 0.22);
+}
+
 .extmgr-page-shell .btn.btn-primary,
 .extmgr-actions .btn.btn-primary,
 .extmgr-import-controls .btn.btn-primary {
@@ -677,7 +703,7 @@
   align-items: flex-start;
   gap: 0.8rem;
   border-top: 1px solid rgba(128, 128, 128, 0.28);
-  padding: 0.62rem 0;
+  padding: 0.66rem 0;
 }
 
 .list-item:first-child {
@@ -699,7 +725,8 @@
 .list-sub {
   color: #99a0a9;
   font-size: 0.84rem;
-  margin-top: 0.2rem;
+  margin-top: 0.22rem;
+  line-height: 1.35;
 }
 
 .extmgr-subcard {
@@ -708,6 +735,12 @@
   border-radius: 6px;
   background: rgba(0, 0, 0, 0.2);
   padding: 0.5rem 0.55rem;
+  transition: border-color 0.16s ease, background-color 0.16s ease;
+}
+
+.list-item:hover .extmgr-subcard {
+  border-color: rgba(170, 182, 194, 0.34);
+  background: rgba(8, 10, 14, 0.28);
 }
 
 .extmgr-subcard-title {
@@ -751,6 +784,7 @@
   justify-content: flex-end;
   gap: 0.45rem;
   flex-wrap: wrap;
+  row-gap: 0.3rem;
 }
 
 .btn-muted {
@@ -837,10 +871,15 @@
     width: 100%;
     justify-content: flex-start;
     gap: 0.35rem;
+    row-gap: 0.35rem;
   }
 
   .extmgr-inline-toggle {
     padding: 2px 4px;
+  }
+
+  .extmgr-manager-visibility-row {
+    padding: 0.44rem 0.52rem;
   }
 
   .extmgr-advanced-grid {
