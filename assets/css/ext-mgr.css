@@ -424,9 +424,42 @@
 }
 
 .extmgr-mode-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.38rem;
+  display: inline-flex;
+  flex-wrap: nowrap;
+  overflow: hidden;
+  border-radius: 0.25em;
+}
+
+.extmgr-mode-btn {
+  flex: 1;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  line-height: 1.25;
+  padding: 0.3rem 0.65rem;
+  border: none;
+  border-right: 1px solid rgba(128, 128, 128, 0.22);
+  background: var(--btnshade3, rgba(255, 255, 255, 0.1));
+  color: inherit;
+  cursor: pointer;
+  outline: 0;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  white-space: nowrap;
+}
+
+.extmgr-mode-btn:last-child {
+  border-right: none;
+}
+
+.extmgr-mode-btn:hover {
+  background: var(--btnshade2, rgba(255, 255, 255, 0.18));
+}
+
+.extmgr-mode-btn.is-active {
+  background: rgba(128, 128, 128, 0.32);
+  color: var(--accentxts, #ff8a3d);
 }
 
 .extmgr-custom-url-row {
@@ -441,67 +474,7 @@
   display: grid;
 }
 
-.extmgr-mode-btn {
-  appearance: none;
-  font-family: "Open Sans", Helvetica, Arial, sans-serif;
-  font-size: 12.2496px;
-  font-weight: 600;
-  line-height: 1.25;
-  text-align: center;
-  text-transform: uppercase;
-  word-spacing: 0;
-  color: #ddd;
-  background-color: transparent;
-  background-position: 0 0;
-  border: 1px solid transparent;
-  border-radius: 2px;
-  box-sizing: border-box;
-  cursor: pointer;
-  display: block;
-  outline: 0;
-  transform: none;
-  transition: 0.25s;
-  padding: 3.36684px 8.57472px;
-  min-height: auto;
-  min-width: 88px;
-}
 
-.extmgr-mode-group .extmgr-mode-btn.btn.btn-primary.btn-small {
-  font-family: "Open Sans", Helvetica, Arial, sans-serif;
-  min-width: 88px;
-  font-size: 12.2496px;
-  line-height: 1.25;
-  font-weight: 600;
-  text-align: center;
-  text-transform: uppercase;
-  word-spacing: 0;
-  color: #ddd;
-  background-color: transparent;
-  background-position: 0 0;
-  border: 1px solid transparent;
-  border-radius: 2px;
-  box-sizing: border-box;
-  cursor: pointer;
-  display: block;
-  outline: 0;
-  transform: none;
-  transition: 0.25s;
-  padding: 3.36684px 8.57472px;
-  min-height: auto;
-}
-
-.extmgr-mode-group .extmgr-mode-btn.btn.btn-primary.btn-small:hover {
-  background-color: rgba(170, 182, 194, 0.12);
-  border-color: transparent;
-  color: #fff;
-}
-
-.extmgr-mode-group .extmgr-mode-btn.btn.btn-primary.btn-small.is-active {
-  background-color: #d35400;
-  border-color: transparent;
-  color: #fff;
-  box-shadow: none;
-}
 
 #advanced-custom-url {
   width: 100%;

@@ -681,6 +681,9 @@
     if ((status.updateTrack || '') === 'custom') {
       return 'custom';
     }
+    if ((status.updateTrack || '') === 'channel') {
+      return 'release';
+    }
     if ((status.branch || 'main') === 'dev') {
       return 'dev';
     }
@@ -751,6 +754,15 @@
         branch: 'dev',
         customBaseUrl: ''
       });
+    } else if (advancedUpdateState.mode === 'release') {
+      previewStatus = mergeWithCurrentProviderStatus({
+        provider: (providerStatus && providerStatus.provider) || currentProviderStatus.provider || 'github',
+        repository: (providerStatus && providerStatus.repository) || currentProviderStatus.repository,
+        updateTrack: 'channel',
+        channel: 'stable',
+        branch: 'main',
+        customBaseUrl: ''
+      });
     } else {
       previewStatus = mergeWithCurrentProviderStatus({
         provider: (providerStatus && providerStatus.provider) || currentProviderStatus.provider || 'github',
@@ -766,10 +778,14 @@
     if (advancedUpdateNoteEl) {
       var activeModeLabel = advancedUpdateState.mode === 'custom'
         ? 'custom URL'
-        : (advancedUpdateState.mode === 'dev' ? 'dev branch' : 'main');
+        : advancedUpdateState.mode === 'dev'
+          ? 'dev branch'
+          : advancedUpdateState.mode === 'release'
+            ? 'release'
+            : 'main';
       advancedUpdateNoteEl.textContent = payloadWarning
         ? ('Branch discovery warning: ' + payloadWarning + '. Using stored branch list.')
-        : ('Modes: main, dev branch, custom URL. Active mode=' + activeModeLabel + '.');
+        : ('Modes: release, main, dev branch, custom URL. Active mode=' + activeModeLabel + '.');
     }
   }
 
@@ -1686,14 +1702,45 @@
       var nextMode = btn.getAttribute('data-advanced-mode') || 'main';
       advancedUpdateState.mode = nextMode;
       renderAdvancedModeButtons();
-      renderAdvancedSource(mergeWithCurrentProviderStatus({
-        provider: currentProviderStatus.provider || 'github',
-        repository: currentProviderStatus.repository,
-        updateTrack: nextMode === 'custom' ? 'custom' : 'branch',
-        channel: nextMode === 'dev' ? 'dev' : 'stable',
-        branch: nextMode === 'dev' ? 'dev' : 'main',
-        customBaseUrl: advancedCustomUrlEl ? advancedCustomUrlEl.value : ''
-      }), null);
+      var previewOverride;
+      if (nextMode === 'custom') {
+        previewOverride = {
+          provider: 'custom',
+          repository: '',
+          updateTrack: 'custom',
+          channel: 'stable',
+          branch: 'main',
+          customBaseUrl: advancedCustomUrlEl ? advancedCustomUrlEl.value : ''
+        };
+      } else if (nextMode === 'dev') {
+        previewOverride = {
+          provider: currentProviderStatus.provider || 'github',
+          repository: currentProviderStatus.repository,
+          updateTrack: 'branch',
+          channel: 'dev',
+          branch: 'dev',
+          customBaseUrl: ''
+        };
+      } else if (nextMode === 'release') {
+        previewOverride = {
+          provider: currentProviderStatus.provider || 'github',
+          repository: currentProviderStatus.repository,
+          updateTrack: 'channel',
+          channel: 'stable',
+          branch: 'main',
+          customBaseUrl: ''
+        };
+      } else {
+        previewOverride = {
+          provider: currentProviderStatus.provider || 'github',
+          repository: currentProviderStatus.repository,
+          updateTrack: 'branch',
+          channel: 'stable',
+          branch: 'main',
+          customBaseUrl: ''
+        };
+      }
+      renderAdvancedSource(mergeWithCurrentProviderStatus(previewOverride), null);
     });
   });
 
@@ -1768,9 +1815,16 @@
 
   bindIfPresent(saveAdvancedUpdateBtn, 'click', function () {
     var mode = advancedUpdateState.mode || 'main';
-    var track = mode === 'custom' ? 'custom' : 'branch';
-    var channel = mode === 'dev' ? 'dev' : 'stable';
-    var branch = mode === 'dev' ? 'dev' : 'main';
+    var track, channel, branch;
+    if (mode === 'custom') {
+      track = 'custom'; channel = 'stable'; branch = 'main';
+    } else if (mode === 'dev') {
+      track = 'branch'; channel = 'dev'; branch = 'dev';
+    } else if (mode === 'release') {
+      track = 'channel'; channel = 'stable'; branch = 'main';
+    } else {
+      track = 'branch'; channel = 'stable'; branch = 'main';
+    }
     var customUrl = advancedCustomUrlEl ? String(advancedCustomUrlEl.value || '').trim() : '';
 
     if (mode === 'custom' && !customUrl) {
