@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REGISTRY_PATH="/var/www/extensions/registry.json"
+REGISTRY_PATH="/var/www/extensions/sys/registry.json"
 INSTALLED_ROOT="/var/www/extensions/installed"
 PRUNE_MISSING=0
 

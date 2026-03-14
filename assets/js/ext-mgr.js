@@ -11,12 +11,45 @@
   var extensionCountEl = document.getElementById('extension-count');
   var activeCountEl = document.getElementById('active-count');
   var inactiveCountEl = document.getElementById('inactive-count');
-  var pinnedCountEl = document.getElementById('pinned-count');
+  var mVisibleCountEl = document.getElementById('m-visible-count');
+  var libraryVisibleCountEl = document.getElementById('library-visible-count');
+  var systemVisibleCountEl = document.getElementById('system-visible-count');
+  var settingsCardCountEl = document.getElementById('settings-card-count');
+  var serviceMemPctEl = document.getElementById('service-mem-pct');
+  var resourceCpuUsageEl = document.getElementById('resource-cpu-usage');
+  var resourceLoadAvgEl = document.getElementById('resource-load-avg');
+  var resourceMemoryUsedEl = document.getElementById('resource-memory-used');
+  var resourceMemoryAvailableEl = document.getElementById('resource-memory-available');
+  var resourceDiskRootEl = document.getElementById('resource-disk-root');
+  var resourceDiskExtensionsEl = document.getElementById('resource-disk-extensions');
+  var resourceExtmgrMemEl = document.getElementById('resource-extmgr-mem');
+  var resourceExtensionsMemEl = document.getElementById('resource-extensions-mem');
+  var resourceExtensionsStorageEl = document.getElementById('resource-extensions-storage');
+  var resourceExtensionTopEl = document.getElementById('resource-extension-top');
+  var resourceRequirementsNoteEl = document.getElementById('resource-requirements-note');
+  var cacheDirPathEl = document.getElementById('cache-dir-path');
+  var cacheDirUsageEl = document.getElementById('cache-dir-usage');
+  var backupDirPathEl = document.getElementById('backup-dir-path');
+  var backupDirCountEl = document.getElementById('backup-dir-count');
+  var backupLatestEl = document.getElementById('backup-latest');
+  var maintenanceStorageNoteEl = document.getElementById('maintenance-storage-note');
+  var managerVisibilityHeaderBtn = document.getElementById('manager-visibility-header-btn');
+  var managerVisibilityLibraryBtn = document.getElementById('manager-visibility-library-btn');
+  var managerVisibilitySystemBtn = document.getElementById('manager-visibility-system-btn');
+  var managerVisibilityNoteEl = document.getElementById('manager-visibility-note');
 
   var metaVersionEl = document.getElementById('meta-version');
   var metaCreatorEl = document.getElementById('meta-creator');
   var metaLicenseEl = document.getElementById('meta-license');
   var updateNoteEl = document.getElementById('update-note');
+  var advancedModeButtons = document.querySelectorAll('[data-advanced-mode]');
+  var advancedCustomWrapEl = document.getElementById('advanced-custom-wrap');
+  var advancedCustomUrlEl = document.getElementById('advanced-custom-url');
+  var advancedSourceLinkEl = document.getElementById('advanced-source-link');
+  var openAdvancedSourceBtn = document.getElementById('open-advanced-source-btn');
+  var copyAdvancedSourceBtn = document.getElementById('copy-advanced-source-btn');
+  var saveAdvancedUpdateBtn = document.getElementById('save-advanced-update-btn');
+  var advancedUpdateNoteEl = document.getElementById('advanced-update-note');
   var maintenanceLogEl = document.getElementById('maintenance-log');
 
   var refreshBtn = document.getElementById('refresh-btn');
@@ -24,11 +57,23 @@
   var runUpdateBtn = document.getElementById('run-update-btn');
   var systemUpdateBtn = document.getElementById('system-update-btn');
   var repairBtn = document.getElementById('repair-btn');
+  var refreshResourcesBtn = document.getElementById('refresh-resources-btn');
+  var createBackupBtn = document.getElementById('create-backup-btn');
+  var clearCacheBtn = document.getElementById('clear-cache-btn');
   var syncRegistryBtn = document.getElementById('sync-registry-btn');
+  var importExtensionFileEl = document.getElementById('import-extension-file');
+  var importExtensionFileNameEl = document.getElementById('import-extension-file-name');
+  var importExtensionBtn = document.getElementById('import-extension-btn');
+  var importWizardNoteEl = document.getElementById('import-wizard-note');
   var listFilterEl = document.getElementById('list-filter');
   var listSortEl = document.getElementById('list-sort');
   var listSearchEl = document.getElementById('list-search');
   var listSummaryEl = document.getElementById('list-summary');
+  var guidanceDocEl = document.getElementById('guidance-doc');
+  var requirementsDocEl = document.getElementById('requirements-doc');
+  var faqDocEl = document.getElementById('faq-doc');
+  var menuToggleButtons = document.querySelectorAll('[data-menu-toggle]');
+  var submenuToggleButtons = document.querySelectorAll('[data-submenu-toggle]');
 
   var allItems = [];
   var PREF_PREFIX = 'extmgr.list.';
@@ -37,6 +82,27 @@
     candidateVersion: null,
     warning: null,
     integrity: null
+  };
+  var advancedUpdateState = {
+    mode: 'main',
+    customUrl: ''
+  };
+  var managerVisibilityState = {
+    header: true,
+    library: true,
+    system: true
+  };
+  var currentProviderStatus = {
+    provider: 'github',
+    repository: '',
+    updateTrack: 'branch',
+    channel: 'stable',
+    branch: 'main',
+    customBaseUrl: '',
+    availableBranches: ['main', 'dev'],
+    signatureVerification: 'planned',
+    checksumAlgorithm: 'sha256',
+    integrityManifestPath: 'ext-mgr.integrity.json'
   };
 
   function setStatus(text, kind) {
@@ -69,6 +135,35 @@
     el.addEventListener(eventName, handler);
   }
 
+  function setImportWizardNote(text, kind) {
+    if (!importWizardNoteEl) {
+      return;
+    }
+    importWizardNoteEl.textContent = text;
+    importWizardNoteEl.classList.remove('error', 'ok');
+    if (kind) {
+      importWizardNoteEl.classList.add(kind);
+    }
+  }
+
+  function apiUpload(file) {
+    var formData = new FormData();
+    formData.append('action', 'import_extension_upload');
+    formData.append('package', file);
+
+    return fetch(apiUrl, {
+      method: 'POST',
+      body: formData
+    }).then(function (res) {
+      return res.json().then(function (data) {
+        if (!res.ok || !data.ok) {
+          throw new Error((data && data.error) || 'Upload failed');
+        }
+        return data;
+      });
+    });
+  }
+
   function readPref(key, fallback) {
     try {
       var value = window.localStorage.getItem(PREF_PREFIX + key);
@@ -93,6 +188,111 @@
     el.textContent = value;
   }
 
+  function asMiB(value) {
+    if (typeof value !== 'number' || !isFinite(value)) {
+      return 'n/a';
+    }
+    return value.toFixed(2) + ' MiB';
+  }
+
+  function asPercent(value) {
+    if (typeof value !== 'number' || !isFinite(value)) {
+      return 'n/a';
+    }
+    return value.toFixed(2) + '%';
+  }
+
+  function asBytes(value) {
+    if (typeof value !== 'number' || !isFinite(value) || value < 0) {
+      return 'n/a';
+    }
+    var units = ['B', 'KiB', 'MiB', 'GiB', 'TiB'];
+    var size = value;
+    var idx = 0;
+    while (size >= 1024 && idx < units.length - 1) {
+      size /= 1024;
+      idx += 1;
+    }
+    return size.toFixed(idx === 0 ? 0 : 2) + ' ' + units[idx];
+  }
+
+  function applyManagerVisibilityButtonState(button, area, visible) {
+    if (!button) {
+      return;
+    }
+    button.classList.remove('is-on', 'is-off');
+    button.classList.add(visible ? 'is-on' : 'is-off');
+    button.textContent = area + ': ' + (visible ? 'Visible' : 'Hidden');
+  }
+
+  function renderManagerVisibility(visibility) {
+    var v = visibility || {};
+    managerVisibilityState.header = v.header !== false;
+    managerVisibilityState.library = v.library !== false;
+    managerVisibilityState.system = v.system !== false;
+
+    applyManagerVisibilityButtonState(managerVisibilityHeaderBtn, 'Header', managerVisibilityState.header);
+    applyManagerVisibilityButtonState(managerVisibilityLibraryBtn, 'Library', managerVisibilityState.library);
+    applyManagerVisibilityButtonState(managerVisibilitySystemBtn, 'System', managerVisibilityState.system);
+  }
+
+  function renderMaintenanceStatus(maintenance) {
+    var m = maintenance || {};
+    var cache = m.cache || {};
+    var backup = m.backup || {};
+
+    setText(cacheDirPathEl, cache.path || '/var/www/extensions/cache');
+    setText(cacheDirUsageEl, asBytes(cache.bytes || 0) + ' in ' + String(cache.fileCount || 0) + ' files');
+    setText(backupDirPathEl, backup.path || '/var/www/extensions/sys/backup');
+    setText(backupDirCountEl, String(backup.snapshotCount || 0));
+    setText(backupLatestEl, backup.latest || 'none');
+  }
+
+  function renderSystemResources(resources) {
+    var r = resources || {};
+    var cpu = r.cpu || {};
+    var load = r.load || {};
+    var memory = r.memory || {};
+    var disk = r.disk || {};
+    var extmgr = r.extMgr || {};
+    var extensions = r.extensions || {};
+    var runtime = extensions.runtimeMemory || {};
+    var top = Array.isArray(runtime.topConsumers) ? runtime.topConsumers : [];
+
+    setText(resourceCpuUsageEl, asPercent(cpu.usagePct));
+    setText(resourceLoadAvgEl, (typeof load.one === 'number' ? load.one.toFixed(2) : 'n/a') + ' / ' + (typeof load.five === 'number' ? load.five.toFixed(2) : 'n/a') + ' / ' + (typeof load.fifteen === 'number' ? load.fifteen.toFixed(2) : 'n/a'));
+    setText(resourceMemoryUsedEl, asMiB(memory.usedMiB) + ' (' + asPercent(memory.usedPct) + ')');
+    setText(resourceMemoryAvailableEl, asMiB(memory.availableMiB));
+
+    var rootDisk = disk.root || {};
+    var extDisk = disk.extensions || {};
+    setText(resourceDiskRootEl, asBytes(rootDisk.usedBytes) + ' / ' + asBytes(rootDisk.totalBytes) + ' (' + asPercent(rootDisk.usedPct) + ')');
+    setText(resourceDiskExtensionsEl, asBytes(extDisk.usedBytes) + ' / ' + asBytes(extDisk.totalBytes) + ' (' + asPercent(extDisk.usedPct) + ')');
+
+    setText(resourceExtmgrMemEl, asMiB(extmgr.memoryMiB) + ' (' + asPercent(extmgr.memoryPctOfSystem) + ')');
+    setText(resourceExtensionsMemEl, asMiB(runtime.totalMiB) + ' via ' + String(runtime.method || 'n/a'));
+
+    var storage = extensions.storage || {};
+    setText(resourceExtensionsStorageEl, asBytes(storage.totalBytes) + ' across ' + String(storage.extensionCount || 0) + ' extension(s)');
+
+    if (resourceExtensionTopEl) {
+      if (top.length === 0) {
+        resourceExtensionTopEl.textContent = 'Top extension memory consumers: no runtime processes detected.';
+      } else {
+        resourceExtensionTopEl.textContent = 'Top extension memory consumers: ' + top.map(function (row) {
+          return String(row.id || 'unknown') + ' (' + asMiB(row.memoryMiB) + ')';
+        }).join(', ');
+      }
+    }
+
+    if (resourceRequirementsNoteEl) {
+      var req = runtime.requirements || [];
+      resourceRequirementsNoteEl.textContent = req.length
+        ? ('Requirements for accurate per-extension memory: ' + req.join(' | '))
+        : 'Runtime process matching is active.';
+    }
+  }
+
   function renderMeta(meta) {
     if (!meta) {
       return;
@@ -110,6 +310,7 @@
     var srcVersion = src.currentVersionFile || 'n/a';
     var srcRelease = src.releasePolicyFile || 'n/a';
     setText(maintenanceLogEl, 'lastAction=' + lastAction + '\nlastResult=' + lastResult + '\nlastRunAt=' + lastRun + '\nversionSource=' + srcVersion + '\nreleaseSource=' + srcRelease);
+    renderManagerVisibility(meta.managerVisibility || {});
   }
 
   function renderHealth(health) {
@@ -121,7 +322,142 @@
     setText(extensionCountEl, String(health.extensionCount || 0));
     setText(activeCountEl, String(health.activeCount || 0));
     setText(inactiveCountEl, String(health.inactiveCount || 0));
-    setText(pinnedCountEl, String(health.pinnedCount || 0));
+    setText(mVisibleCountEl, String(health.mVisibleCount || 0));
+    setText(libraryVisibleCountEl, String(health.libraryVisibleCount || 0));
+    setText(systemVisibleCountEl, String(health.systemVisibleCount || 0));
+    setText(settingsCardCountEl, String(health.settingsCardCount || 0));
+    if (serviceMemPctEl) {
+      var memPct = health.serviceMemoryPctOfSystem;
+      if (typeof memPct === 'number') {
+        serviceMemPctEl.textContent = memPct.toFixed(4) + '%';
+      } else {
+        serviceMemPctEl.textContent = 'n/a';
+      }
+    }
+  }
+
+  function providerStatusFromPolicy(policy) {
+    var p = policy || {};
+    return {
+      provider: p.provider || 'github',
+      repository: p.repository || '',
+      updateTrack: p.updateTrack || 'branch',
+      channel: p.channel || 'stable',
+      branch: p.branch || 'main',
+      customBaseUrl: p.customBaseUrl || '',
+      availableBranches: ['main', 'dev'],
+      signatureVerification: p.signatureVerification || 'planned',
+      checksumAlgorithm: p.checksumAlgorithm || 'sha256',
+      integrityManifestPath: p.integrityManifestPath || 'ext-mgr.integrity.json'
+    };
+  }
+
+  function parseRepository(repository) {
+    var repo = String(repository || '').trim();
+    var parts = repo.split('/');
+    if (parts.length !== 2 || !parts[0] || !parts[1]) {
+      return null;
+    }
+    return { owner: parts[0], name: parts[1] };
+  }
+
+  function buildResolveSourceUrl(providerStatus) {
+    var status = providerStatus || {};
+    if ((status.updateTrack || 'branch') === 'custom') {
+      return String(status.customBaseUrl || '').trim();
+    }
+
+    if ((status.provider || 'github') !== 'github') {
+      return '';
+    }
+
+    var repoParts = parseRepository(status.repository || '');
+    if (!repoParts) {
+      return '';
+    }
+
+    var base = 'https://api.github.com/repos/' + encodeURIComponent(repoParts.owner) + '/' + encodeURIComponent(repoParts.name);
+    var track = status.updateTrack || 'channel';
+    if (track === 'branch') {
+      return base + '/branches/' + encodeURIComponent(status.branch || 'main');
+    }
+
+    var channel = status.channel || 'stable';
+    if (channel === 'stable') {
+      return base + '/releases/latest';
+    }
+    return base + '/releases?per_page=30';
+  }
+
+  function buildRawManagedBaseUrl(providerStatus, candidate) {
+    var status = providerStatus || {};
+    if ((status.updateTrack || 'branch') === 'custom') {
+      var customBase = String((candidate && candidate.baseUrl) || status.customBaseUrl || '').trim();
+      if (!customBase) {
+        return '';
+      }
+      return customBase.replace(/\/+$/, '') + '/';
+    }
+
+    if ((status.provider || 'github') !== 'github') {
+      return '';
+    }
+
+    var repoParts = parseRepository(status.repository || '');
+    if (!repoParts) {
+      return '';
+    }
+
+    var ref = (candidate && (candidate.ref || candidate.tag)) || (status.updateTrack === 'branch' ? status.branch : 'main');
+    if (!ref) {
+      return '';
+    }
+
+    return 'https://raw.githubusercontent.com/' + encodeURIComponent(repoParts.owner) + '/' + encodeURIComponent(repoParts.name) + '/' + encodeURIComponent(ref) + '/';
+  }
+
+  function renderAdvancedSource(providerStatus, candidate) {
+    if (!advancedSourceLinkEl) {
+      return;
+    }
+
+    var resolveUrl = buildResolveSourceUrl(providerStatus);
+    var rawBase = buildRawManagedBaseUrl(providerStatus, candidate);
+    var display = resolveUrl || '-';
+    if (rawBase) {
+      display += ' | raw base: ' + rawBase;
+    }
+
+    advancedSourceLinkEl.textContent = display;
+    var sourceUrl = resolveUrl || rawBase || '';
+    advancedSourceLinkEl.setAttribute('data-source-url', sourceUrl);
+    advancedSourceLinkEl.setAttribute('data-raw-base-url', rawBase || '');
+
+    if (openAdvancedSourceBtn) {
+      openAdvancedSourceBtn.href = sourceUrl || '#';
+      openAdvancedSourceBtn.setAttribute('aria-disabled', sourceUrl ? 'false' : 'true');
+      openAdvancedSourceBtn.tabIndex = sourceUrl ? 0 : -1;
+    }
+  }
+
+  function fallbackCopyText(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', 'readonly');
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+
+    var copied = false;
+    try {
+      copied = document.execCommand('copy');
+    } catch (e) {
+      copied = false;
+    }
+
+    document.body.removeChild(ta);
+    return copied;
   }
 
   function buildIntegrityText(integrity, providerStatus) {
@@ -149,19 +485,119 @@
     var provider = integration.provider || 'n/a';
     var verification = integration.signatureVerification || 'n/a';
     var candidateVersion = candidate && candidate.version ? candidate.version : 'n/a';
+    var candidateSource = candidate && candidate.source ? candidate.source : 'n/a';
     var channel = integration.channel || 'n/a';
+    var track = (providerStatus && providerStatus.updateTrack) || 'channel';
+    var branch = (providerStatus && providerStatus.branch) || 'n/a';
     var integrityText = buildIntegrityText(integrity, providerStatus);
     if (hasUpdate) {
-      updateNoteEl.textContent = 'Update available: ' + currentVersion + ' -> ' + latestVersion + ' | candidate=' + candidateVersion + ' | channel=' + channel + ' | provider=' + provider + ' | signature=' + verification + ' | ' + integrityText;
+      updateNoteEl.textContent = 'Update available: ' + currentVersion + ' -> ' + latestVersion + ' | candidate=' + candidateVersion + ' | source=' + candidateSource + ' | track=' + track + ' | channel=' + channel + ' | branch=' + branch + ' | provider=' + provider + ' | signature=' + verification + ' | ' + integrityText;
       return;
     }
 
     if (warning) {
-      updateNoteEl.textContent = 'Update check warning: ' + warning + ' | current=' + currentVersion + ' | latest=' + latestVersion + ' | ' + integrityText;
+      updateNoteEl.textContent = 'Update check warning: ' + warning + ' | current=' + currentVersion + ' | latest=' + latestVersion + ' | track=' + track + ' | channel=' + channel + ' | branch=' + branch + ' | ' + integrityText;
       return;
     }
 
-    updateNoteEl.textContent = 'No update pending. Current version: ' + currentVersion + '. channel=' + channel + ' provider=' + provider + ' signature=' + verification + ' | ' + integrityText;
+    updateNoteEl.textContent = 'No update pending. Current version: ' + currentVersion + '. track=' + track + ' channel=' + channel + ' branch=' + branch + ' provider=' + provider + ' signature=' + verification + ' | ' + integrityText;
+  }
+
+  function getAdvancedModeFromStatus(providerStatus) {
+    var status = providerStatus || {};
+    if ((status.updateTrack || '') === 'custom') {
+      return 'custom';
+    }
+    if ((status.branch || 'main') === 'dev') {
+      return 'dev';
+    }
+    return 'main';
+  }
+
+  function renderAdvancedModeButtons() {
+    advancedModeButtons.forEach(function (btn) {
+      var mode = btn.getAttribute('data-advanced-mode');
+      btn.classList.toggle('is-active', mode === advancedUpdateState.mode);
+      btn.setAttribute('aria-pressed', mode === advancedUpdateState.mode ? 'true' : 'false');
+    });
+
+    if (advancedCustomWrapEl) {
+      advancedCustomWrapEl.classList.toggle('is-visible', advancedUpdateState.mode === 'custom');
+    }
+
+    if (advancedCustomUrlEl) {
+      advancedCustomUrlEl.disabled = advancedUpdateState.mode !== 'custom';
+    }
+  }
+
+  function mergeWithCurrentProviderStatus(overrides) {
+    var next = {};
+    var base = currentProviderStatus || {};
+    var patch = overrides || {};
+
+    Object.keys(base).forEach(function (key) {
+      next[key] = base[key];
+    });
+    Object.keys(patch).forEach(function (key) {
+      next[key] = patch[key];
+    });
+
+    return next;
+  }
+
+  function renderAdvancedUpdateControls(providerStatus, payloadWarning, candidate) {
+    if (!advancedModeButtons || advancedModeButtons.length === 0) {
+      return;
+    }
+
+    currentProviderStatus = providerStatusFromPolicy(providerStatus || {});
+
+    advancedUpdateState.mode = getAdvancedModeFromStatus(providerStatus);
+    advancedUpdateState.customUrl = String((providerStatus && providerStatus.customBaseUrl) || '').trim();
+    if (advancedCustomUrlEl) {
+      advancedCustomUrlEl.value = advancedUpdateState.customUrl;
+    }
+
+    renderAdvancedModeButtons();
+    var previewStatus = providerStatus || {};
+    if (advancedUpdateState.mode === 'custom') {
+      previewStatus = mergeWithCurrentProviderStatus({
+        provider: 'custom',
+        repository: '',
+        updateTrack: 'custom',
+        channel: 'stable',
+        branch: 'main',
+        customBaseUrl: advancedUpdateState.customUrl
+      });
+    } else if (advancedUpdateState.mode === 'dev') {
+      previewStatus = mergeWithCurrentProviderStatus({
+        provider: (providerStatus && providerStatus.provider) || currentProviderStatus.provider || 'github',
+        repository: (providerStatus && providerStatus.repository) || currentProviderStatus.repository,
+        updateTrack: 'branch',
+        channel: 'dev',
+        branch: 'dev',
+        customBaseUrl: ''
+      });
+    } else {
+      previewStatus = mergeWithCurrentProviderStatus({
+        provider: (providerStatus && providerStatus.provider) || currentProviderStatus.provider || 'github',
+        repository: (providerStatus && providerStatus.repository) || currentProviderStatus.repository,
+        updateTrack: 'branch',
+        channel: 'stable',
+        branch: 'main',
+        customBaseUrl: ''
+      });
+    }
+    renderAdvancedSource(previewStatus, candidate || null);
+
+    if (advancedUpdateNoteEl) {
+      var activeModeLabel = advancedUpdateState.mode === 'custom'
+        ? 'custom URL'
+        : (advancedUpdateState.mode === 'dev' ? 'dev branch' : 'main');
+      advancedUpdateNoteEl.textContent = payloadWarning
+        ? ('Branch discovery warning: ' + payloadWarning + '. Using stored branch list.')
+        : ('Modes: main, dev branch, custom URL. Active mode=' + activeModeLabel + '.');
+    }
   }
 
   function setRunUpdateButtonState() {
@@ -180,9 +616,76 @@
       .replace(/'/g, '&#39;');
   }
 
+  function markdownToHtml(markdown) {
+    var lines = String(markdown || '').split(/\r?\n/);
+    var html = [];
+    var inList = false;
+
+    function closeList() {
+      if (inList) {
+        html.push('</ul>');
+        inList = false;
+      }
+    }
+
+    lines.forEach(function (rawLine) {
+      var line = rawLine.trim();
+      if (!line) {
+        closeList();
+        return;
+      }
+
+      if (line.indexOf('## ') === 0) {
+        closeList();
+        html.push('<h4>' + escapeHtml(line.slice(3)) + '</h4>');
+        return;
+      }
+
+      if (line.indexOf('# ') === 0) {
+        closeList();
+        html.push('<h4>' + escapeHtml(line.slice(2)) + '</h4>');
+        return;
+      }
+
+      if (line.indexOf('- ') === 0) {
+        if (!inList) {
+          html.push('<ul>');
+          inList = true;
+        }
+        html.push('<li>' + escapeHtml(line.slice(2)) + '</li>');
+        return;
+      }
+
+      closeList();
+      html.push('<p>' + escapeHtml(line) + '</p>');
+    });
+
+    closeList();
+    return html.join('');
+  }
+
+  function renderGuidanceDocs(guidance) {
+    if (!guidance || typeof guidance !== 'object') {
+      return;
+    }
+
+    if (guidanceDocEl) {
+      guidanceDocEl.innerHTML = markdownToHtml(guidance.guidanceMarkdown || 'No guidance loaded.');
+    }
+    if (requirementsDocEl) {
+      requirementsDocEl.innerHTML = markdownToHtml(guidance.requirementsMarkdown || 'No requirements loaded.');
+    }
+    if (faqDocEl) {
+      faqDocEl.innerHTML = markdownToHtml(guidance.faqMarkdown || 'No FAQ loaded.');
+    }
+  }
+
   function getVisibility(item, key) {
     var visibility = item && item.menuVisibility;
     if (!visibility || typeof visibility !== 'object') {
+      return true;
+    }
+    if (!Object.prototype.hasOwnProperty.call(visibility, key)) {
       return true;
     }
     return !!visibility[key];
@@ -190,14 +693,60 @@
 
   function setVisibility(item, key, value) {
     if (!item.menuVisibility || typeof item.menuVisibility !== 'object') {
-      item.menuVisibility = { m: true, library: true };
+      item.menuVisibility = { m: true, library: true, system: true };
     }
     item.menuVisibility[key] = !!value;
   }
 
   function visibilityLabel(target, visible) {
-    var name = target === 'm' ? 'M menu' : 'Library';
-    return name + ': ' + (visible ? 'On' : 'Off');
+    var name = target === 'm' ? 'M menu' : (target === 'library' ? 'Library menu' : 'System menu');
+    return name + ': ' + (visible ? 'Visible' : 'Hidden');
+  }
+
+  function settingsCardLabel(enabled) {
+    return 'Settings Card: ' + (enabled ? 'Enabled' : 'Disabled');
+  }
+
+  function applyVisibilityButtonState(button, target, visible) {
+    if (!button) {
+      return;
+    }
+    button.classList.add('visibility-toggle');
+    button.classList.remove('is-on', 'is-off');
+    button.classList.add(visible ? 'is-on' : 'is-off');
+    button.textContent = visibilityLabel(target, visible);
+  }
+
+  function applySettingsCardButtonState(button, enabled) {
+    if (!button) {
+      return;
+    }
+    button.classList.add('visibility-toggle');
+    button.classList.remove('is-on', 'is-off');
+    button.classList.add(enabled ? 'is-on' : 'is-off');
+    button.textContent = settingsCardLabel(enabled);
+  }
+
+  function getSettingsCardOnly(item) {
+    return !!(item && item.settingsCardOnly);
+  }
+
+  function extensionInfoSummary(item) {
+    var info = (item && item.extensionInfo) || {};
+    var version = info.version || item.version || 'unknown';
+    var author = info.author || 'unknown';
+    var license = info.license || 'unknown';
+    return 'Version: ' + version + ' | Author: ' + author + ' | License: ' + license;
+  }
+
+  function extensionDescription(item) {
+    var info = (item && item.extensionInfo) || {};
+    return info.description || 'No extension description available.';
+  }
+
+  function extensionSettingsPage(item) {
+    var info = (item && item.extensionInfo) || {};
+    return info.settingsPage || item.entry || ('/' + (item.id || '') + '.php');
   }
 
   function applyListControls(items) {
@@ -210,13 +759,12 @@
       result = result.filter(function (item) { return !!item.enabled; });
     } else if (filter === 'inactive') {
       result = result.filter(function (item) { return !item.enabled; });
-    } else if (filter === 'pinned') {
-      result = result.filter(function (item) { return !!item.pinned; });
     }
 
     if (search) {
       result = result.filter(function (item) {
-        var hay = ((item.name || '') + ' ' + (item.id || '') + ' ' + (item.path || '')).toLowerCase();
+        var info = item.extensionInfo || {};
+        var hay = ((item.name || '') + ' ' + (item.id || '') + ' ' + (item.path || '') + ' ' + (info.description || '') + ' ' + (info.author || '')).toLowerCase();
         return hay.indexOf(search) !== -1;
       });
     }
@@ -228,12 +776,14 @@
         }
         return a.enabled ? -1 : 1;
       });
-    } else if (sort === 'pinned') {
+    } else if (sort === 'visibility') {
       result.sort(function (a, b) {
-        if (!!a.pinned === !!b.pinned) {
+        var scoreA = (getVisibility(a, 'm') ? 1 : 0) + (getVisibility(a, 'library') ? 1 : 0) + (getVisibility(a, 'system') ? 1 : 0);
+        var scoreB = (getVisibility(b, 'm') ? 1 : 0) + (getVisibility(b, 'library') ? 1 : 0) + (getVisibility(b, 'system') ? 1 : 0);
+        if (scoreA === scoreB) {
           return String(a.name || a.id).localeCompare(String(b.name || b.id));
         }
-        return a.pinned ? -1 : 1;
+        return scoreB - scoreA;
       });
     } else {
       result.sort(function (a, b) {
@@ -268,6 +818,7 @@
 
       var showInM = getVisibility(item, 'm');
       var showInLibrary = getVisibility(item, 'library');
+      var showInSystem = getVisibility(item, 'system');
 
       var left = document.createElement('div');
       var stateClass = item.enabled ? 'active' : 'inactive';
@@ -275,34 +826,28 @@
       left.innerHTML =
         '<div class="list-top"><div class="list-name">' + escapeHtml(item.name || item.id || 'Unnamed extension') + '</div><span class="badge ' + stateClass + '">' + stateLabel + '</span></div>' +
         '<div class="list-sub">' + escapeHtml(item.path || '#') + '</div>' +
-        '<div class="list-sub">Visibility: ' + escapeHtml(visibilityLabel('m', showInM)) + ' | ' + escapeHtml(visibilityLabel('library', showInLibrary)) + '</div>';
+        '<div class="list-sub">Visibility: ' + escapeHtml(visibilityLabel('m', showInM)) + ' | ' + escapeHtml(visibilityLabel('library', showInLibrary)) + ' | ' + escapeHtml(visibilityLabel('system', showInSystem)) + '</div>' +
+        '<div class="list-sub">' + escapeHtml(extensionInfoSummary(item)) + '</div>' +
+        '<div class="list-sub">' + escapeHtml(extensionDescription(item)) + '</div>';
+
+      if (getSettingsCardOnly(item)) {
+        left.innerHTML +=
+          '<div class="extmgr-subcard">' +
+          '<div class="extmgr-subcard-title">Settings Card Mode</div>' +
+          '<div class="extmgr-subcard-body">This extension is handled as a settings-only card in ext-mgr.</div>' +
+          '<a class="btn btn-small" href="' + escapeHtml(extensionSettingsPage(item)) + '">Open Settings Page</a>' +
+          '</div>';
+      }
 
       var rightWrap = document.createElement('div');
       rightWrap.className = 'item-actions';
 
-      var pinBtn = document.createElement('button');
-      pinBtn.type = 'button';
-      pinBtn.className = 'btn-muted';
-      pinBtn.textContent = item.pinned ? 'Unpin' : 'Pin';
-      pinBtn.addEventListener('click', function () {
-        var next = item.pinned ? '0' : '1';
-        api({ action: 'pin', id: item.id, value: next })
-          .then(function () {
-            item.pinned = !item.pinned;
-            pinBtn.textContent = item.pinned ? 'Unpin' : 'Pin';
-            setStatus('Pin state updated.', 'ok');
-            runRefresh();
-          })
-          .catch(function (err) {
-            setStatus(err.message, 'error');
-          });
-      });
-
       var enableBtn = document.createElement('button');
       enableBtn.type = 'button';
+      enableBtn.className = 'btn btn-small';
       enableBtn.textContent = item.enabled ? 'Disable' : 'Enable';
       if (!item.enabled) {
-        enableBtn.className = 'btn-accent';
+        enableBtn.className += ' btn-primary';
       }
       enableBtn.addEventListener('click', function () {
         if (item.enabled) {
@@ -318,6 +863,7 @@
           .then(function () {
             setStatus('Extension state updated for ' + (item.name || item.id) + '.', 'ok');
             runRefresh();
+            reloadPageSoon();
           })
           .catch(function (err) {
             setStatus(err.message, 'error');
@@ -329,19 +875,21 @@
 
       var menuMBtn = document.createElement('button');
       menuMBtn.type = 'button';
-      menuMBtn.className = 'btn-muted';
-      menuMBtn.textContent = visibilityLabel('m', showInM);
+      menuMBtn.className = 'btn btn-small';
+      applyVisibilityButtonState(menuMBtn, 'm', showInM);
       menuMBtn.addEventListener('click', function () {
         var next = getVisibility(item, 'm') ? '0' : '1';
         menuMBtn.disabled = true;
         api({ action: 'set_menu_visibility', id: item.id, menu: 'm', value: next })
           .then(function () {
             setVisibility(item, 'm', next === '1');
+            applyVisibilityButtonState(menuMBtn, 'm', getVisibility(item, 'm'));
             setStatus('M menu visibility updated for ' + (item.name || item.id) + '.', 'ok');
             runRefresh();
+            reloadPageSoon();
           })
           .catch(function (err) {
-            setStatus(err.message, 'error');
+            setStatus(err.message + (err.message.indexOf('Failed to write registry') !== -1 ? ' Check ext-mgr permissions and restart php-fpm.' : ''), 'error');
           })
           .finally(function () {
             menuMBtn.disabled = false;
@@ -350,28 +898,76 @@
 
       var menuLibraryBtn = document.createElement('button');
       menuLibraryBtn.type = 'button';
-      menuLibraryBtn.className = 'btn-muted';
-      menuLibraryBtn.textContent = visibilityLabel('library', showInLibrary);
+      menuLibraryBtn.className = 'btn btn-small';
+      applyVisibilityButtonState(menuLibraryBtn, 'library', showInLibrary);
       menuLibraryBtn.addEventListener('click', function () {
         var next = getVisibility(item, 'library') ? '0' : '1';
         menuLibraryBtn.disabled = true;
         api({ action: 'set_menu_visibility', id: item.id, menu: 'library', value: next })
           .then(function () {
             setVisibility(item, 'library', next === '1');
+            applyVisibilityButtonState(menuLibraryBtn, 'library', getVisibility(item, 'library'));
             setStatus('Library visibility updated for ' + (item.name || item.id) + '.', 'ok');
             runRefresh();
+            reloadPageSoon();
           })
           .catch(function (err) {
-            setStatus(err.message, 'error');
+            setStatus(err.message + (err.message.indexOf('Failed to write registry') !== -1 ? ' Check ext-mgr permissions and restart php-fpm.' : ''), 'error');
           })
           .finally(function () {
             menuLibraryBtn.disabled = false;
           });
       });
 
+      var menuSystemBtn = document.createElement('button');
+      menuSystemBtn.type = 'button';
+      menuSystemBtn.className = 'btn btn-small';
+      applyVisibilityButtonState(menuSystemBtn, 'system', showInSystem);
+      menuSystemBtn.addEventListener('click', function () {
+        var next = getVisibility(item, 'system') ? '0' : '1';
+        menuSystemBtn.disabled = true;
+        api({ action: 'set_menu_visibility', id: item.id, menu: 'system', value: next })
+          .then(function () {
+            setVisibility(item, 'system', next === '1');
+            applyVisibilityButtonState(menuSystemBtn, 'system', getVisibility(item, 'system'));
+            setStatus('System menu visibility updated for ' + (item.name || item.id) + '.', 'ok');
+            runRefresh();
+            reloadPageSoon();
+          })
+          .catch(function (err) {
+            setStatus(err.message + (err.message.indexOf('Failed to write registry') !== -1 ? ' Check ext-mgr permissions and restart php-fpm.' : ''), 'error');
+          })
+          .finally(function () {
+            menuSystemBtn.disabled = false;
+          });
+      });
+
+      var settingsCardBtn = document.createElement('button');
+      settingsCardBtn.type = 'button';
+      settingsCardBtn.className = 'btn btn-small';
+      applySettingsCardButtonState(settingsCardBtn, getSettingsCardOnly(item));
+      settingsCardBtn.addEventListener('click', function () {
+        var next = getSettingsCardOnly(item) ? '0' : '1';
+        settingsCardBtn.disabled = true;
+        api({ action: 'set_settings_card_only', id: item.id, value: next })
+          .then(function () {
+            item.settingsCardOnly = next === '1';
+            applySettingsCardButtonState(settingsCardBtn, getSettingsCardOnly(item));
+            setStatus('Settings-card mode updated for ' + (item.name || item.id) + '.', 'ok');
+            runRefresh();
+            reloadPageSoon();
+          })
+          .catch(function (err) {
+            setStatus(err.message + (err.message.indexOf('Failed to write registry') !== -1 ? ' Check ext-mgr permissions and restart php-fpm.' : ''), 'error');
+          })
+          .finally(function () {
+            settingsCardBtn.disabled = false;
+          });
+      });
+
       var repairSymlinkBtn = document.createElement('button');
       repairSymlinkBtn.type = 'button';
-      repairSymlinkBtn.className = 'btn-danger';
+      repairSymlinkBtn.className = 'btn btn-small btn-danger';
       repairSymlinkBtn.textContent = 'Repair Symlink';
       repairSymlinkBtn.addEventListener('click', function () {
         repairSymlinkBtn.disabled = true;
@@ -389,26 +985,71 @@
           });
       });
 
+      var removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'btn btn-small btn-danger';
+      removeBtn.textContent = 'Remove Extension';
+      removeBtn.addEventListener('click', function () {
+        var label = item.name || item.id;
+        var ok = window.confirm('Remove extension "' + label + '"?\n\nThis removes its installed files and route. A backup is kept in ext-mgr backup/removed-extensions.');
+        if (!ok) {
+          return;
+        }
+
+        removeBtn.disabled = true;
+        api({ action: 'remove_extension', id: item.id })
+          .then(function (data) {
+            var payload = (data && data.data) || {};
+            setStatus('Removed ' + label + '. Backup: ' + (payload.backupPath || 'n/a'), 'ok');
+            runRefresh();
+            reloadPageSoon();
+          })
+          .catch(function (err) {
+            setStatus(err.message, 'error');
+          })
+          .finally(function () {
+            removeBtn.disabled = false;
+          });
+      });
+
       row.appendChild(left);
-      rightWrap.appendChild(pinBtn);
       rightWrap.appendChild(enableBtn);
       rightWrap.appendChild(menuMBtn);
       rightWrap.appendChild(menuLibraryBtn);
+      rightWrap.appendChild(menuSystemBtn);
+      rightWrap.appendChild(settingsCardBtn);
       rightWrap.appendChild(repairSymlinkBtn);
+      rightWrap.appendChild(removeBtn);
       row.appendChild(rightWrap);
       listEl.appendChild(row);
     });
   }
 
-  function loadStatusAndList() {
-    setStatus('Loading manager status...', null);
+  function clearStatus() {
+    if (!statusEl) {
+      return;
+    }
+    statusEl.textContent = '';
+    statusEl.classList.remove('error', 'ok');
+  }
+
+  function loadStatusAndList(silent) {
+    if (!silent) {
+      setStatus('Loading manager status...', null);
+    }
     return api({ action: 'status' })
       .then(function (data) {
         renderMeta(data.data.meta || {});
         renderHealth(data.data.health || {});
+        renderGuidanceDocs(data.data.guidance || {});
+        renderAdvancedUpdateControls(providerStatusFromPolicy(data.data.releasePolicy || {}), null, null);
+        renderMaintenanceStatus(data.data.maintenance || {});
         allItems = (data.data && data.data.extensions) || [];
         renderItems(allItems);
-        setStatus('Loaded manager status and ' + allItems.length + ' extension(s).', 'ok');
+        runSystemResources(true);
+        if (!silent) {
+          setStatus('Loaded manager status and ' + allItems.length + ' extension(s).', 'ok');
+        }
       })
       .catch(function (err) {
         setStatus(err.message, 'error');
@@ -421,12 +1062,137 @@
       .then(function (data) {
         renderMeta(data.data.meta || {});
         renderHealth(data.data.health || {});
+        renderGuidanceDocs(data.data.guidance || {});
+        renderAdvancedUpdateControls(providerStatusFromPolicy(data.data.releasePolicy || {}), null, null);
+        renderMaintenanceStatus(data.data.maintenance || {});
         allItems = (data.data && data.data.extensions) || [];
         renderItems(allItems);
+        runSystemResources(true);
         setStatus('Refresh complete.', 'ok');
       })
       .catch(function (err) {
         setStatus(err.message, 'error');
+      });
+  }
+
+  function reloadPageSoon() {
+    window.setTimeout(function () {
+      window.location.reload();
+    }, 220);
+  }
+
+  function runSystemResources(silent) {
+    if (!silent) {
+      setStatus('Collecting system resources...', null);
+    }
+    return api({ action: 'system_resources' })
+      .then(function (data) {
+        var payload = (data && data.data) || {};
+        renderSystemResources(payload.resources || {});
+        renderMaintenanceStatus(payload.maintenance || {});
+        if (!silent) {
+          setStatus('System resources refreshed.', 'ok');
+        }
+      })
+      .catch(function (err) {
+        if (!silent) {
+          setStatus(err.message, 'error');
+        }
+      });
+  }
+
+  function runCreateBackup() {
+    if (!createBackupBtn) {
+      return;
+    }
+    createBackupBtn.disabled = true;
+    setStatus('Creating ext-mgr backup snapshot...', null);
+    api({ action: 'create_backup_snapshot' })
+      .then(function (data) {
+        var payload = (data && data.data) || {};
+        if (maintenanceStorageNoteEl) {
+          maintenanceStorageNoteEl.textContent = 'Backup created: ' + String(payload.snapshotPath || 'n/a') + ' (' + String(payload.copiedItems || 0) + ' item(s)).';
+          maintenanceStorageNoteEl.classList.remove('error');
+          maintenanceStorageNoteEl.classList.add('ok');
+        }
+        runSystemResources(true);
+        setStatus('Backup snapshot created.', 'ok');
+      })
+      .catch(function (err) {
+        if (maintenanceStorageNoteEl) {
+          maintenanceStorageNoteEl.textContent = err.message;
+          maintenanceStorageNoteEl.classList.remove('ok');
+          maintenanceStorageNoteEl.classList.add('error');
+        }
+        setStatus(err.message, 'error');
+      })
+      .finally(function () {
+        createBackupBtn.disabled = false;
+      });
+  }
+
+  function runClearCache() {
+    if (!clearCacheBtn) {
+      return;
+    }
+    var confirmed = window.confirm('Clear /var/www/extensions/cache now? This removes temporary ext-mgr files only.');
+    if (!confirmed) {
+      return;
+    }
+
+    clearCacheBtn.disabled = true;
+    setStatus('Clearing cache folder...', null);
+    api({ action: 'clear_cache' })
+      .then(function (data) {
+        var payload = (data && data.data) || {};
+        if (maintenanceStorageNoteEl) {
+          maintenanceStorageNoteEl.textContent = 'Cache cleared: removed ' + String(payload.removedEntries || 0) + ' item(s), freed ' + asBytes(payload.freedBytes || 0) + '.';
+          maintenanceStorageNoteEl.classList.remove('error');
+          maintenanceStorageNoteEl.classList.add('ok');
+        }
+        runSystemResources(true);
+        setStatus('Cache folder cleared.', 'ok');
+      })
+      .catch(function (err) {
+        if (maintenanceStorageNoteEl) {
+          maintenanceStorageNoteEl.textContent = err.message;
+          maintenanceStorageNoteEl.classList.remove('ok');
+          maintenanceStorageNoteEl.classList.add('error');
+        }
+        setStatus(err.message, 'error');
+      })
+      .finally(function () {
+        clearCacheBtn.disabled = false;
+      });
+  }
+
+  function setManagerVisibility(area, visible, button) {
+    if (!button) {
+      return;
+    }
+    button.disabled = true;
+    api({ action: 'set_manager_visibility', area: area, value: visible ? '1' : '0' })
+      .then(function (data) {
+        var payload = (data && data.data) || {};
+        renderManagerVisibility(payload.visibility || {});
+        if (managerVisibilityNoteEl) {
+          managerVisibilityNoteEl.textContent = 'Manager visibility updated for ' + area + '.';
+          managerVisibilityNoteEl.classList.remove('error');
+          managerVisibilityNoteEl.classList.add('ok');
+        }
+        setStatus('Manager visibility updated.', 'ok');
+        reloadPageSoon();
+      })
+      .catch(function (err) {
+        if (managerVisibilityNoteEl) {
+          managerVisibilityNoteEl.textContent = err.message;
+          managerVisibilityNoteEl.classList.remove('ok');
+          managerVisibilityNoteEl.classList.add('error');
+        }
+        setStatus(err.message, 'error');
+      })
+      .finally(function () {
+        button.disabled = false;
       });
   }
 
@@ -443,6 +1209,7 @@
 
         renderMeta(payload.meta || {});
         renderUpdateStatus(payload.meta || {}, hasUpdate, payload.candidate || null, payload.warning || null, payload.providerStatus || null, null);
+        renderAdvancedUpdateControls(payload.providerStatus || null, payload.branchWarning || null, payload.candidate || null);
         setRunUpdateButtonState();
 
         if (hasUpdate) {
@@ -490,6 +1257,7 @@
     api({ action: 'repair' })
       .then(function (data) {
         renderMeta(data.data.meta || {});
+        renderGuidanceDocs(data.data.guidance || {});
         allItems = data.data.extensions || [];
         renderItems(allItems);
         setStatus('Repair completed successfully.', 'ok');
@@ -509,6 +1277,7 @@
 
         renderMeta(state.meta || {});
         renderHealth(state.health || {});
+        renderGuidanceDocs(state.guidance || {});
         allItems = state.extensions || [];
         renderItems(allItems);
 
@@ -526,9 +1295,15 @@
 
   if (listFilterEl) {
     listFilterEl.value = readPref('filter', listFilterEl.value || 'all');
+    if (!listFilterEl.value) {
+      listFilterEl.value = 'all';
+    }
   }
   if (listSortEl) {
     listSortEl.value = readPref('sort', listSortEl.value || 'name');
+    if (!listSortEl.value) {
+      listSortEl.value = 'name';
+    }
   }
   if (listSearchEl) {
     listSearchEl.value = readPref('search', '');
@@ -538,17 +1313,206 @@
   bindIfPresent(checkUpdateBtn, 'click', runCheckUpdate);
   bindIfPresent(runUpdateBtn, 'click', runUpdate);
   bindIfPresent(repairBtn, 'click', runRepair);
+  bindIfPresent(refreshResourcesBtn, 'click', function () {
+    runSystemResources(false);
+  });
+  bindIfPresent(createBackupBtn, 'click', runCreateBackup);
+  bindIfPresent(clearCacheBtn, 'click', runClearCache);
   bindIfPresent(syncRegistryBtn, 'click', runRegistrySync);
+  bindIfPresent(managerVisibilityHeaderBtn, 'click', function () {
+    setManagerVisibility('header', !managerVisibilityState.header, managerVisibilityHeaderBtn);
+  });
+  bindIfPresent(managerVisibilityLibraryBtn, 'click', function () {
+    setManagerVisibility('library', !managerVisibilityState.library, managerVisibilityLibraryBtn);
+  });
+  bindIfPresent(managerVisibilitySystemBtn, 'click', function () {
+    setManagerVisibility('system', !managerVisibilityState.system, managerVisibilitySystemBtn);
+  });
+  bindIfPresent(importExtensionFileEl, 'change', function () {
+    if (!importExtensionFileNameEl) {
+      return;
+    }
+    var files = importExtensionFileEl.files || [];
+    importExtensionFileNameEl.textContent = files.length > 0 ? files[0].name : 'No file chosen';
+  });
+  bindIfPresent(importExtensionBtn, 'click', function () {
+    var files = (importExtensionFileEl && importExtensionFileEl.files) || null;
+    if (!files || files.length === 0) {
+      setStatus('Select a .zip package first.', 'error');
+      setImportWizardNote('Select a .zip package first.', 'error');
+      return;
+    }
+
+    var file = files[0];
+    var fileName = String(file.name || '').toLowerCase();
+    if (fileName.slice(-4) !== '.zip') {
+      setStatus('Only .zip extension packages are supported.', 'error');
+      setImportWizardNote('Only .zip extension packages are supported.', 'error');
+      return;
+    }
+
+    importExtensionBtn.disabled = true;
+    setStatus('Uploading and importing extension package...', null);
+    setImportWizardNote('Uploading and importing extension package...', null);
+
+    apiUpload(file)
+      .then(function (data) {
+        var importedId = ((data || {}).data || {}).extensionId || 'unknown';
+        setStatus('Extension imported: ' + importedId, 'ok');
+        setImportWizardNote('Extension imported: ' + importedId, 'ok');
+        if (importExtensionFileEl) {
+          importExtensionFileEl.value = '';
+        }
+        if (importExtensionFileNameEl) {
+          importExtensionFileNameEl.textContent = 'No file chosen';
+        }
+        runRefresh();
+      })
+      .catch(function (err) {
+        setStatus(err.message, 'error');
+        setImportWizardNote(err.message, 'error');
+      })
+      .finally(function () {
+        importExtensionBtn.disabled = false;
+      });
+  });
   bindIfPresent(systemUpdateBtn, 'click', function () {
-    setStatus('Opening System Settings update hook...', null);
+    setStatus('Syncing extensions metadata...', null);
     api({ action: 'system_update_hook' })
       .then(function (data) {
         var hook = (data.data && data.data.hook) || {};
-        var desc = hook.description || 'System Settings hook placeholder.';
+        var desc = hook.description || 'Extensions sync hook placeholder.';
         setStatus(desc, 'ok');
       })
       .catch(function (err) {
         setStatus(err.message, 'error');
+      });
+  });
+
+  advancedModeButtons.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var nextMode = btn.getAttribute('data-advanced-mode') || 'main';
+      advancedUpdateState.mode = nextMode;
+      renderAdvancedModeButtons();
+      renderAdvancedSource(mergeWithCurrentProviderStatus({
+        provider: currentProviderStatus.provider || 'github',
+        repository: currentProviderStatus.repository,
+        updateTrack: nextMode === 'custom' ? 'custom' : 'branch',
+        channel: nextMode === 'dev' ? 'dev' : 'stable',
+        branch: nextMode === 'dev' ? 'dev' : 'main',
+        customBaseUrl: advancedCustomUrlEl ? advancedCustomUrlEl.value : ''
+      }), null);
+    });
+  });
+
+  bindIfPresent(advancedCustomUrlEl, 'input', function () {
+    advancedUpdateState.customUrl = String(advancedCustomUrlEl.value || '').trim();
+    if (advancedUpdateState.mode !== 'custom') {
+      return;
+    }
+    renderAdvancedSource(mergeWithCurrentProviderStatus({
+      provider: 'custom',
+      repository: '',
+      updateTrack: 'custom',
+      channel: 'stable',
+      branch: 'main',
+      customBaseUrl: advancedUpdateState.customUrl
+    }), null);
+  });
+
+  bindIfPresent(copyAdvancedSourceBtn, 'click', function () {
+    if (!advancedSourceLinkEl) {
+      return;
+    }
+
+    var resolveUrl = advancedSourceLinkEl.getAttribute('data-source-url') || '';
+    var rawBase = advancedSourceLinkEl.getAttribute('data-raw-base-url') || '';
+    var text = resolveUrl;
+    if (rawBase) {
+      text += '\nraw base: ' + rawBase;
+    }
+    if (!text) {
+      return;
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text)
+        .then(function () {
+          setStatus('Advanced source link copied.', 'ok');
+        })
+        .catch(function () {
+          if (fallbackCopyText(text)) {
+            setStatus('Advanced source link copied.', 'ok');
+            return;
+          }
+          setStatus('Copy failed. Select and copy manually.', 'error');
+        });
+      return;
+    }
+
+    if (fallbackCopyText(text)) {
+      setStatus('Advanced source link copied.', 'ok');
+      return;
+    }
+
+    setStatus('Clipboard API unavailable. Select and copy the source link manually.', 'error');
+  });
+
+  bindIfPresent(openAdvancedSourceBtn, 'click', function (e) {
+    if (!advancedSourceLinkEl) {
+      return;
+    }
+
+    var sourceUrl = advancedSourceLinkEl.getAttribute('data-source-url') || '';
+    if (!sourceUrl) {
+      e.preventDefault();
+      setStatus('No source URL available to open.', 'error');
+      return;
+    }
+
+    e.preventDefault();
+    window.open(sourceUrl, '_blank', 'noopener');
+  });
+
+  bindIfPresent(saveAdvancedUpdateBtn, 'click', function () {
+    var mode = advancedUpdateState.mode || 'main';
+    var track = mode === 'custom' ? 'custom' : 'branch';
+    var channel = mode === 'dev' ? 'dev' : 'stable';
+    var branch = mode === 'dev' ? 'dev' : 'main';
+    var customUrl = advancedCustomUrlEl ? String(advancedCustomUrlEl.value || '').trim() : '';
+
+    if (mode === 'custom' && !customUrl) {
+      setStatus('Enter a custom URL before saving custom mode.', 'error');
+      return;
+    }
+
+    if (saveAdvancedUpdateBtn) {
+      saveAdvancedUpdateBtn.disabled = true;
+    }
+
+    setStatus('Saving advanced update settings...', null);
+    api({ action: 'set_update_advanced', track: track, channel: channel, branch: branch, custom_url: customUrl })
+      .then(function (data) {
+        var policy = (data && data.data && data.data.releasePolicy) || null;
+        renderAdvancedUpdateControls({
+          provider: policy && policy.provider,
+          repository: policy && policy.repository,
+          updateTrack: policy && policy.updateTrack,
+          channel: policy && policy.channel,
+          branch: policy && policy.branch,
+          customBaseUrl: policy && policy.customBaseUrl,
+          availableBranches: policy && policy.availableBranches
+        }, null, null);
+        setStatus('Advanced update settings saved.', 'ok');
+        runCheckUpdate();
+      })
+      .catch(function (err) {
+        setStatus(err.message, 'error');
+      })
+      .finally(function () {
+        if (saveAdvancedUpdateBtn) {
+          saveAdvancedUpdateBtn.disabled = false;
+        }
       });
   });
 
@@ -565,8 +1529,46 @@
     renderItems(allItems);
   });
 
-  loadStatusAndList().then(function () {
+  menuToggleButtons.forEach(function (toggleBtn) {
+    toggleBtn.addEventListener('click', function () {
+      var section = toggleBtn.closest('.extmgr-section');
+      if (!section) {
+        return;
+      }
+      var isOpen = section.classList.toggle('is-open');
+      toggleBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    });
+  });
+
+  submenuToggleButtons.forEach(function (toggleBtn) {
+    toggleBtn.addEventListener('click', function () {
+      var submenu = toggleBtn.closest('.extmgr-submenu');
+      if (!submenu) {
+        return;
+      }
+      var isOpen = submenu.classList.toggle('is-open');
+      toggleBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    });
+  });
+
+  document.querySelectorAll('.extmgr-section').forEach(function (section) {
+    var sectionToggle = section.querySelector('[data-menu-toggle]');
+    if (!sectionToggle) {
+      return;
+    }
+    sectionToggle.setAttribute('aria-expanded', section.classList.contains('is-open') ? 'true' : 'false');
+  });
+
+  document.querySelectorAll('.extmgr-submenu').forEach(function (submenu) {
+    var submenuToggle = submenu.querySelector('[data-submenu-toggle]');
+    if (!submenuToggle) {
+      return;
+    }
+    submenuToggle.setAttribute('aria-expanded', submenu.classList.contains('is-open') ? 'true' : 'false');
+  });
+
+  loadStatusAndList(true).then(function () {
     setRunUpdateButtonState();
-    runCheckUpdate();
+    clearStatus();
   });
 })();

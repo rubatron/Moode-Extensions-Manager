@@ -5,7 +5,7 @@
   "latestVersion": "1.2.0",
   "creator": "Rubatron Team",
   "license": "GPL-3.0-or-later",
-  "description": "Central manager for moOde extension discovery and pin state.",
+  "description": "Central manager for moOde extension discovery, menu visibility, and settings-card mode.",
   "releaseFocus": "1.2",
   "updateIntegration": {
     "provider": "github",

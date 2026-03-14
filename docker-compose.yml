@@ -1,0 +1,12 @@
+services:
+  moode-dev:
+    build:
+      context: .
+      dockerfile: docker/moode-dev/Dockerfile
+    container_name: moode-dev
+    ports:
+      - "8080:80"
+    volumes:
+      - ./:/workspace/ext-mgr
+    environment:
+      - EXTMGR_SRC=/workspace/ext-mgr

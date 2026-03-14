@@ -1,6 +1,13 @@
 {
   "schemaVersion": "2",
-  "channel": "beta",
+  "channel": "stable",
+  "updateTrack": "channel",
+  "branch": "main",
+  "devBranch": "dev",
+  "availableBranches": [
+    "main",
+    "dev"
+  ],
   "latestVersion": "1.2.0",
   "provider": "github",
   "repository": "rubatron/Moode-Extensions-Manager",
@@ -9,7 +16,7 @@
   "integrityManifestPath": "ext-mgr.integrity.json",
   "systemSettingsHook": "api-managed",
   "releaseSelection": "channel-aware",
-  "prereleaseStrategy": "prefer-prerelease",
+  "prereleaseStrategy": "prefer-stable",
   "managedFiles": [
     "ext-mgr.php",
     "ext-mgr-api.php",
@@ -17,8 +24,12 @@
     "ext-mgr.release.json",
     "ext-mgr.version",
     "assets/js/ext-mgr.js",
+    "assets/css/ext-mgr.css",
     "scripts/ext-mgr-import-wizard.sh",
     "scripts/ext-mgr-registry-sync.sh",
+    "content/guidance.md",
+    "content/developer-requirements.md",
+    "content/faq.md",
     "README.md"
   ],
   "notes": "Release 1.2 focuses on import wizard, extension state lifecycle, transparent registry sync, and transactional managed-file updates."

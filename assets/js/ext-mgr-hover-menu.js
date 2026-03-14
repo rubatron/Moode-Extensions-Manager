@@ -39,6 +39,120 @@
     return pinned.concat(rest);
   }
 
+  var PAYLOAD_CACHE = null;
+  var PAYLOAD_CACHE_AT = 0;
+  var PAYLOAD_CACHE_TTL_MS = 10000;
+  var LAST_LIBRARY_SIG = '';
+  var LAST_MMENU_SIG = '';
+  var LAST_SYSTEM_SIG = '';
+  var LAST_CONFIGURE_SIG = '';
+  var LAST_HEADER_SIG = '';
+
+  function toBool(value, fallback) {
+    if (typeof value === 'boolean') {
+      return value;
+    }
+    return !!fallback;
+  }
+
+  function applyManagerVisibility(meta, refs) {
+    var managerVisibility = (meta && meta.managerVisibility) || {};
+    var showHeader = toBool(managerVisibility.header, true);
+    var showLibrary = toBool(managerVisibility.library, true);
+    var showSystem = toBool(managerVisibility.system, true);
+
+    var headerBtn = document.getElementById('ext-mgr-btn');
+    if (headerBtn) {
+      headerBtn.style.display = showHeader ? '' : 'none';
+    }
+
+    if (refs && refs.wrap) {
+      refs.wrap.style.display = showLibrary ? '' : 'none';
+    }
+
+    var systemLinks = document.querySelectorAll(
+      '#context-menu a[href="/ext-mgr.php"], #context-menu a[href="ext-mgr.php"], #sys-cmds a[href="/ext-mgr.php"], #sys-cmds a[href="ext-mgr.php"], #configure-modal a[href="/ext-mgr.php"], #configure-modal a[href="ext-mgr.php"]'
+    );
+    var i;
+    for (i = 0; i < systemLinks.length; i += 1) {
+      systemLinks[i].style.display = showSystem ? '' : 'none';
+    }
+  }
+
+  function renderHeaderManagerButton(meta) {
+    var managerVisibility = (meta && meta.managerVisibility) || {};
+    var showHeader = toBool(managerVisibility.header, true);
+    var sig = String(showHeader);
+    if (sig === LAST_HEADER_SIG) {
+      return;
+    }
+    LAST_HEADER_SIG = sig;
+
+    var tabs = document.getElementById('config-tabs');
+    if (!tabs) {
+      return;
+    }
+
+    var existing = document.getElementById('ext-mgr-btn');
+    if (!showHeader) {
+      if (existing) {
+        existing.style.display = 'none';
+      }
+      return;
+    }
+
+    if (existing) {
+      existing.href = '/ext-mgr.php';
+      existing.style.display = '';
+      return;
+    }
+
+    var btn = document.createElement('a');
+    btn.id = 'ext-mgr-btn';
+    btn.className = 'btn extmgr-header-entry';
+    btn.href = '/ext-mgr.php';
+    btn.innerHTML = '<span>Extensions</span><i class="fa-solid fa-sharp fa-puzzle-piece"></i>';
+
+    var marker = document.getElementById('per-config-btn');
+    if (marker && marker.parentNode === tabs) {
+      if (marker.nextSibling) {
+        tabs.insertBefore(btn, marker.nextSibling);
+      } else {
+        tabs.appendChild(btn);
+      }
+      return;
+    }
+
+    tabs.appendChild(btn);
+  }
+
+  function fetchState() {
+    var now = Date.now();
+    if (PAYLOAD_CACHE && (now - PAYLOAD_CACHE_AT) < PAYLOAD_CACHE_TTL_MS) {
+      return Promise.resolve(PAYLOAD_CACHE);
+    }
+
+    return fetch('/ext-mgr-api.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+      },
+      body: 'action=list'
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        PAYLOAD_CACHE = (data && data.data) || {};
+        if (!Array.isArray(PAYLOAD_CACHE.extensions)) {
+          PAYLOAD_CACHE.extensions = [];
+        }
+        PAYLOAD_CACHE_AT = Date.now();
+        return PAYLOAD_CACHE;
+      })
+      .catch(function () {
+        return { extensions: [], meta: {} };
+      });
+  }
+
   function renderList(host, items) {
     if (!host) {
       return;
@@ -72,39 +186,556 @@
     host.innerHTML = html || '<span style="display:block;padding:8px 12px 8px 2.1em;color:#aaa;">No visible extensions</span>';
   }
 
-  function loadExtensions(host) {
-    fetch('/ext-mgr-api.php', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
-      },
-      body: 'action=list'
-    })
-      .then(function (res) { return res.json(); })
-      .then(function (data) {
-        renderList(host, (data && data.data && data.data.extensions) || []);
-      })
-      .catch(function () {
-        renderList(host, []);
-      });
+  function findLibraryMenuContainer() {
+    return document.querySelector('#viewswitch .dropdown-menu, .viewswitch .dropdown-menu, ul.dropdown-menu.context-menu');
   }
 
-  document.addEventListener('DOMContentLoaded', function () {
+  function removeExistingLibraryInjected(container) {
+    if (!container) {
+      return;
+    }
+    var existing = container.querySelectorAll('.extmgr-library-divider, .extmgr-library-entry, .extmgr-library-header');
+    var i;
+    for (i = 0; i < existing.length; i += 1) {
+      if (existing[i] && existing[i].parentNode) {
+        existing[i].parentNode.removeChild(existing[i]);
+      }
+    }
+  }
+
+  function appendLibraryButton(container, cls, href, iconClass, label) {
+    var button = document.createElement('button');
+    button.className = cls;
+    button.setAttribute('aria-label', label);
+    button.setAttribute('href', '#notarget');
+    button.innerHTML = '<i class="' + iconClass + '"></i> ' + esc(label);
+    button.addEventListener('click', function (e) {
+      e.preventDefault();
+      window.location.href = href;
+    });
+    container.appendChild(button);
+  }
+
+  function isManagerEntry(item) {
+    var row = item || {};
+    var id = String(row.id || '').toLowerCase();
+    var entry = row.menuEntry || row.entry || ('/' + String(row.id || '') + '.php');
+    var path = normalizePath(entry).toLowerCase();
+    return id === 'ext-mgr' || path === '/ext-mgr.php';
+  }
+
+  function hasExistingManagerLink(container) {
+    if (!container || !container.querySelector) {
+      return false;
+    }
+    return !!container.querySelector(
+      'a[href="/ext-mgr.php"], a[href="ext-mgr.php"], button[href="/ext-mgr.php"], button[href="ext-mgr.php"]'
+    );
+  }
+
+  function renderLibraryMenu(items, meta) {
+    var container = findLibraryMenuContainer();
+    if (!container) {
+      return;
+    }
+
+    var managerVisibility = (meta && meta.managerVisibility) || {};
+    var showManagerInLibrary = managerVisibility.library !== false;
+    var visibleItems = [];
+    var i;
+    for (i = 0; i < items.length; i += 1) {
+      var candidate = items[i] || {};
+      if (!candidate.enabled || !candidate.menuVisibility || !candidate.menuVisibility.library) {
+        continue;
+      }
+      if (isManagerEntry(candidate)) {
+        continue;
+      }
+      visibleItems.push(candidate);
+    }
+    var sig = String(showManagerInLibrary) + '|' + visibleItems.map(function (row) { return String(row.id || ''); }).join(',');
+    if (sig === LAST_LIBRARY_SIG) {
+      return;
+    }
+    LAST_LIBRARY_SIG = sig;
+
+    removeExistingLibraryInjected(container);
+
+    if (!showManagerInLibrary && visibleItems.length === 0) {
+      return;
+    }
+
+    var folderBtn = container.querySelector('.folder-view-btn');
+    var anchorNode = folderBtn && folderBtn.parentNode === container ? folderBtn : null;
+
+    var divider = document.createElement('button');
+    divider.className = 'btn menu-separator extmgr-library-divider';
+    divider.setAttribute('aria-hidden', 'true');
+    divider.disabled = true;
+    divider.style.opacity = '0.5';
+    divider.textContent = 'Extensions';
+
+    if (anchorNode) {
+      container.insertBefore(divider, anchorNode);
+    } else {
+      container.appendChild(divider);
+    }
+
+    if (showManagerInLibrary && !hasExistingManagerLink(container)) {
+      var managerBtn = document.createElement('button');
+      managerBtn.className = 'btn extmgr-library-entry';
+      managerBtn.setAttribute('aria-label', 'Extensions Manager');
+      managerBtn.setAttribute('href', '#notarget');
+      managerBtn.innerHTML = '<i class="fa-solid fa-sharp fa-puzzle-piece"></i> Extensions Manager';
+      managerBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        window.location.href = '/ext-mgr.php';
+      });
+      if (anchorNode) {
+        container.insertBefore(managerBtn, anchorNode);
+      } else {
+        container.appendChild(managerBtn);
+      }
+    }
+
+    for (i = 0; i < visibleItems.length; i += 1) {
+      var item = visibleItems[i] || {};
+      var id = String(item.id || '');
+      var name = String(item.name || id || 'Extension');
+      var entry = item.menuEntry || item.entry || ('/' + id + '.php');
+
+      var extBtn = document.createElement('button');
+      extBtn.className = 'btn extmgr-library-entry';
+      extBtn.setAttribute('aria-label', name);
+      extBtn.setAttribute('href', '#notarget');
+      extBtn.innerHTML = '<i class="fa-solid fa-sharp fa-globe"></i> ' + esc(name);
+      (function (targetHref) {
+        extBtn.addEventListener('click', function (e) {
+          e.preventDefault();
+          window.location.href = targetHref;
+        });
+      })(entry);
+
+      if (anchorNode) {
+        container.insertBefore(extBtn, anchorNode);
+      } else {
+        container.appendChild(extBtn);
+      }
+    }
+  }
+
+  function removeExistingMMenuInjected(container) {
+    var existing = container.querySelectorAll('.extmgr-mmenu-divider, .extmgr-mmenu-header, .extmgr-mmenu-entry');
+    var i;
+    for (i = 0; i < existing.length; i += 1) {
+      if (existing[i] && existing[i].parentNode) {
+        existing[i].parentNode.removeChild(existing[i]);
+      }
+    }
+  }
+
+  function findMMenuContainer() {
+    var selectors = [
+      '#context-menu ul',
+      '#sys-cmds ul',
+      '#context-menu .dropdown-menu',
+      'ul#context-menu',
+      '.context-menu ul',
+      '.context-menu .dropdown-menu'
+    ];
+    var i;
+
+    for (i = 0; i < selectors.length; i += 1) {
+      var hit = document.querySelector(selectors[i]);
+      if (hit) {
+        return hit;
+      }
+    }
+
+    var configureAnchor = document.querySelector('a[href*="configure.php"], a[href*="#/configure"]');
+    if (!configureAnchor) {
+      return null;
+    }
+
+    var candidate = configureAnchor.closest('ul, .dropdown-menu, .context-menu, .menu, .modal-body, .modal-content, .menu-list');
+    return candidate || configureAnchor.parentNode;
+  }
+
+  function appendMMenuEntry(container, entryHref, label, useListItem) {
+    if (useListItem) {
+      var li = document.createElement('li');
+      li.className = 'extmgr-mmenu-entry';
+      li.style.listStyle = 'none';
+
+      var a = document.createElement('a');
+      a.href = entryHref;
+      a.className = 'extmgr-mmenu-link';
+      a.style.display = 'block';
+      a.style.padding = '8px 12px';
+      a.style.textDecoration = 'none';
+      a.style.color = 'inherit';
+      a.style.lineHeight = '1.25';
+      a.innerHTML = '<i class="fa-solid fa-sharp fa-puzzle-piece" style="margin-right:.5em;"></i>' + esc(label);
+      li.appendChild(a);
+      container.appendChild(li);
+      return;
+    }
+
+    var link = document.createElement('a');
+    link.href = entryHref;
+    link.className = 'extmgr-mmenu-entry';
+    link.style.display = 'block';
+    link.style.padding = '0.7em 1em';
+    link.style.textDecoration = 'none';
+    link.style.color = 'inherit';
+    link.innerHTML = '<i class="fa-solid fa-sharp fa-puzzle-piece" style="margin-right:.5em;"></i>' + esc(label);
+    container.appendChild(link);
+  }
+
+  function renderMMenu(items, meta) {
+    var container = findMMenuContainer();
+    if (!container) {
+      return;
+    }
+    if (container.closest && container.closest('#configure-modal')) {
+      return;
+    }
+
+    var managerVisibility = (meta && meta.managerVisibility) || {};
+    var showManagerInM = toBool(managerVisibility.header, true);
+
+    var visible = [];
+    var i;
+    for (i = 0; i < items.length; i += 1) {
+      var item = items[i] || {};
+      if (!item.enabled || !item.menuVisibility || !item.menuVisibility.m) {
+        continue;
+      }
+      visible.push(item);
+    }
+
+    if (!showManagerInM && visible.length === 0) {
+      if (LAST_MMENU_SIG !== 'empty') {
+        removeExistingMMenuInjected(container);
+        LAST_MMENU_SIG = 'empty';
+      }
+      return;
+    }
+
+    var nextSig = String(showManagerInM) + '|' + visible.map(function (row) { return String(row.id || ''); }).join(',');
+    if (nextSig === LAST_MMENU_SIG) {
+      return;
+    }
+    LAST_MMENU_SIG = nextSig;
+    removeExistingMMenuInjected(container);
+
+    var useListItem = container.tagName === 'UL' || container.querySelector('li') !== null;
+    if (useListItem) {
+      var dividerLi = document.createElement('li');
+      dividerLi.className = 'extmgr-mmenu-divider';
+      dividerLi.style.listStyle = 'none';
+      dividerLi.style.borderTop = '1px solid rgba(128,128,128,.25)';
+      dividerLi.style.margin = '6px 0';
+      container.appendChild(dividerLi);
+
+      var headerLi = document.createElement('li');
+      headerLi.className = 'extmgr-mmenu-header';
+      headerLi.style.listStyle = 'none';
+      headerLi.style.padding = '4px 12px';
+      headerLi.style.fontSize = '0.8em';
+      headerLi.style.opacity = '0.8';
+      headerLi.textContent = 'Extensions';
+      container.appendChild(headerLi);
+    } else {
+      var divider = document.createElement('div');
+      divider.className = 'extmgr-mmenu-divider';
+      divider.style.borderTop = '1px solid rgba(128,128,128,.25)';
+      divider.style.margin = '6px 0';
+      container.appendChild(divider);
+
+      var header = document.createElement('div');
+      header.className = 'extmgr-mmenu-header';
+      header.style.padding = '4px 12px';
+      header.style.fontSize = '0.8em';
+      header.style.opacity = '0.8';
+      header.textContent = 'Extensions';
+      container.appendChild(header);
+    }
+
+    if (showManagerInM && !container.querySelector('a[href="/ext-mgr.php"], a[href="ext-mgr.php"]')) {
+      appendMMenuEntry(container, '/ext-mgr.php', 'Extensions Manager', useListItem);
+    }
+
+    for (i = 0; i < visible.length; i += 1) {
+      var ext = visible[i] || {};
+      var id = String(ext.id || '');
+      var name = String(ext.name || id || 'Extension');
+      var entry = ext.menuEntry || ext.entry || ('/' + id + '.php');
+      appendMMenuEntry(container, entry, name, useListItem);
+    }
+  }
+
+  function removeExistingSystemMenuInjected(container) {
+    var existing = container.querySelectorAll('.extmgr-system-divider, .extmgr-system-header, .extmgr-system-entry');
+    var i;
+    for (i = 0; i < existing.length; i += 1) {
+      if (existing[i] && existing[i].parentNode) {
+        existing[i].parentNode.removeChild(existing[i]);
+      }
+    }
+  }
+
+  function findSystemMenuContainer() {
+    return document.querySelector(
+      '#context-menu ul, #sys-cmds ul, .modal #context-menu ul, .context-menu ul'
+    );
+  }
+
+  function renderSystemMenu(items) {
+    var container = findSystemMenuContainer();
+    if (!container) {
+      return;
+    }
+    if (container.closest && container.closest('#configure-modal')) {
+      return;
+    }
+
+    var visible = [];
+    var i;
+    for (i = 0; i < items.length; i += 1) {
+      var item = items[i] || {};
+      if (!item.enabled || !item.menuVisibility || !item.menuVisibility.system) {
+        continue;
+      }
+      visible.push(item);
+    }
+
+    if (visible.length === 0) {
+      if (LAST_SYSTEM_SIG !== 'empty') {
+        removeExistingSystemMenuInjected(container);
+        LAST_SYSTEM_SIG = 'empty';
+      }
+      return;
+    }
+
+    var nextSig = visible.map(function (row) { return String(row.id || ''); }).join(',');
+    if (nextSig === LAST_SYSTEM_SIG) {
+      return;
+    }
+    LAST_SYSTEM_SIG = nextSig;
+    removeExistingSystemMenuInjected(container);
+
+    var divider = document.createElement('li');
+    divider.className = 'extmgr-system-divider';
+    divider.style.listStyle = 'none';
+    divider.style.borderTop = '1px solid rgba(128,128,128,.25)';
+    divider.style.margin = '6px 0';
+    container.appendChild(divider);
+
+    var header = document.createElement('li');
+    header.className = 'extmgr-system-header';
+    header.style.listStyle = 'none';
+    header.style.padding = '4px 12px';
+    header.style.fontSize = '0.8em';
+    header.style.opacity = '0.8';
+    header.textContent = 'Extensions';
+    container.appendChild(header);
+
+    for (i = 0; i < visible.length; i += 1) {
+      var ext = visible[i] || {};
+      var id = String(ext.id || '');
+      var name = String(ext.name || id || 'Extension');
+      var entry = ext.menuEntry || ext.entry || ('/' + id + '.php');
+
+      var li = document.createElement('li');
+      li.className = 'extmgr-system-entry';
+      li.style.listStyle = 'none';
+
+      var link = document.createElement('a');
+      link.href = entry;
+      link.className = 'extmgr-system-link';
+      link.style.display = 'block';
+      link.style.padding = '8px 12px';
+      link.style.textDecoration = 'none';
+      link.style.color = 'inherit';
+      link.style.lineHeight = '1.25';
+      link.innerHTML = '<i class="fa-solid fa-sharp fa-puzzle-piece" style="margin-right:.5em;"></i>' + esc(name);
+      li.appendChild(link);
+      container.appendChild(li);
+    }
+  }
+
+  function findConfigureTileList() {
+    return document.querySelector('#configure-modal #configure ul');
+  }
+
+  function removeExistingConfigureTile(list) {
+    if (!list) {
+      return;
+    }
+    var existing = list.querySelectorAll('.extmgr-configure-entry');
+    var i;
+    for (i = 0; i < existing.length; i += 1) {
+      if (existing[i] && existing[i].parentNode) {
+        existing[i].parentNode.removeChild(existing[i]);
+      }
+    }
+  }
+
+  function renderConfigureTile(items, meta) {
+    var list = findConfigureTileList();
+    if (!list) {
+      return;
+    }
+
+    var managerVisibility = (meta && meta.managerVisibility) || {};
+    var showSystem = toBool(managerVisibility.system, true);
+
+    var visibleSystemExtensions = [];
+    var i;
+    for (i = 0; i < items.length; i += 1) {
+      var item = items[i] || {};
+      if (!item.enabled || !item.menuVisibility || !item.menuVisibility.system) {
+        continue;
+      }
+      visibleSystemExtensions.push(String(item.id || ''));
+    }
+
+    var sig = String(showSystem) + '|' + visibleSystemExtensions.join(',');
+    if (sig === LAST_CONFIGURE_SIG) {
+      return;
+    }
+    LAST_CONFIGURE_SIG = sig;
+
+    removeExistingConfigureTile(list);
+    if (!showSystem) {
+      return;
+    }
+
+    if (list.querySelector('a[href="/ext-mgr.php"], a[href="ext-mgr.php"]')) {
+      return;
+    }
+
+    var li = document.createElement('li');
+    li.className = 'extmgr-configure-entry';
+
+    var a = document.createElement('a');
+    a.href = '/ext-mgr.php';
+    a.className = 'btn btn-large';
+    a.innerHTML = '<i class="fa-solid fa-sharp fa-puzzle-piece"></i><br>Extensions';
+    li.appendChild(a);
+
+    list.appendChild(li);
+  }
+
+  function ensureHostElements() {
     var wrap = document.querySelector('.extmgr-hover-menu');
     var panel = document.getElementById('extmgr-hover-panel');
     var listHost = document.getElementById('extmgr-hover-list');
 
-    if (!wrap || !panel || !listHost) {
+    var folderBtn = document.querySelector(
+      '#viewswitch .folder-view-btn, .viewswitch .folder-view-btn, .dropdown-menu .folder-view-btn, button.folder-view-btn, a.folder-view-btn'
+    );
+
+    if (wrap && panel && listHost) {
+      var wrapInLibraryMenu = !!wrap.closest('#viewswitch, .viewswitch, .dropdown-menu');
+      if (wrapInLibraryMenu) {
+        return { wrap: wrap, panel: panel, listHost: listHost };
+      }
+
+      // Remove stale misplaced wrapper (older installer patch could inject it in playback area).
+      if (wrap.parentNode) {
+        wrap.parentNode.removeChild(wrap);
+      }
+      wrap = null;
+      panel = null;
+      listHost = null;
+    }
+
+    // Do not force-create a hover wrapper; direct Library dropdown rendering is more stable across moOde variants.
+    return null;
+  }
+
+  function loadExtensions(host) {
+    fetchState().then(function (payload) {
+      var items = payload.extensions || [];
+      renderList(host, items);
+      renderLibraryMenu(items, payload.meta || {});
+      renderMMenu(items, payload.meta || {});
+      renderSystemMenu(items);
+      renderConfigureTile(items, payload.meta || {});
+      renderHeaderManagerButton(payload.meta || {});
+    });
+  }
+
+  function observeMMenu() {
+    if (!window.MutationObserver) {
       return;
     }
 
-    wrap.addEventListener('mouseenter', function () {
-      panel.style.display = 'block';
-      loadExtensions(listHost);
+    var timer = null;
+    var observer = new MutationObserver(function () {
+      if (timer) {
+        window.clearTimeout(timer);
+      }
+      timer = window.setTimeout(function () {
+        fetchState().then(function (payload) {
+          var items = payload.extensions || [];
+          renderLibraryMenu(items, payload.meta || {});
+          renderMMenu(items, payload.meta || {});
+          renderSystemMenu(items);
+          renderConfigureTile(items, payload.meta || {});
+          renderHeaderManagerButton(payload.meta || {});
+        });
+      }, 120);
     });
 
-    wrap.addEventListener('mouseleave', function () {
-      panel.style.display = 'none';
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var refs = ensureHostElements();
+
+    if (refs) {
+      var wrap = refs.wrap;
+      var panel = refs.panel;
+      var listHost = refs.listHost;
+
+      wrap.addEventListener('mouseenter', function () {
+        panel.style.display = 'block';
+        loadExtensions(listHost);
+      });
+
+      wrap.addEventListener('mouseleave', function () {
+        panel.style.display = 'none';
+      });
+
+      wrap.addEventListener('click', function (e) {
+        var target = e.target;
+        var isExtensionsBtn = target && target.closest && target.closest('.extensions-manager-btn');
+        if (!isExtensionsBtn) {
+          return;
+        }
+
+        e.preventDefault();
+        if (panel.style.display === 'block') {
+          panel.style.display = 'none';
+        } else {
+          panel.style.display = 'block';
+          loadExtensions(listHost);
+        }
+      });
+    }
+
+    fetchState().then(function (payload) {
+      var items = payload.extensions || [];
+      renderLibraryMenu(items, payload.meta || {});
+      renderMMenu(items, payload.meta || {});
+      renderSystemMenu(items);
+      renderConfigureTile(items, payload.meta || {});
+      renderHeaderManagerButton(payload.meta || {});
+      applyManagerVisibility(payload.meta || {}, refs);
     });
+    observeMMenu();
   });
 })();
