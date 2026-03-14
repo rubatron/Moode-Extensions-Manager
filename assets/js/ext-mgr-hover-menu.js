@@ -45,6 +45,7 @@
   var LAST_LIBRARY_SIG = '';
   var LAST_MMENU_SIG = '';
   var LAST_SYSTEM_SIG = '';
+  var LAST_CONFIGURE_SIG = '';
 
   function toBool(value, fallback) {
     if (typeof value === 'boolean') {
@@ -509,6 +510,69 @@
     }
   }
 
+  function findConfigureTileList() {
+    return document.querySelector('#configure-modal #configure ul');
+  }
+
+  function removeExistingConfigureTile(list) {
+    if (!list) {
+      return;
+    }
+    var existing = list.querySelectorAll('.extmgr-configure-entry');
+    var i;
+    for (i = 0; i < existing.length; i += 1) {
+      if (existing[i] && existing[i].parentNode) {
+        existing[i].parentNode.removeChild(existing[i]);
+      }
+    }
+  }
+
+  function renderConfigureTile(items, meta) {
+    var list = findConfigureTileList();
+    if (!list) {
+      return;
+    }
+
+    var managerVisibility = (meta && meta.managerVisibility) || {};
+    var showSystem = toBool(managerVisibility.system, true);
+
+    var visibleSystemExtensions = [];
+    var i;
+    for (i = 0; i < items.length; i += 1) {
+      var item = items[i] || {};
+      if (!item.enabled || !item.menuVisibility || !item.menuVisibility.system) {
+        continue;
+      }
+      visibleSystemExtensions.push(String(item.id || ''));
+    }
+
+    var sig = String(showSystem) + '|' + visibleSystemExtensions.join(',');
+    if (sig === LAST_CONFIGURE_SIG) {
+      return;
+    }
+    LAST_CONFIGURE_SIG = sig;
+
+    removeExistingConfigureTile(list);
+    if (!showSystem) {
+      return;
+    }
+
+    if (list.querySelector('a[href="/ext-mgr.php"], a[href="ext-mgr.php"]')) {
+      return;
+    }
+
+    var li = document.createElement('li');
+    li.className = 'extmgr-configure-entry';
+
+    var a = document.createElement('a');
+    a.href = '/ext-mgr.php';
+    a.className = 'btn btn-large';
+    a.innerHTML = '<i class="fa-solid fa-sharp fa-puzzle-piece"></i><br>Extensions';
+    li.appendChild(a);
+
+    list.appendChild(li);
+  }
+
   function ensureHostElements() {
     var wrap = document.querySelector('.extmgr-hover-menu');
     var panel = document.getElementById('extmgr-hover-panel');
@@ -544,6 +608,7 @@
       renderLibraryMenu(items, payload.meta || {});
       renderMMenu(items);
       renderSystemMenu(items);
+      renderConfigureTile(items, payload.meta || {});
     });
   }
 
@@ -563,6 +628,7 @@
           renderLibraryMenu(items, payload.meta || {});
           renderMMenu(items);
           renderSystemMenu(items);
+          renderConfigureTile(items, payload.meta || {});
         });
       }, 120);
     });
@@ -609,6 +675,7 @@
       renderLibraryMenu(items, payload.meta || {});
       renderMMenu(items);
       renderSystemMenu(items);
+      renderConfigureTile(items, payload.meta || {});
       applyManagerVisibility(payload.meta || {}, refs);
     });
     observeMMenu();
