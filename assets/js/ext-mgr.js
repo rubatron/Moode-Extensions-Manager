@@ -1001,9 +1001,10 @@
   function extensionInfoSummary(item) {
     var info = (item && item.extensionInfo) || {};
     var version = info.version || item.version || 'unknown';
+    var type = info.type || 'unknown';
     var author = info.author || 'unknown';
     var license = info.license || 'unknown';
-    return 'Version: ' + version + ' | Author: ' + author + ' | License: ' + license;
+    return 'Version: ' + version + ' | Type: ' + type + ' | Author: ' + author + ' | License: ' + license;
   }
 
   function extensionDescription(item) {
