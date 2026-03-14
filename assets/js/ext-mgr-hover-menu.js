@@ -335,13 +335,11 @@
   }
 
   function findMMenuContainer() {
+    // Primary: the M-menu dropdown ul is aria-labelled by #menu-settings (confirmed from moOde DOM)
     var selectors = [
-      '#context-menu ul',
-      '#sys-cmds ul',
-      '#context-menu .dropdown-menu',
-      'ul#context-menu',
-      '.context-menu ul',
-      '.context-menu .dropdown-menu'
+      'ul[aria-labelledby="menu-settings"]',
+      '#menu-settings ~ ul.dropdown-menu',
+      '#menu-settings ~ ul'
     ];
     var i;
 
@@ -352,13 +350,7 @@
       }
     }
 
-    var configureAnchor = document.querySelector('a[href*="configure.php"], a[href*="#/configure"]');
-    if (!configureAnchor) {
-      return null;
-    }
-
-    var candidate = configureAnchor.closest('ul, .dropdown-menu, .context-menu, .menu, .modal-body, .modal-content, .menu-list');
-    return candidate || configureAnchor.parentNode;
+    return null;
   }
 
   function appendMMenuEntry(container, entryHref, label, useListItem) {
