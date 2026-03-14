@@ -48,6 +48,32 @@
   font-weight: 400;
 }
 
+#section-manager-options {
+  margin-bottom: 1.05rem;
+  padding: 0.35rem 0 0.55rem;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.24);
+}
+
+#section-manager-options > .extmgr-static-heading {
+  margin-bottom: 0.55rem;
+}
+
+#section-manager-options .extmgr-submenu-body {
+  padding: 0.35rem 0 0.25rem;
+}
+
+#section-manager-options .extmgr-submenu-body + .extmgr-submenu-body {
+  margin-top: 0.45rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid rgba(128, 128, 128, 0.18);
+}
+
+#section-manager-options h3.extmgr-static-heading {
+  margin: 0 0 0.25rem;
+  font-size: 0.88rem;
+  color: #b6bec8;
+}
+
 .extmgr-section {
   padding-top: 0.25rem;
 }
