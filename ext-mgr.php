@@ -174,7 +174,7 @@ if (file_exists('/var/www/header.php')) {
                             <div class="extmgr-text-row"><span class="extmgr-text-label">Inactive</span><span id="inactive-count" class="extmgr-text-value">-</span></div>
                             <div class="extmgr-text-row"><span class="extmgr-text-label">M Menu Visible</span><span id="m-visible-count" class="extmgr-text-value">-</span></div>
                             <div class="extmgr-text-row"><span class="extmgr-text-label">Library Visible</span><span id="library-visible-count" class="extmgr-text-value">-</span></div>
-                            <div class="extmgr-text-row"><span class="extmgr-text-label">System Menu Visible</span><span id="system-visible-count" class="extmgr-text-value">-</span></div>
+                            <div class="extmgr-text-row"><span class="extmgr-text-label">System Context Visible</span><span id="system-visible-count" class="extmgr-text-value">-</span></div>
                             <div class="extmgr-text-row"><span class="extmgr-text-label">Settings Card Mode</span><span id="settings-card-count" class="extmgr-text-value">-</span></div>
                             <div class="extmgr-text-row"><span class="extmgr-text-label">ext-mgr RAM %</span><span id="service-mem-pct" class="extmgr-text-value">-</span></div>
                         </div>
@@ -229,7 +229,7 @@ if (file_exists('/var/www/header.php')) {
 
                 <div class="extmgr-submenu" id="submenu-manager-visibility">
                     <button class="extmgr-submenu-header" type="button" data-submenu-toggle aria-expanded="false">
-                        <span>Extension Manager Visibility</span>
+                        <span>System Context Visibility</span>
                         <i class="fa-solid fa-angle-down" aria-hidden="true"></i>
                     </button>
                     <div class="extmgr-submenu-body">

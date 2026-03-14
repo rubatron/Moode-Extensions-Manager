@@ -233,7 +233,7 @@
 
     applyManagerVisibilityButtonState(managerVisibilityHeaderBtn, 'Header', managerVisibilityState.header);
     applyManagerVisibilityButtonState(managerVisibilityLibraryBtn, 'Library', managerVisibilityState.library);
-    applyManagerVisibilityButtonState(managerVisibilitySystemBtn, 'System', managerVisibilityState.system);
+    applyManagerVisibilityButtonState(managerVisibilitySystemBtn, 'System context', managerVisibilityState.system);
   }
 
   function renderMaintenanceStatus(maintenance) {
@@ -699,7 +699,7 @@
   }
 
   function visibilityLabel(target, visible) {
-    var name = target === 'm' ? 'M menu' : (target === 'library' ? 'Library menu' : 'System menu');
+    var name = target === 'm' ? 'M menu' : (target === 'library' ? 'Library menu' : 'System context');
     return name + ': ' + (visible ? 'Visible' : 'Hidden');
   }
 
@@ -930,7 +930,7 @@
           .then(function () {
             setVisibility(item, 'system', next === '1');
             applyVisibilityButtonState(menuSystemBtn, 'system', getVisibility(item, 'system'));
-            setStatus('System menu visibility updated for ' + (item.name || item.id) + '.', 'ok');
+            setStatus('System context visibility updated for ' + (item.name || item.id) + '.', 'ok');
             runRefresh();
             reloadPageSoon();
           })
