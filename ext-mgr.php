@@ -61,10 +61,10 @@ if (file_exists('/var/www/header.php')) {
                 <h2 class="extmgr-static-heading">Extension Manager Options</h2>
 
                 <div class="extmgr-actions extmgr-options-buttons">
-                    <button id="refresh-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-arrows-rotate"></i> Refresh List</button>
-                    <button id="sync-registry-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-database"></i> Sync Registry</button>
-                    <button id="system-update-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-rotate"></i> Sync Extensions</button>
-                    <button id="open-extmgr-logs-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-file-lines"></i> Open ext-mgr Logs</button>
+                    <button id="refresh-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-arrows-rotate"></i> Refresh List</button>
+                    <button id="sync-registry-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-database"></i> Sync Registry</button>
+                    <button id="system-update-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-rotate"></i> Sync Extensions</button>
+                    <button id="open-extmgr-logs-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-file-lines"></i> Open ext-mgr Logs</button>
                 </div>
 
                 <div class="extmgr-submenu-body">
@@ -79,7 +79,7 @@ if (file_exists('/var/www/header.php')) {
                             Dry-run
                         </label>
                         <button id="import-extension-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-upload"></i> Upload Extension</button>
-                        <a id="download-template-btn" class="btn btn-small" href="/ext-mgr-api.php?action=download_extension_template"><i class="fa-solid fa-sharp fa-file-zipper"></i> Download Template Kit</a>
+                        <a id="download-template-btn" class="btn btn-primary btn-small" href="/ext-mgr-api.php?action=download_extension_template"><i class="fa-solid fa-sharp fa-file-zipper"></i> Download Template Kit</a>
                     </div>
                     <div id="import-wizard-note" class="extmgr-note">Template includes: template.php, template.js, template.css, info.json, install.sh and standard folders (including logs). Dry-run validates install hooks without writing registry or symlinks.</div>
                 </div>
@@ -181,7 +181,7 @@ if (file_exists('/var/www/header.php')) {
 
                             <div class="extmgr-actions">
                                 <button id="check-update-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-cloud-arrow-down"></i> Check Update</button>
-                                <button id="run-update-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-rotate"></i> Run Update</button>
+                                <button id="run-update-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-rotate"></i> Run Update</button>
                             </div>
                             <div id="update-note" class="extmgr-note">No update info yet.</div>
 
@@ -218,7 +218,7 @@ if (file_exists('/var/www/header.php')) {
                                         </div>
                                     </div>
                                     <div class="extmgr-actions">
-                                        <button id="save-advanced-update-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-floppy-disk"></i> Save Advanced Update</button>
+                                        <button id="save-advanced-update-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-floppy-disk"></i> Save Advanced Update</button>
                                         <span id="advanced-update-note" class="extmgr-note">Modes: main, dev branch, custom URL.</span>
                                     </div>
                                 </div>
@@ -267,7 +267,7 @@ if (file_exists('/var/www/header.php')) {
                             <div id="resource-extension-top" class="extmgr-note">Top extension memory consumers: loading...</div>
                             <div id="resource-requirements-note" class="extmgr-note">Requirements: collecting...</div>
                             <div class="extmgr-actions">
-                                <button id="refresh-resources-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-gauge"></i> Refresh Resources</button>
+                                <button id="refresh-resources-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-gauge"></i> Refresh Resources</button>
                             </div>
                         </div>
                     </div>
@@ -286,7 +286,7 @@ if (file_exists('/var/www/header.php')) {
                                 <div class="extmgr-text-row"><span class="extmgr-text-label">Latest Backup</span><span id="backup-latest" class="extmgr-text-value">-</span></div>
                             </div>
                             <div class="extmgr-actions">
-                                <button id="create-backup-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-box-archive"></i> Create Backup Snapshot</button>
+                                <button id="create-backup-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-box-archive"></i> Create Backup Snapshot</button>
                                 <button id="clear-cache-btn" class="btn btn-small btn-danger" type="button"><i class="fa-solid fa-sharp fa-trash"></i> Clear Cache Folder</button>
                             </div>
                             <div id="maintenance-storage-note" class="extmgr-note">Cache path: /var/www/extensions/cache. Backups are stored in /var/www/extensions/sys/backup.</div>

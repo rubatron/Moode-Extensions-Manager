@@ -960,7 +960,6 @@
     return 'Settings Card: ' + (enabled ? 'Enabled' : 'Disabled');
   }
 
-  function applyVisibilityButtonState(button, target, visible, stateEl) {
   function createInlineSwitchControl(labelText, toggleEl) {
     var wrap = document.createElement('div');
     wrap.className = 'extmgr-manager-visibility-row extmgr-manager-visibility-row-inline';
@@ -1118,7 +1117,7 @@
 
       var enableBtn = document.createElement('button');
       enableBtn.type = 'button';
-      enableBtn.className = 'btn btn-small' + (item.enabled ? '' : ' btn-primary');
+      enableBtn.className = 'btn btn-small btn-primary';
       enableBtn.textContent = item.enabled ? 'Disable' : 'Enable';
       applyTip(enableBtn, item.enabled ? 'extension.disable' : 'extension.enable');
       enableBtn.addEventListener('click', function () {
@@ -1146,7 +1145,7 @@
               item.settingsCardOnly = false;
             }
             enableBtn.textContent = item.enabled ? 'Disable' : 'Enable';
-            enableBtn.className = 'btn btn-small' + (item.enabled ? '' : ' btn-primary');
+            enableBtn.className = 'btn btn-small btn-primary';
             applyTip(enableBtn, item.enabled ? 'extension.disable' : 'extension.enable');
 
             menuMBtn.setVisible(getVisibility(item, 'm'));
@@ -1613,7 +1612,7 @@
     [managerVisibilityHeaderBtn, 'header'],
     [managerVisibilityLibraryBtn, 'library'],
     [managerVisibilityMBtn, 'm'],
-    [managerVisibilitySystemBtn, 'system'],
+    [managerVisibilitySystemBtn, 'system']
   ].forEach(function (e) {
     var toggleEl = e[0], area = e[1];
     if (!toggleEl) { return; }

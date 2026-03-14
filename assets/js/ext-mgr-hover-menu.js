@@ -96,7 +96,7 @@
             if (res.ok && data && data.ok) {
               return data;
             }
-            if (res.status === 404 || res.status === 0) {
+              if (!res.ok || !data || !data.ok || res.status === 404 || res.status === 0) {
               return next();
             }
             return data || { ok: false };
