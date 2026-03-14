@@ -2696,11 +2696,15 @@ function syncRegistryWithFilesystem($registryPath, $pruneMissing = false) {
 
         $installedDir = '/var/www/extensions/installed/' . $id;
         $canonicalLink = '/var/www/' . $id . '.php';
-        $present = is_dir($installedDir) && (is_link($canonicalLink) || file_exists($canonicalLink));
+        $dirPresent = is_dir($installedDir);
+        $routePresent = (is_link($canonicalLink) || file_exists($canonicalLink));
 
-        $ext['installed'] = $present;
+        // Treat extension as installed based on installed directory presence.
+        // Missing canonical route should not force-reset enabled state.
+        $ext['installed'] = $dirPresent;
+        $ext['routeInstalled'] = $routePresent;
 
-        if (!$present) {
+        if (!$dirPresent) {
             $ext['enabled'] = false;
             $ext['state'] = 'missing';
             $summary['missing']++;

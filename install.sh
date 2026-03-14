@@ -999,7 +999,14 @@ echo "- Verify Library dropdown shows Extensions and canonical routes"
 echo "- Verify Configure modal remains native moOde layout (no ext-mgr tile injection)"
 echo "- Verify /ext-mgr.php loads in moOde shell"
 
-echo "[10/11] Done."
+echo "[10/11] Finalizing services..."
 graceful_finalize_services
 echo "Installed: $TARGET_PAGE, $TARGET_API, $TARGET_JS, $TARGET_HOVER_MENU_JS, $TARGET_SHELL_BRIDGE, $TARGET_CSS, $TARGET_META"
 echo "Root endpoints: /ext-mgr.php, /ext-mgr-api.php, /extensions-manager.php"
+
+HOST_SHORT="$(hostname -s 2>/dev/null || true)"
+if [[ -n "$HOST_SHORT" ]]; then
+    echo "Open in browser: http://${HOST_SHORT}.local/ext-mgr.php"
+fi
+echo "Open in browser: http://$(hostname -f 2>/dev/null || hostname)/ext-mgr.php"
+echo "[11/11] Done."
