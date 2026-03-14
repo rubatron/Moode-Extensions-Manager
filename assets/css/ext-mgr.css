@@ -123,7 +123,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.52rem;
-  border: 1px solid rgba(128, 128, 128, 0.25);
+  border: 1px solid transparent;
   background: rgba(0, 0, 0, 0.16);
   border-radius: 6px;
   padding: 0.34rem 0.5rem;
@@ -137,7 +137,7 @@
 
 .extmgr-manager-visibility-row:hover {
   background: rgba(10, 12, 16, 0.28);
-  border-color: rgba(170, 182, 194, 0.32);
+  border-color: transparent;
 }
 
 .extmgr-manager-visibility-label {
@@ -511,7 +511,7 @@
   justify-content: center;
   width: 26px;
   height: 26px;
-  border: 1px solid rgba(128, 128, 128, 0.32);
+  border: 1px solid transparent;
   border-radius: 4px;
   background: rgba(0, 0, 0, 0.18);
   color: #b7c0ca;
@@ -522,7 +522,7 @@
 
 .extmgr-icon-btn:hover {
   color: #d0d8e1;
-  border-color: rgba(175, 183, 191, 0.5);
+  border-color: transparent;
 }
 
 .extmgr-icon-btn[aria-disabled='true'] {

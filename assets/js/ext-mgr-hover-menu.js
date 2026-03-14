@@ -132,7 +132,7 @@
     }
 
     var systemLinks = document.querySelectorAll(
-      '#sys-cmds a[href="/ext-mgr.php"], #sys-cmds a[href="ext-mgr.php"], #configure-modal a[href="/ext-mgr.php"], #configure-modal a[href="ext-mgr.php"]'
+      '#sys-cmds a[href="/ext-mgr.php"], #sys-cmds a[href="ext-mgr.php"], #sys-cmds a[href="/extensions-manager.php"], #sys-cmds a[href="extensions-manager.php"], #configure-modal a[href="/ext-mgr.php"], #configure-modal a[href="ext-mgr.php"], #configure-modal a[href="/extensions-manager.php"], #configure-modal a[href="extensions-manager.php"]'
     );
     var i;
     for (i = 0; i < systemLinks.length; i += 1) {
@@ -283,7 +283,7 @@
       return false;
     }
     return !!container.querySelector(
-      'a[href="/ext-mgr.php"], a[href="ext-mgr.php"], button[href="/ext-mgr.php"], button[href="ext-mgr.php"]'
+      'a[href="/ext-mgr.php"], a[href="ext-mgr.php"], a[href="/extensions-manager.php"], a[href="extensions-manager.php"], button[href="/ext-mgr.php"], button[href="ext-mgr.php"], button[href="/extensions-manager.php"], button[href="extensions-manager.php"]'
     );
   }
 
@@ -293,7 +293,7 @@
     }
 
     var links = container.querySelectorAll(
-      'a[href="/ext-mgr.php"], a[href="ext-mgr.php"], button[href="/ext-mgr.php"], button[href="ext-mgr.php"]'
+      'a[href="/ext-mgr.php"], a[href="ext-mgr.php"], a[href="/extensions-manager.php"], a[href="extensions-manager.php"], button[href="/ext-mgr.php"], button[href="ext-mgr.php"], button[href="/extensions-manager.php"], button[href="extensions-manager.php"]'
     );
     var i;
     for (i = 0; i < links.length; i += 1) {
@@ -337,12 +337,11 @@
     }
 
     // Keep Extensions grouped at the bottom with a subtle section header.
-    var divider = document.createElement('button');
-    divider.className = 'btn menu-separator extmgr-library-divider';
+    var divider = document.createElement('div');
+    divider.className = 'extmgr-library-divider';
     divider.setAttribute('aria-hidden', 'true');
-    divider.disabled = true;
-    divider.style.opacity = '0.35';
-    divider.textContent = 'Extensions';
+    divider.style.borderTop = '1px solid rgba(128,128,128,.2)';
+    divider.style.margin = '6px 0 4px';
     container.appendChild(divider);
 
     var header = document.createElement('div');
@@ -354,17 +353,14 @@
     container.appendChild(header);
 
     if (showManagerInLibrary && !hasExistingManagerLink(container)) {
-      var managerBtn = document.createElement('button');
+      var managerBtn = document.createElement('a');
       managerBtn.className = 'btn extmgr-library-entry';
       managerBtn.setAttribute('aria-label', 'Extensions Manager');
-      managerBtn.setAttribute('href', '#notarget');
+      managerBtn.href = '/ext-mgr.php';
       managerBtn.style.fontSize = '0.92em';
       managerBtn.style.opacity = '0.95';
+      managerBtn.style.borderColor = 'transparent';
       managerBtn.innerHTML = '<i class="fa-solid fa-sharp fa-puzzle-piece"></i> Extensions Manager';
-      managerBtn.addEventListener('click', function (e) {
-        e.preventDefault();
-        window.location.href = '/ext-mgr.php';
-      });
       container.appendChild(managerBtn);
     }
 
@@ -374,19 +370,14 @@
       var name = String(item.name || id || 'Extension');
       var entry = item.menuEntry || item.entry || ('/' + id + '.php');
 
-      var extBtn = document.createElement('button');
+      var extBtn = document.createElement('a');
       extBtn.className = 'btn extmgr-library-entry';
       extBtn.setAttribute('aria-label', name);
-      extBtn.setAttribute('href', '#notarget');
+      extBtn.href = entry;
       extBtn.style.fontSize = '0.92em';
       extBtn.style.opacity = '0.92';
+      extBtn.style.borderColor = 'transparent';
       extBtn.innerHTML = '<i class="' + esc(extensionIcon(item, 'fa-solid fa-sharp fa-globe')) + '"></i> ' + esc(name);
-      (function (targetHref) {
-        extBtn.addEventListener('click', function (e) {
-          e.preventDefault();
-          window.location.href = targetHref;
-        });
-      })(entry);
       container.appendChild(extBtn);
     }
   }
@@ -546,7 +537,7 @@
 
   function findSystemMenuContainer() {
     return document.querySelector(
-      '#context-menu ul, #sys-cmds ul, .modal #context-menu ul, .context-menu ul'
+      '#sys-cmds .dropdown-menu, #sys-cmds ul, #context-menu ul, .modal #context-menu ul, .context-menu ul, ul[aria-labelledby="sys-cmds"]'
     );
   }
 
