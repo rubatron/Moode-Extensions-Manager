@@ -40,6 +40,10 @@
   var managerVisibilityLibraryBtn = document.getElementById('manager-visibility-library-btn');
   var managerVisibilityMBtn = document.getElementById('manager-visibility-m-btn');
   var managerVisibilitySystemBtn = document.getElementById('manager-visibility-system-btn');
+  var managerVisibilityHeaderStateEl = document.getElementById('manager-visibility-header-state');
+  var managerVisibilityLibraryStateEl = document.getElementById('manager-visibility-library-state');
+  var managerVisibilityMStateEl = document.getElementById('manager-visibility-m-state');
+  var managerVisibilitySystemStateEl = document.getElementById('manager-visibility-system-state');
   var managerVisibilityNoteEl = document.getElementById('manager-visibility-note');
 
   var metaVersionEl = document.getElementById('meta-version');
@@ -359,22 +363,29 @@
     return size.toFixed(idx === 0 ? 0 : 2) + ' ' + units[idx];
   }
 
-  function managerVisibilityLabel(area, visible) {
-    var name = area === 'header' ? 'Header tab'
+  function managerVisibilityAreaName(area) {
+    return area === 'header' ? 'Header tab'
       : area === 'library' ? 'Library menu'
       : area === 'm' ? 'M menu'
       : 'Extension manager';
-    return name + ': ' + (visible ? 'Visible' : 'Hidden');
   }
 
-  function applyManagerVisibilityButtonState(button, area, visible) {
+  function managerVisibilityLabel(area, visible) {
+    return managerVisibilityAreaName(area) + ': ' + (visible ? 'Visible' : 'Hidden');
+  }
+
+  function applyManagerVisibilityButtonState(button, stateEl, area, visible) {
     if (!button) {
       return;
     }
-    button.classList.add('visibility-toggle');
+    button.classList.add('extmgr-switch');
     button.classList.remove('is-on', 'is-off');
     button.classList.add(visible ? 'is-on' : 'is-off');
-    button.textContent = managerVisibilityLabel(area, visible);
+    button.setAttribute('aria-checked', visible ? 'true' : 'false');
+    button.title = managerVisibilityLabel(area, visible);
+    if (stateEl) {
+      stateEl.textContent = visible ? 'Visible' : 'Hidden';
+    }
   }
 
   function renderManagerVisibility(visibility) {
@@ -384,10 +395,10 @@
     managerVisibilityState.m = v.m !== false;
     managerVisibilityState.system = v.system !== false;
 
-    applyManagerVisibilityButtonState(managerVisibilityHeaderBtn, 'header', managerVisibilityState.header);
-    applyManagerVisibilityButtonState(managerVisibilityLibraryBtn, 'library', managerVisibilityState.library);
-    applyManagerVisibilityButtonState(managerVisibilityMBtn, 'm', managerVisibilityState.m);
-    applyManagerVisibilityButtonState(managerVisibilitySystemBtn, 'system', managerVisibilityState.system);
+    applyManagerVisibilityButtonState(managerVisibilityHeaderBtn, managerVisibilityHeaderStateEl, 'header', managerVisibilityState.header);
+    applyManagerVisibilityButtonState(managerVisibilityLibraryBtn, managerVisibilityLibraryStateEl, 'library', managerVisibilityState.library);
+    applyManagerVisibilityButtonState(managerVisibilityMBtn, managerVisibilityMStateEl, 'm', managerVisibilityState.m);
+    applyManagerVisibilityButtonState(managerVisibilitySystemBtn, managerVisibilitySystemStateEl, 'system', managerVisibilityState.system);
 
     applyTip(managerVisibilityHeaderBtn, 'manager.visibility.header');
     applyTip(managerVisibilityLibraryBtn, 'manager.visibility.library');
@@ -1393,8 +1404,7 @@
         var payload = (data && data.data) || {};
         renderManagerVisibility(payload.visibility || {});
         if (managerVisibilityNoteEl) {
-          var label = managerVisibilityLabel(area, true).replace(': Visible', '');
-          managerVisibilityNoteEl.textContent = 'Manager visibility updated for ' + label + '.';
+          managerVisibilityNoteEl.textContent = 'Manager visibility updated for ' + managerVisibilityAreaName(area) + '.';
           managerVisibilityNoteEl.classList.remove('error');
           managerVisibilityNoteEl.classList.add('ok');
         }

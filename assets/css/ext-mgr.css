@@ -54,7 +54,7 @@
   border-bottom: 1px solid rgba(128, 128, 128, 0.24);
 }
 
-#section-manager-options > .extmgr-static-heading {
+#section-manager-options>.extmgr-static-heading {
   margin-bottom: 0.55rem;
 }
 
@@ -62,7 +62,7 @@
   padding: 0.35rem 0 0.25rem;
 }
 
-#section-manager-options .extmgr-submenu-body + .extmgr-submenu-body {
+#section-manager-options .extmgr-submenu-body+.extmgr-submenu-body {
   margin-top: 0.45rem;
   padding-top: 0.55rem;
   border-top: 1px solid rgba(128, 128, 128, 0.18);
@@ -72,6 +72,123 @@
   margin: 0 0 0.25rem;
   font-size: 0.88rem;
   color: #b6bec8;
+}
+
+#section-manager-options .extmgr-options-buttons {
+  margin-top: 0.45rem;
+}
+
+#section-manager-options .extmgr-options-buttons .btn,
+#section-manager-options .extmgr-import-controls .btn {
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+#section-manager-options .extmgr-options-buttons .btn.btn-small,
+#section-manager-options .extmgr-import-controls .btn.btn-small {
+  border: 1px solid rgba(170, 182, 194, 0.42);
+  background-color: rgba(15, 17, 22, 0.5);
+}
+
+#section-manager-options .extmgr-options-buttons .btn.btn-small:hover,
+#section-manager-options .extmgr-import-controls .btn.btn-small:hover {
+  border-color: rgba(197, 205, 214, 0.58);
+  background-color: rgba(170, 182, 194, 0.16);
+}
+
+#section-manager-options .extmgr-options-buttons .btn.btn-primary,
+#section-manager-options .extmgr-import-controls .btn.btn-primary {
+  border-color: #b34700;
+  background-color: #d35400;
+}
+
+#section-manager-options .extmgr-options-buttons .btn.btn-primary:hover,
+#section-manager-options .extmgr-import-controls .btn.btn-primary:hover {
+  border-color: #c24e00;
+  background-color: #e05d00;
+}
+
+.extmgr-manager-visibility-grid {
+  margin-top: 0.55rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.extmgr-manager-visibility-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border: 1px solid rgba(128, 128, 128, 0.25);
+  background: rgba(0, 0, 0, 0.16);
+  border-radius: 6px;
+  padding: 0.4rem 0.55rem;
+}
+
+.extmgr-manager-visibility-label {
+  color: #c3ccd5;
+  font-size: 0.84rem;
+}
+
+.extmgr-manager-visibility-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.extmgr-manager-visibility-state {
+  min-width: 52px;
+  text-align: right;
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #aeb6bf;
+}
+
+.extmgr-switch {
+  position: relative;
+  width: 52px;
+  height: 23px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(128, 128, 128, 0.3);
+  cursor: pointer;
+  transition: background-color 0.18s ease;
+}
+
+.extmgr-switch .extmgr-switch-handle {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 17px;
+  height: 17px;
+  border-radius: 999px;
+  background: #d9d9d9;
+  transition: transform 0.18s ease, background-color 0.18s ease;
+}
+
+.extmgr-switch.is-on {
+  background: #d35400;
+}
+
+.extmgr-switch.is-on .extmgr-switch-handle {
+  transform: translateX(29px);
+  background: #fff;
+}
+
+.extmgr-switch.is-off {
+  background: rgba(128, 128, 128, 0.3);
+}
+
+.extmgr-switch:focus-visible {
+  outline: 1px dashed rgba(211, 84, 0, 0.85);
+  outline-offset: 2px;
+}
+
+.extmgr-switch:disabled {
+  opacity: 0.65;
+  cursor: default;
 }
 
 .extmgr-section {

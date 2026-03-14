@@ -58,7 +58,7 @@ if (file_exists('/var/www/header.php')) {
         <section class="extmgr-panel" id="section-manager-options">
             <h2 class="extmgr-static-heading">Extension Manager Options</h2>
 
-            <div class="extmgr-actions">
+            <div class="extmgr-actions extmgr-options-buttons">
                 <button id="refresh-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-arrows-rotate"></i> Refresh List</button>
                 <button id="sync-registry-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-database"></i> Sync Registry</button>
                 <button id="system-update-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-rotate"></i> Sync Extensions</button>
@@ -71,7 +71,7 @@ if (file_exists('/var/www/header.php')) {
                     <input id="import-extension-file" class="extmgr-file-input" type="file" accept=".zip" aria-label="Upload extension package zip">
                     <label for="import-extension-file" id="import-extension-file-trigger" class="btn btn-primary btn-small">Choose File</label>
                     <span id="import-extension-file-name" class="extmgr-file-name">No file chosen</span>
-                    <button id="import-extension-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-upload"></i> Upload Extension</button>
+                    <button id="import-extension-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-upload"></i> Upload Extension</button>
                     <a id="download-template-btn" class="btn btn-small" href="/ext-mgr-api.php?action=download_extension_template"><i class="fa-solid fa-sharp fa-file-zipper"></i> Download Template Kit</a>
                 </div>
                 <div id="import-wizard-note" class="extmgr-note">Template includes: template.php, template.js, template.css, info.json, install.sh and standard folders.</div>
@@ -80,11 +80,43 @@ if (file_exists('/var/www/header.php')) {
             <div class="extmgr-submenu-body" id="submenu-manager-visibility">
                 <h3 class="extmgr-static-heading">Extension Manager Visibility</h3>
                 <p class="config-help-static extmgr-help">Hide/unhide ext-mgr itself in moOde menu areas without disabling the API endpoint.</p>
-                <div class="extmgr-actions">
-                    <button id="manager-visibility-header-btn" class="btn btn-small visibility-toggle" type="button">Header tab: Visible</button>
-                    <button id="manager-visibility-library-btn" class="btn btn-small visibility-toggle" type="button">Library menu: Visible</button>
-                    <button id="manager-visibility-m-btn" class="btn btn-small visibility-toggle" type="button">M menu: Visible</button>
-                    <button id="manager-visibility-system-btn" class="btn btn-small visibility-toggle" type="button">Extension manager: Visible</button>
+                <div class="extmgr-manager-visibility-grid" role="group" aria-label="Extension manager visibility options">
+                    <div class="extmgr-manager-visibility-row">
+                        <span class="extmgr-manager-visibility-label">Header tab</span>
+                        <div class="extmgr-manager-visibility-control">
+                            <button id="manager-visibility-header-btn" class="extmgr-switch" type="button" role="switch" aria-checked="true" aria-label="Header tab visibility">
+                                <span class="extmgr-switch-handle" aria-hidden="true"></span>
+                            </button>
+                            <span id="manager-visibility-header-state" class="extmgr-manager-visibility-state">Visible</span>
+                        </div>
+                    </div>
+                    <div class="extmgr-manager-visibility-row">
+                        <span class="extmgr-manager-visibility-label">Library menu</span>
+                        <div class="extmgr-manager-visibility-control">
+                            <button id="manager-visibility-library-btn" class="extmgr-switch" type="button" role="switch" aria-checked="true" aria-label="Library menu visibility">
+                                <span class="extmgr-switch-handle" aria-hidden="true"></span>
+                            </button>
+                            <span id="manager-visibility-library-state" class="extmgr-manager-visibility-state">Visible</span>
+                        </div>
+                    </div>
+                    <div class="extmgr-manager-visibility-row">
+                        <span class="extmgr-manager-visibility-label">M menu</span>
+                        <div class="extmgr-manager-visibility-control">
+                            <button id="manager-visibility-m-btn" class="extmgr-switch" type="button" role="switch" aria-checked="true" aria-label="M menu visibility">
+                                <span class="extmgr-switch-handle" aria-hidden="true"></span>
+                            </button>
+                            <span id="manager-visibility-m-state" class="extmgr-manager-visibility-state">Visible</span>
+                        </div>
+                    </div>
+                    <div class="extmgr-manager-visibility-row">
+                        <span class="extmgr-manager-visibility-label">Extension manager</span>
+                        <div class="extmgr-manager-visibility-control">
+                            <button id="manager-visibility-system-btn" class="extmgr-switch" type="button" role="switch" aria-checked="true" aria-label="Extension manager visibility">
+                                <span class="extmgr-switch-handle" aria-hidden="true"></span>
+                            </button>
+                            <span id="manager-visibility-system-state" class="extmgr-manager-visibility-state">Visible</span>
+                        </div>
+                    </div>
                 </div>
                 <div id="manager-visibility-note" class="extmgr-note">Changes apply on next menu render and page refresh.</div>
             </div>
