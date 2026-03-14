@@ -282,37 +282,36 @@
       return;
     }
 
-    var folderBtn = container.querySelector('.folder-view-btn');
-    var anchorNode = folderBtn && folderBtn.parentNode === container ? folderBtn : null;
-
+    // Keep Extensions grouped at the bottom with a subtle section header.
     var divider = document.createElement('button');
     divider.className = 'btn menu-separator extmgr-library-divider';
     divider.setAttribute('aria-hidden', 'true');
     divider.disabled = true;
-    divider.style.opacity = '0.5';
+    divider.style.opacity = '0.35';
     divider.textContent = 'Extensions';
+    container.appendChild(divider);
 
-    if (anchorNode) {
-      container.insertBefore(divider, anchorNode);
-    } else {
-      container.appendChild(divider);
-    }
+    var header = document.createElement('div');
+    header.className = 'extmgr-library-header';
+    header.style.fontSize = '0.78em';
+    header.style.opacity = '0.72';
+    header.style.padding = '4px 12px 2px';
+    header.textContent = 'Extensions';
+    container.appendChild(header);
 
     if (showManagerInLibrary && !hasExistingManagerLink(container)) {
       var managerBtn = document.createElement('button');
       managerBtn.className = 'btn extmgr-library-entry';
       managerBtn.setAttribute('aria-label', 'Extensions Manager');
       managerBtn.setAttribute('href', '#notarget');
+      managerBtn.style.fontSize = '0.92em';
+      managerBtn.style.opacity = '0.95';
       managerBtn.innerHTML = '<i class="fa-solid fa-sharp fa-puzzle-piece"></i> Extensions Manager';
       managerBtn.addEventListener('click', function (e) {
         e.preventDefault();
         window.location.href = '/ext-mgr.php';
       });
-      if (anchorNode) {
-        container.insertBefore(managerBtn, anchorNode);
-      } else {
-        container.appendChild(managerBtn);
-      }
+      container.appendChild(managerBtn);
     }
 
     for (i = 0; i < visibleItems.length; i += 1) {
@@ -325,6 +324,8 @@
       extBtn.className = 'btn extmgr-library-entry';
       extBtn.setAttribute('aria-label', name);
       extBtn.setAttribute('href', '#notarget');
+      extBtn.style.fontSize = '0.92em';
+      extBtn.style.opacity = '0.92';
       extBtn.innerHTML = '<i class="fa-solid fa-sharp fa-globe"></i> ' + esc(name);
       (function (targetHref) {
         extBtn.addEventListener('click', function (e) {
@@ -332,12 +333,7 @@
           window.location.href = targetHref;
         });
       })(entry);
-
-      if (anchorNode) {
-        container.insertBefore(extBtn, anchorNode);
-      } else {
-        container.appendChild(extBtn);
-      }
+      container.appendChild(extBtn);
     }
   }
 
