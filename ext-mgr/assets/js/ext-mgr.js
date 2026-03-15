@@ -626,14 +626,26 @@
 
       // Reset all step states on init (clears any cached/stale classes)
       completedSteps = {};
+      currentStepIndex = 0;
       var stepBtns = stepperEl.querySelectorAll('.extmgr-wizard-step');
-      stepBtns.forEach(function(btn) {
+      console.log('[ImportWizard] init: resetting', stepBtns.length, 'steps');
+      stepBtns.forEach(function(btn, idx) {
         btn.classList.remove('is-active', 'is-completed');
+        // First step starts as active
+        if (idx === 0) {
+          btn.classList.add('is-active');
+        }
+      });
+
+      // Also reset panels
+      var panels = panelsEl.querySelectorAll('.extmgr-wizard-panel');
+      panels.forEach(function(panel, idx) {
+        panel.classList.toggle('is-active', idx === 0);
       });
 
       bindStepperClicks();
       bindNavButtons();
-      goToStep(0);
+      console.log('[ImportWizard] init complete, step 0 active');
     }
 
     function bindStepperClicks() {
