@@ -842,13 +842,13 @@
       var activeModeLabel = advancedUpdateState.mode === 'custom'
         ? 'custom URL'
         : advancedUpdateState.mode === 'dev'
-          ? 'dev branch'
+          ? 'dev'
           : advancedUpdateState.mode === 'release'
             ? 'release'
             : 'main';
       advancedUpdateNoteEl.textContent = payloadWarning
         ? ('Branch discovery warning: ' + payloadWarning + '. Using stored branch list.')
-        : ('Modes: release, main, dev branch, custom URL. Active mode=' + activeModeLabel + '.');
+        : ('Modes: release, main, dev, custom URL. Active mode=' + activeModeLabel + '.');
     }
   }
 
@@ -956,7 +956,7 @@
   }
 
   function settingsCardLabel(enabled) {
-    return 'Settings Card: ' + (enabled ? 'Enabled' : 'Disabled');
+    return 'Configuration Tile: ' + (enabled ? 'Enabled' : 'Disabled');
   }
 
   function createInlineSwitchControl(labelText, toggleEl) {
@@ -965,7 +965,7 @@
 
     var label = document.createElement('span');
     label.className = 'extmgr-manager-visibility-label';
-    if (labelText === 'Menu' || labelText === 'Configuration Tile') {
+    if (labelText === 'Menu' || labelText === 'Configuration Tile' || labelText === 'M Configuration Tile') {
       label.classList.add('extmgr-manager-visibility-label-m');
 
       var mBadge = document.createElement('span');
@@ -1089,8 +1089,14 @@
       var left = document.createElement('div');
       var stateClass = item.enabled ? 'active' : 'inactive';
       var stateLabel = item.enabled ? 'active' : 'inactive';
+      var itemTitle = escapeHtml(item.name || item.id || 'Unnamed extension');
+      var settingsPage = extensionSettingsPage(item);
+      if (settingsPage) {
+        itemTitle = '<a class="extmgr-item-link" href="' + escapeHtml(settingsPage) + '">' + itemTitle + '</a>';
+      }
+
       left.innerHTML =
-        '<div class="list-top"><div class="list-name">' + escapeHtml(item.name || item.id || 'Unnamed extension') + '</div><span class="badge ' + stateClass + '">' + stateLabel + '</span></div>' +
+        '<div class="list-top"><div class="list-name">' + itemTitle + '</div><span class="badge ' + stateClass + '">' + stateLabel + '</span></div>' +
         '<div class="list-sub">' + escapeHtml(item.path || '#') + '</div>' +
         '<div class="list-sub">Placement: ' + escapeHtml(visibilityLabel('m', showInM)) + ' | ' + escapeHtml(visibilityLabel('library', showInLibrary)) + ' | ' + escapeHtml(settingsCardLabel(showSettingsCard)) + '</div>' +
         '<div class="list-sub">' + escapeHtml(extensionInfoSummary(item)) + '</div>' +
@@ -1099,14 +1105,17 @@
       if (getSettingsCardOnly(item)) {
         left.innerHTML +=
           '<div class="extmgr-subcard">' +
-          '<div class="extmgr-subcard-title">Settings Card Mode</div>' +
-          '<div class="extmgr-subcard-body">This extension is handled as a settings-only card in ext-mgr.</div>' +
-          '<a class="btn btn-small" href="' + escapeHtml(extensionSettingsPage(item)) + '">Open Settings Page</a>' +
+          '<div class="extmgr-subcard-title">Configuration Tile Mode</div>' +
+          '<div class="extmgr-subcard-body">This extension is handled as a configuration-only tile in ext-mgr.</div>' +
+          '<a class="btn btn-small" href="' + escapeHtml(extensionSettingsPage(item)) + '">Open Configuration</a>' +
           '</div>';
       }
 
       var rightWrap = document.createElement('div');
       rightWrap.className = 'item-actions';
+
+      var infoActionGroup = document.createElement('div');
+      infoActionGroup.className = 'item-info-actions';
 
       var toggleGroup = document.createElement('div');
       toggleGroup.className = 'item-toggle-group';
@@ -1215,11 +1224,11 @@
 
         var menuMControl = createInlineSwitchControl('Menu', menuMBtn);
         var menuLibraryControl = createInlineSwitchControl('Library menu', menuLibraryBtn);
-        var settingsCardControl = createInlineSwitchControl('Settings card', settingsCardBtn);
+        var settingsCardControl = createInlineSwitchControl('Configuration Tile', settingsCardBtn);
 
       var repairSymlinkBtn = document.createElement('button');
       repairSymlinkBtn.type = 'button';
-      repairSymlinkBtn.className = 'btn btn-small extmgr-destructive';
+      repairSymlinkBtn.className = 'btn btn-small btn-primary';
       repairSymlinkBtn.textContent = 'Repair Symlink';
       applyTip(repairSymlinkBtn, 'extension.repair');
       repairSymlinkBtn.addEventListener('click', function () {
@@ -1240,7 +1249,7 @@
 
       var removeBtn = document.createElement('button');
       removeBtn.type = 'button';
-      removeBtn.className = 'btn btn-small extmgr-destructive';
+      removeBtn.className = 'btn btn-small btn-primary extmgr-destructive';
       removeBtn.textContent = 'Remove Extension';
       applyTip(removeBtn, 'extension.remove');
       removeBtn.addEventListener('click', function () {
@@ -1293,18 +1302,27 @@
 
       applyExtensionActionState(item.enabled);
 
+      if (settingsPage) {
+        var configureBtn = document.createElement('a');
+        configureBtn.className = 'btn btn-small btn-primary';
+        configureBtn.href = settingsPage;
+        configureBtn.textContent = getSettingsCardOnly(item) ? 'Open Configuration' : 'Configure';
+        infoActionGroup.appendChild(configureBtn);
+      }
+
+      infoActionGroup.appendChild(enableBtn);
+      infoActionGroup.appendChild(repairSymlinkBtn);
+      infoActionGroup.appendChild(removeBtn);
+      if (extMgrLogsModule && typeof extMgrLogsModule.attachExtensionButton === 'function') {
+        extMgrLogsModule.attachExtensionButton(item, infoActionGroup);
+      }
+      left.appendChild(infoActionGroup);
+
       row.appendChild(left);
-      rightWrap.appendChild(enableBtn);
       toggleGroup.appendChild(menuMControl);
       toggleGroup.appendChild(menuLibraryControl);
       toggleGroup.appendChild(settingsCardControl);
-      actionGroup.appendChild(repairSymlinkBtn);
-      actionGroup.appendChild(removeBtn);
-      if (extMgrLogsModule && typeof extMgrLogsModule.attachExtensionButton === 'function') {
-        extMgrLogsModule.attachExtensionButton(item, actionGroup);
-      }
       rightWrap.appendChild(toggleGroup);
-      rightWrap.appendChild(actionGroup);
       row.appendChild(rightWrap);
       listEl.appendChild(row);
     });

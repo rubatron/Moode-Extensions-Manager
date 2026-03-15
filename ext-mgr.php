@@ -195,7 +195,7 @@ if (file_exists('/var/www/header.php')) {
                                         <div id="advanced-mode-group" class="extmgr-mode-group" role="group" aria-label="Advanced update source mode">
                                             <button type="button" class="extmgr-mode-btn" data-advanced-mode="release">Release</button>
                                             <button type="button" class="extmgr-mode-btn" data-advanced-mode="main">Main</button>
-                                            <button type="button" class="extmgr-mode-btn" data-advanced-mode="dev">Dev Branch</button>
+                                            <button type="button" class="extmgr-mode-btn" data-advanced-mode="dev">Dev</button>
                                             <button type="button" class="extmgr-mode-btn" data-advanced-mode="custom">Custom URL</button>
                                         </div>
 
