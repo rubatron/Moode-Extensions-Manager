@@ -37,6 +37,17 @@ sudo bash install.sh --uninstall
 
 This removes ext-mgr core files, installed extensions under `/var/www/extensions/installed`, ext-mgr runtime/cache/log roots, canonical extension routes, and the `moode-extmgrusr` / `moode-extmgr` security principals. A timestamped uninstall backup is kept under `/var/www/extensions/sys/backup`.
 
+Per-extension uninstall via API action `remove_extension` now uses install metadata for graceful cleanup:
+
+- remove package runtime symlinks (`.ext-mgr/packages-runtime` and runtime mirror links)
+- execute extension `scripts/uninstall.sh` when declared in metadata
+- remove installed service units discovered during import/install
+- clear ACLs on extension-owned runtime paths where possible
+- remove apt packages that were installed for that extension
+- skip package removal when another installed extension still references the same package
+
+This shared-package guard prevents churn and duplicate reinstall/remove loops when many extensions depend on the same package set.
+
 ## Core Endpoints
 
 - /ext-mgr.php
@@ -101,6 +112,19 @@ This removes ext-mgr core files, installed extensions under `/var/www/extensions
 - Keep UI logic in assets/js/ext-mgr.js and server logic in ext-mgr-api.php.
 - Keep moOde shell integration idempotent in install.sh.
 - Keep JSON responses in { ok, data|error } shape.
+
+## Development Test Matrix
+
+Use this quick matrix when validating `remove_extension`:
+
+1. Extension without metadata file: expect registry + route + installed folder removal, no fatal failure.
+2. Metadata with runtime links: expect runtime symlinks removed.
+3. Metadata with service units: expect systemd disable/remove + daemon-reload.
+4. Metadata with uninstall script: expect script attempt and warning (not hard-fail) if script exits non-zero.
+5. Metadata with extension-unique apt package: expect package removal.
+6. Metadata with shared apt package across two extensions: expect package kept, listed as skipped shared dependency.
+7. Legacy route present at /var/www/extensions/<id>.php: expect cleanup/move to backup.
+8. Missing sudo/exec permissions: expect warnings, but extension still removed from registry and canonical route cleanup attempted.
 
 ## Deep Architecture
 

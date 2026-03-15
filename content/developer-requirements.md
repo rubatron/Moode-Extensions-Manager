@@ -87,3 +87,20 @@ Rules:
 - Menu visibility follows ext_mgr.menuVisibility values.
 - Extension remains functional when visibility is toggled off.
 - Run one ext-mgr Import Wizard dry-run before production import to validate hooks safely.
+
+## Uninstall Rules
+
+- Keep uninstall scripts idempotent and safe to run multiple times.
+- Do not hard-fail uninstall when optional service/package cleanup is unavailable; return warnings and continue extension removal.
+- ext-mgr removes package runtime symlinks and service units from install metadata during `remove_extension`.
+- ext-mgr uninstalls extension-owned apt packages gracefully.
+- Shared dependency protection is active: when another installed extension references the same package, ext-mgr skips removal to avoid dependency churn.
+
+## Uninstall Validation Matrix
+
+1. Remove extension with no `.ext-mgr/install-metadata.json` and verify baseline cleanup still succeeds.
+2. Remove extension with metadata links and verify both runtime symlink locations are gone.
+3. Remove extension with bundled/declared packages and verify unique packages are removed.
+4. Keep a second extension that references the same package and verify package removal is skipped.
+5. Remove extension with shipped service units and verify units are disabled/removed.
+6. Confirm warnings are returned for permission-limited hosts without blocking registry cleanup.

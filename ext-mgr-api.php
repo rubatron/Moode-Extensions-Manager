@@ -3652,6 +3652,362 @@ function runPrivilegedSymlinkRepair($extId, $entryPath, &$error)
     ];
 }
 
+function runShellCommands($commands, &$outputText)
+{
+    $outputText = '';
+    if (!isPhpFunctionEnabled('exec')) {
+        return false;
+    }
+
+    foreach ($commands as $command) {
+        $output = [];
+        $exitCode = 0;
+        @exec($command, $output, $exitCode);
+        $outputText = trim(implode("\n", $output));
+        if ($exitCode === 0) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function getInstalledMetadataByExtensionId($excludeExtId = '')
+{
+    $result = [];
+    $pattern = '/var/www/extensions/installed/*/.ext-mgr/install-metadata.json';
+    $matches = glob($pattern) ?: [];
+    foreach ($matches as $metadataPath) {
+        $extDir = dirname(dirname($metadataPath));
+        $extId = basename($extDir);
+        if ($extId === '' || $extId === $excludeExtId) {
+            continue;
+        }
+        if (!isValidExtensionId($extId)) {
+            continue;
+        }
+        $metadata = readExtensionInstallMetadata($extId);
+        if (is_array($metadata)) {
+            $result[$extId] = $metadata;
+        }
+    }
+    return $result;
+}
+
+function collectSharedPackageRefs($excludeExtId)
+{
+    $shared = [];
+    $allMetadata = getInstalledMetadataByExtensionId($excludeExtId);
+    foreach ($allMetadata as $metadata) {
+        $packages = is_array($metadata['packages'] ?? null) ? $metadata['packages'] : [];
+        foreach (['installedApt', 'declared'] as $key) {
+            $list = normalizeScalarStringList($packages[$key] ?? []);
+            foreach ($list as $pkg) {
+                $shared[$pkg] = true;
+            }
+        }
+    }
+    return array_keys($shared);
+}
+
+function collectBundledDebPackageNames($installedDir, $metadata)
+{
+    $packages = [];
+    if (!is_array($metadata)) {
+        return $packages;
+    }
+
+    $packageData = is_array($metadata['packages'] ?? null) ? $metadata['packages'] : [];
+    $bundles = normalizeScalarStringList($packageData['installedBundles'] ?? []);
+    if (count($bundles) === 0 || !isPhpFunctionEnabled('exec')) {
+        return $packages;
+    }
+
+    foreach ($bundles as $relativePath) {
+        if (!isSafeRelativeSubPath($relativePath)) {
+            continue;
+        }
+        if (substr($relativePath, -4) !== '.deb') {
+            continue;
+        }
+
+        $fullPath = rtrim($installedDir, '/\\') . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relativePath);
+        if (!is_file($fullPath)) {
+            continue;
+        }
+
+        $output = [];
+        $exitCode = 1;
+        $cmd = 'dpkg-deb -f ' . escapeshellarg($fullPath) . ' Package 2>/dev/null';
+        @exec($cmd, $output, $exitCode);
+        if ($exitCode !== 0) {
+            continue;
+        }
+
+        $pkgName = trim((string)($output[0] ?? ''));
+        if ($pkgName !== '') {
+            $packages[$pkgName] = true;
+        }
+    }
+
+    return array_keys($packages);
+}
+
+function removeExtensionRuntimeLinks($extId, $metadata, &$warnings)
+{
+    $removed = [];
+    $linkCandidates = [
+        '/var/www/extensions/sys/.ext-mgr/packages/' . $extId,
+        '/var/www/extensions/installed/' . $extId . '/.ext-mgr/packages-runtime',
+    ];
+
+    $links = is_array($metadata['links'] ?? null) ? $metadata['links'] : [];
+    foreach (normalizeScalarStringList($links['packageRuntimeLinks'] ?? []) as $path) {
+        if (strpos($path, '/var/www/') !== 0) {
+            continue;
+        }
+        $linkCandidates[] = $path;
+    }
+
+    $seen = [];
+    foreach ($linkCandidates as $candidate) {
+        $path = trim((string)$candidate);
+        if ($path === '' || isset($seen[$path])) {
+            continue;
+        }
+        $seen[$path] = true;
+
+        if (!is_link($path)) {
+            continue;
+        }
+        if (@unlink($path)) {
+            $removed[] = $path;
+        } else {
+            $warnings[] = 'Failed to remove runtime symlink: ' . $path;
+        }
+    }
+
+    return $removed;
+}
+
+function clearExtensionAcl($installedDir, $metadata, &$warnings)
+{
+    $cleared = [];
+
+    if (!isPhpFunctionEnabled('exec')) {
+        return $cleared;
+    }
+
+    $paths = [];
+    if (is_dir($installedDir)) {
+        $paths[] = $installedDir;
+    }
+
+    $links = is_array($metadata['links'] ?? null) ? $metadata['links'] : [];
+    foreach (normalizeScalarStringList($links['packageRuntimeLinks'] ?? []) as $path) {
+        if (strpos($path, '/var/www/') !== 0) {
+            continue;
+        }
+        if (is_dir($path) || is_file($path) || is_link($path)) {
+            $paths[] = $path;
+        }
+    }
+
+    $unique = array_values(array_unique($paths));
+    if (count($unique) === 0) {
+        return $cleared;
+    }
+
+    foreach ($unique as $path) {
+        $output = '';
+        $ok = runShellCommands([
+            'setfacl -bR ' . escapeshellarg($path) . ' 2>&1',
+            'sudo -n setfacl -bR ' . escapeshellarg($path) . ' 2>&1',
+        ], $output);
+
+        if ($ok) {
+            $cleared[] = $path;
+            continue;
+        }
+
+        if (is_link($path)) {
+            $ok = runShellCommands([
+                'setfacl -h -b ' . escapeshellarg($path) . ' 2>&1',
+                'sudo -n setfacl -h -b ' . escapeshellarg($path) . ' 2>&1',
+            ], $output);
+            if ($ok) {
+                $cleared[] = $path;
+                continue;
+            }
+        }
+
+        if ($output !== '') {
+            $warnings[] = 'ACL cleanup failed for ' . $path . ': ' . $output;
+        } else {
+            $warnings[] = 'ACL cleanup failed for ' . $path . '.';
+        }
+    }
+
+    return $cleared;
+}
+
+function removeExtensionServiceUnits($extId, $metadata, &$warnings)
+{
+    $removed = [];
+    $units = [$extId . '.service'];
+
+    $services = is_array($metadata['services'] ?? null) ? $metadata['services'] : [];
+    foreach (['installed', 'discovered'] as $key) {
+        foreach (normalizeScalarStringList($services[$key] ?? []) as $serviceEntry) {
+            $unit = basename((string)$serviceEntry);
+            if (substr($unit, -8) === '.service') {
+                $units[] = $unit;
+            }
+        }
+    }
+
+    $units = array_values(array_unique($units));
+    foreach ($units as $unit) {
+        if (!preg_match('/^[a-zA-Z0-9._@-]+\.service$/', $unit)) {
+            continue;
+        }
+
+        $output = '';
+        runShellCommands([
+            'systemctl disable --now ' . escapeshellarg($unit) . ' 2>&1',
+            'sudo -n systemctl disable --now ' . escapeshellarg($unit) . ' 2>&1',
+        ], $output);
+
+        $unitPath = '/etc/systemd/system/' . $unit;
+        if (file_exists($unitPath) || is_link($unitPath)) {
+            if (@unlink($unitPath)) {
+                $removed[] = $unit;
+            } else {
+                $outputRm = '';
+                $ok = runShellCommands([
+                    'rm -f ' . escapeshellarg($unitPath) . ' 2>&1',
+                    'sudo -n rm -f ' . escapeshellarg($unitPath) . ' 2>&1',
+                ], $outputRm);
+                if ($ok) {
+                    $removed[] = $unit;
+                } else {
+                    $warnings[] = 'Failed removing service unit ' . $unitPath . ($outputRm !== '' ? ': ' . $outputRm : '.');
+                }
+            }
+        }
+    }
+
+    if (count($units) > 0) {
+        $reloadOutput = '';
+        runShellCommands([
+            'systemctl daemon-reload 2>&1',
+            'sudo -n systemctl daemon-reload 2>&1',
+        ], $reloadOutput);
+    }
+
+    return array_values(array_unique($removed));
+}
+
+function runExtensionUninstallScript($extId, $installedDir, $metadata, &$warnings)
+{
+    $scripts = is_array($metadata['scripts'] ?? null) ? $metadata['scripts'] : [];
+    if (empty($scripts['uninstall'])) {
+        return false;
+    }
+
+    $scriptPath = rtrim($installedDir, '/\\') . DIRECTORY_SEPARATOR . 'scripts' . DIRECTORY_SEPARATOR . 'uninstall.sh';
+    if (!is_file($scriptPath)) {
+        $warnings[] = 'Metadata declares uninstall script but file is missing: ' . $scriptPath;
+        return false;
+    }
+
+    if (!isPhpFunctionEnabled('exec')) {
+        $warnings[] = 'exec() disabled; cannot run extension uninstall script for ' . $extId . '.';
+        return false;
+    }
+
+    @chmod($scriptPath, 0755);
+    $escaped = escapeshellarg($scriptPath);
+    $output = '';
+    $ok = runShellCommands([
+        'bash ' . $escaped . ' 2>&1',
+        'sudo -n bash ' . $escaped . ' 2>&1',
+    ], $output);
+
+    if (!$ok) {
+        $warnings[] = 'Extension uninstall script failed for ' . $extId . ($output !== '' ? ': ' . $output : '.');
+        return false;
+    }
+
+    return true;
+}
+
+function uninstallExtensionPackagesGracefully($extId, $installedDir, $metadata, &$warnings)
+{
+    $packagesMeta = is_array($metadata['packages'] ?? null) ? $metadata['packages'] : [];
+    $candidatePackages = [];
+
+    foreach (normalizeScalarStringList($packagesMeta['installedApt'] ?? []) as $pkg) {
+        $candidatePackages[$pkg] = true;
+    }
+    foreach (collectBundledDebPackageNames($installedDir, $metadata) as $pkg) {
+        $candidatePackages[$pkg] = true;
+    }
+
+    $candidateList = array_keys($candidatePackages);
+    $shared = collectSharedPackageRefs($extId);
+    $sharedMap = [];
+    foreach ($shared as $pkg) {
+        $sharedMap[$pkg] = true;
+    }
+
+    $removable = [];
+    $skippedShared = [];
+    foreach ($candidateList as $pkg) {
+        if (isset($sharedMap[$pkg])) {
+            $skippedShared[] = $pkg;
+        } else {
+            $removable[] = $pkg;
+        }
+    }
+
+    if (count($removable) === 0) {
+        return [
+            'removed' => [],
+            'skippedShared' => array_values(array_unique($skippedShared)),
+        ];
+    }
+
+    if (!isPhpFunctionEnabled('exec')) {
+        $warnings[] = 'exec() disabled; cannot uninstall apt packages: ' . implode(', ', $removable);
+        return [
+            'removed' => [],
+            'skippedShared' => array_values(array_unique($skippedShared)),
+        ];
+    }
+
+    $args = implode(' ', array_map('escapeshellarg', $removable));
+    $cmd = 'DEBIAN_FRONTEND=noninteractive apt-get remove -y --autoremove ' . $args . ' 2>&1';
+    $output = '';
+    $ok = runShellCommands([
+        $cmd,
+        'sudo -n ' . $cmd,
+    ], $output);
+
+    if (!$ok) {
+        $warnings[] = 'Package uninstall failed for ' . $extId . ($output !== '' ? ': ' . $output : '.');
+        return [
+            'removed' => [],
+            'skippedShared' => array_values(array_unique($skippedShared)),
+        ];
+    }
+
+    return [
+        'removed' => array_values(array_unique($removable)),
+        'skippedShared' => array_values(array_unique($skippedShared)),
+    ];
+}
+
 function removeExtensionById($extId, $registryPath, $backupRoot, &$error)
 {
     $error = '';
@@ -3691,7 +4047,30 @@ function removeExtensionById($extId, $registryPath, $backupRoot, &$error)
 
     $installedDir = '/var/www/extensions/installed/' . $extId;
     $linkPath = '/var/www/' . $extId . '.php';
+    $legacyLinkPath = '/var/www/extensions/' . $extId . '.php';
     $backupDir = rtrim($backupRoot, '/\\') . DIRECTORY_SEPARATOR . 'removed-extensions' . DIRECTORY_SEPARATOR . $extId . '-' . date('Ymd-His');
+
+    $installMetadata = readExtensionInstallMetadata($extId);
+    $warnings = [];
+    $uninstallSummary = [
+        'metadataFound' => is_array($installMetadata),
+        'ranExtensionUninstallScript' => false,
+        'removedRuntimeLinks' => [],
+        'clearedAclPaths' => [],
+        'removedServiceUnits' => [],
+        'removedPackages' => [],
+        'skippedSharedPackages' => [],
+    ];
+
+    if (is_array($installMetadata)) {
+        $uninstallSummary['ranExtensionUninstallScript'] = runExtensionUninstallScript($extId, $installedDir, $installMetadata, $warnings);
+        $uninstallSummary['removedRuntimeLinks'] = removeExtensionRuntimeLinks($extId, $installMetadata, $warnings);
+        $uninstallSummary['clearedAclPaths'] = clearExtensionAcl($installedDir, $installMetadata, $warnings);
+        $uninstallSummary['removedServiceUnits'] = removeExtensionServiceUnits($extId, $installMetadata, $warnings);
+        $pkgResult = uninstallExtensionPackagesGracefully($extId, $installedDir, $installMetadata, $warnings);
+        $uninstallSummary['removedPackages'] = normalizeScalarStringList($pkgResult['removed'] ?? []);
+        $uninstallSummary['skippedSharedPackages'] = normalizeScalarStringList($pkgResult['skippedShared'] ?? []);
+    }
 
     if (!is_dir($backupDir) && !mkdir($backupDir, 0775, true) && !is_dir($backupDir)) {
         $error = 'Extension removed from registry but failed to create backup directory: ' . $backupDir;
@@ -3701,6 +4080,7 @@ function removeExtensionById($extId, $registryPath, $backupRoot, &$error)
             'removedInstallDir' => false,
             'removedRoute' => false,
             'backupPath' => $backupDir,
+            'uninstall' => $uninstallSummary,
             'warning' => $error,
         ];
     }
@@ -3734,12 +4114,30 @@ function removeExtensionById($extId, $registryPath, $backupRoot, &$error)
         }
     }
 
+    if (is_link($legacyLinkPath) && !@unlink($legacyLinkPath)) {
+        $warnings[] = 'Failed to remove legacy route symlink: ' . $legacyLinkPath;
+    } elseif (is_file($legacyLinkPath)) {
+        @rename($legacyLinkPath, $backupDir . DIRECTORY_SEPARATOR . basename($legacyLinkPath));
+    }
+
+    if (count($warnings) > 0) {
+        $warningText = trim(implode(' | ', array_values(array_unique($warnings))));
+        if ($warningText !== '') {
+            if ($error !== '') {
+                $error .= ' | ' . $warningText;
+            } else {
+                $error = $warningText;
+            }
+        }
+    }
+
     return [
         'id' => $extId,
         'removedFromRegistry' => true,
         'removedInstallDir' => $removedInstallDir,
         'removedRoute' => $removedRoute,
         'backupPath' => $backupDir,
+        'uninstall' => $uninstallSummary,
         'warning' => $error !== '' ? $error : null,
     ];
 }
