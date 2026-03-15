@@ -1157,8 +1157,8 @@ body:not([data-standalone]) .extmgr-page-shell {
 }
 
 .extmgr-wizard-step.is-completed {
-  border-color: var(--success-color, #28a745);
-  color: var(--success-color, #28a745);
+  border-color: var(--rp-accent);
+  color: var(--rp-text-soft);
 }
 
 .extmgr-step-num {
@@ -1183,7 +1183,7 @@ body:not([data-standalone]) .extmgr-page-shell {
 }
 
 .extmgr-wizard-step.is-completed .extmgr-step-num {
-  background: var(--success-color, #28a745);
+  background: var(--rp-accent);
   color: #fff;
 }
 
@@ -1255,6 +1255,24 @@ body:not([data-standalone]) .extmgr-page-shell {
   display: flex;
   align-items: center;
   gap: 0.4rem;
+}
+
+.extmgr-wizard-nav .btn {
+  padding: 0.45rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  border-radius: 6px;
+}
+
+.extmgr-wizard-nav .btn-primary {
+  background: var(--rp-accent);
+  border-color: var(--rp-accent);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.extmgr-wizard-nav .btn-primary:hover {
+  filter: brightness(1.1);
 }
 
 /* Menu Options - Checkbox Cards */
