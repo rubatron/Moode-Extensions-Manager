@@ -1909,6 +1909,19 @@ function updateImportedManifestWithManagedId($sourceDir, $manifestData, $newId, 
     return $manifestData;
 }
 
+/**
+ * Get ext_helper.py lite content for template kit.
+ */
+function getExtHelperLiteContent()
+{
+    $helperPath = __DIR__ . '/assets/data/ext_helper_lite.py';
+    if (file_exists($helperPath)) {
+        return file_get_contents($helperPath);
+    }
+    // Fallback stub if file not found
+    return "#!/usr/bin/env python3\n# ext_helper.py - See README.md for usage\nprint('Helper script not bundled. Download from ext-mgr repository.')\n";
+}
+
 function buildTemplatePackageFiles($extensionId)
 {
     $displayName = ucwords(str_replace(['-', '_', '.'], ' ', $extensionId));
@@ -2211,6 +2224,23 @@ function buildTemplatePackageFiles($extensionId)
         'logs/.gitkeep' => "",
         'cache/.gitkeep' => "",
         'data/.gitkeep' => "",
+        'tools/.gitkeep' => "",
+        'ext-mgr-patterns.json' => json_encode([
+            '$schema' => 'https://json-schema.org/draft-07/schema',
+            'description' => 'Custom code patterns for ext-mgr import wizard. Add patterns here to extend default scanning.',
+            'patterns' => [],
+            '_severity_values' => ['ok', 'info', 'warning', 'violation', 'upgradeable'],
+            '_notes' => [
+                'Pattern is a Python regex (case-insensitive by default)',
+                'Files is a list of glob patterns to match filenames (e.g., ["*.php", "install.sh"])',
+                'Autofix: true = wizard will attempt automatic fix, false = manual review only',
+                'Severity "upgradeable" indicates patterns the wizard can auto-upgrade',
+                'Run: python3 tools/ext_helper.py patterns - to see built-in patterns',
+                'Run: python3 tools/ext_helper.py scan . - to scan this extension',
+            ],
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL,
+        'tools/README.md' => "# Developer Tools\n\nThis folder contains helper scripts for extension development and validation.\n\n## ext_helper.py\n\nPython utility for scanning your extension before import.\n\n### Usage\n\n```bash\n# Scan extension for issues\npython3 ext_helper.py scan /path/to/your-extension\n\n# View built-in code patterns\npython3 ext_helper.py patterns\n\n# View path policy\npython3 ext_helper.py policy\n```\n\n### Output\n\nThe scan command outputs JSON with:\n- `path_audit`: File system paths used by install.sh\n- `violations`: Paths that violate ext-mgr security policy\n- `warnings`: Paths that need review\n- `code_patterns`: Detected code patterns (e.g., deprecated APIs, hardcoded paths)\n- `apt_packages`: Detected apt package dependencies\n- `service_units`: Detected systemd service files\n\n## Custom Patterns\n\nAdd your own patterns to `ext-mgr-patterns.json` in the root of your extension.\nThese will be merged with built-in patterns during import wizard scanning.\n\n### Pattern Structure\n\n```json\n{\n  \"id\": \"my_custom_pattern\",\n  \"label\": \"Human-readable label\",\n  \"description\": \"What this pattern detects\",\n  \"severity\": \"warning\",\n  \"files\": [\"*.php\", \"*.sh\"],\n  \"pattern\": \"regex_pattern_here\",\n  \"autofix\": false,\n  \"fix_description\": \"How to fix this manually\"\n}\n```\n\n### Severity Levels\n\n- `ok`: Informational, no action needed\n- `info`: Minor suggestion\n- `warning`: Should be reviewed/fixed\n- `violation`: Blocks import until fixed\n- `upgradeable`: Can be auto-fixed by wizard\n",
+        'tools/ext_helper.py' => getExtHelperLiteContent(),
     ];
 }
 
@@ -3666,24 +3696,24 @@ function checkTemplateNeedsHeaderUpgrade($sourceDir)
     if (!is_file($templatePath)) {
         return null;
     }
-    
+
     $content = @file_get_contents($templatePath);
     if ($content === false) {
         return null;
     }
-    
+
     // Detect old-style hardcoded header suppression (always hides #config-tabs)
-    $hasOldStyleHeader = strpos($content, '#config-tabs{display:none!important}') !== false 
-                          || strpos($content, "#config-tabs{display:none!important}") !== false;
-    
+    $hasOldStyleHeader = strpos($content, '#config-tabs{display:none!important}') !== false
+        || strpos($content, "#config-tabs{display:none!important}") !== false;
+
     // Check if it already has dynamic header visibility (reads from registry)
-    $hasDynamicHeader = strpos($content, 'headerVisible') !== false 
-                         || strpos($content, 'registry.json') !== false;
-    
+    $hasDynamicHeader = strpos($content, 'headerVisible') !== false
+        || strpos($content, 'registry.json') !== false;
+
     if (!$hasOldStyleHeader || $hasDynamicHeader) {
         return null;
     }
-    
+
     return [
         'needed' => true,
         'reason' => 'Template uses hardcoded header suppression. Can be upgraded to dynamic per-extension header visibility.',
@@ -3695,32 +3725,34 @@ function checkTemplateNeedsHeaderUpgrade($sourceDir)
  * Upgrade template.php to use dynamic header visibility from registry
  * Returns true on success, false on failure
  */
-function upgradeTemplateForDynamicHeader($sourceDir)
+function upgradeTemplateForDynamicHeader($sourceDir, &$modificationLog = null)
 {
     $templatePath = rtrim((string)$sourceDir, '/\\') . DIRECTORY_SEPARATOR . 'template.php';
     if (!is_file($templatePath)) {
         return true; // No template to upgrade
     }
-    
+
     $content = @file_get_contents($templatePath);
     if ($content === false) {
         return false;
     }
     
+    $originalContent = $content;
+
     // Skip if already upgraded or doesn't have old pattern
     if (strpos($content, 'headerVisible') !== false) {
         return true;
     }
-    
+
     // The old pattern: echo '<style id="ext-nav-suppress">#config-tabs{display:none!important}</style>' . "\n";
     // We need to replace the hardcoded suppression with dynamic check
-    
+
     // Pattern 1: PHP echo with single quotes
     $oldPattern1 = "echo '<style id=\"ext-nav-suppress\">#config-tabs{display:none!important}</style>' . \"\\n\";";
-    
+
     // Pattern 2: Similar but with different quoting
     $oldPattern2 = 'echo \'<style id="ext-nav-suppress">#config-tabs{display:none!important}</style>\' . "\\n";';
-    
+
     // Dynamic replacement code
     $dynamicCode = <<<'PHP'
 // Read header visibility from ext-mgr registry (dynamic per-extension)
@@ -3744,29 +3776,81 @@ function upgradeTemplateForDynamicHeader($sourceDir)
 PHP;
 
     $upgraded = false;
-    
+    $matchedPattern = '';
+
     // Try to replace the old pattern with the dynamic version
     if (strpos($content, $oldPattern1) !== false) {
         $content = str_replace($oldPattern1, $dynamicCode, $content);
         $upgraded = true;
+        $matchedPattern = 'hardcoded_header_suppress (pattern 1)';
     } elseif (strpos($content, $oldPattern2) !== false) {
         $content = str_replace($oldPattern2, $dynamicCode, $content);
         $upgraded = true;
+        $matchedPattern = 'hardcoded_header_suppress (pattern 2)';
     } else {
         // Try regex for variations
         $pattern = '/echo\s+[\'"]<style\s+id=[\'"]ext-nav-suppress[\'"]\s*>\s*#config-tabs\s*\{\s*display:\s*none\s*!important\s*\}\s*<\/style>[\'"]\s*\.\s*[\'"]\\\\n[\'"];\s*/i';
         $content = preg_replace($pattern, $dynamicCode . "\n", $content, 1, $count);
         if ($count > 0) {
             $upgraded = true;
+            $matchedPattern = 'hardcoded_header_suppress (regex)';
         }
     }
-    
+
     if (!$upgraded) {
         // If no pattern matched but file has the old style, log warning but continue
         return true;
     }
-    
+
+    // Log the modification
+    if ($modificationLog !== null) {
+        $modificationLog[] = [
+            'timestamp' => date('c'),
+            'action' => 'template_upgrade',
+            'file' => 'template.php',
+            'pattern' => $matchedPattern,
+            'description' => 'Upgraded hardcoded header suppression to dynamic registry-based visibility',
+            'before_snippet' => substr($oldPattern1, 0, 100) . '...',
+            'after_snippet' => 'Dynamic header visibility from registry.json',
+        ];
+    }
+
     return @file_put_contents($templatePath, $content) !== false;
+}
+
+/**
+ * Write modification log to extension directory
+ */
+function writeModificationLog($sourceDir, $modifications)
+{
+    if (empty($modifications)) {
+        return true;
+    }
+    
+    $logPath = rtrim((string)$sourceDir, '/\\') . DIRECTORY_SEPARATOR . 'ext-mgr-modifications.log';
+    $lines = [
+        '# ext-mgr Modification Log',
+        '# Generated: ' . date('c'),
+        '',
+    ];
+    
+    foreach ($modifications as $mod) {
+        $lines[] = '## [' . ($mod['timestamp'] ?? date('c')) . '] ' . ($mod['action'] ?? 'unknown');
+        $lines[] = 'File: ' . ($mod['file'] ?? 'unknown');
+        if (!empty($mod['pattern'])) {
+            $lines[] = 'Pattern: ' . $mod['pattern'];
+        }
+        $lines[] = 'Description: ' . ($mod['description'] ?? '');
+        if (!empty($mod['before_snippet'])) {
+            $lines[] = 'Before: ' . $mod['before_snippet'];
+        }
+        if (!empty($mod['after_snippet'])) {
+            $lines[] = 'After: ' . $mod['after_snippet'];
+        }
+        $lines[] = '';
+    }
+    
+    return @file_put_contents($logPath, implode("\n", $lines)) !== false;
 }
 
 function runExtHelperScan($sourceDir)
@@ -5436,8 +5520,11 @@ if ($action === 'import_extension_install') {
         exit;
     }
 
+    // Track all modifications made during import
+    $modificationLog = [];
+
     // Auto-upgrade template.php to dynamic header visibility if needed
-    $templateUpgraded = upgradeTemplateForDynamicHeader($sourceDir);
+    $templateUpgraded = upgradeTemplateForDynamicHeader($sourceDir, $modificationLog);
 
     $review = buildImportPackageReview($sourceDir);
     $manifestData = readJsonFile($sourceDir . DIRECTORY_SEPARATOR . 'manifest.json', []);
@@ -5451,6 +5538,14 @@ if ($action === 'import_extension_install') {
     appendExtMgrLog('install', 'import_extension_install start id=' . $importedId . ' dryRun=' . ($dryRun ? 'true' : 'false'));
     appendExtensionLog($importedId, 'install', 'staged install start dryRun=' . ($dryRun ? 'true' : 'false'));
 
+    // Log any modifications made
+    if (!empty($modificationLog)) {
+        appendExtensionLog($importedId, 'install', 'wizard modifications: ' . count($modificationLog) . ' changes applied');
+        foreach ($modificationLog as $mod) {
+            appendExtensionLog($importedId, 'install', '  - ' . ($mod['action'] ?? 'unknown') . ': ' . ($mod['description'] ?? ''));
+        }
+    }
+
     $wizardPath = $baseDir . DIRECTORY_SEPARATOR . 'scripts' . DIRECTORY_SEPARATOR . 'ext-mgr-import-wizard.sh';
     $execError = '';
     $wizardOutput = '';
@@ -5460,6 +5555,11 @@ if ($action === 'import_extension_install') {
         http_response_code(500);
         echo json_encode(['ok' => false, 'error' => $execError]);
         exit;
+    }
+
+    // Write modification log to extension directory
+    if (!$dryRun && !empty($modificationLog)) {
+        writeModificationLog($sourceDir, $modificationLog);
     }
 
     if (!$dryRun) {
@@ -5480,6 +5580,7 @@ if ($action === 'import_extension_install') {
             'review' => $review,
             'wizardOutput' => $wizardOutput,
             'templateUpgraded' => $templateUpgraded,
+            'modifications' => $modificationLog,
             'state' => $state,
         ],
     ], JSON_UNESCAPED_SLASHES);

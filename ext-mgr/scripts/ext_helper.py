@@ -2,6 +2,7 @@
 """ext-mgr helper: scan/policy/rewrite/register utilities.
 
 This is a minimal, production-safe baseline aligned with the sandbox roadmap.
+Includes code pattern detection and auto-upgrade capabilities.
 """
 
 from __future__ import annotations
@@ -11,6 +12,7 @@ import json
 import os
 import re
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -33,12 +35,239 @@ PATH_POLICY = [
     {"prefix": "/opt/", "severity": "info", "label": "optional package", "strategy": "relocate + symlink", "target": "packages/opt/"},
 ]
 
+# Code patterns to detect and optionally auto-fix during import
+CODE_PATTERNS = [
+    {
+        "id": "hardcoded_header_suppress",
+        "label": "Hardcoded header suppression",
+        "description": "Old-style hardcoded #config-tabs hiding",
+        "severity": "upgradeable",
+        "files": ["template.php"],
+        "pattern": r"#config-tabs\s*\{\s*display\s*:\s*none\s*!important\s*\}",
+        "autofix": True,
+        "fix_description": "Upgrade to dynamic header visibility from registry",
+    },
+    {
+        "id": "hardcoded_extension_path",
+        "label": "Hardcoded extension path",
+        "description": "Direct path to /var/www/extensions instead of using variables",
+        "severity": "warning",
+        "files": ["*.php", "*.sh"],
+        "pattern": r"/var/www/extensions/installed/[a-z0-9_-]+",
+        "autofix": False,
+        "fix_description": "Use $assetBase or EXTMGR_INSTALLED_ROOT variable",
+    },
+    {
+        "id": "deprecated_moode_includes",
+        "label": "Deprecated moOde includes",
+        "description": "Using old moOde include paths",
+        "severity": "warning",
+        "files": ["*.php"],
+        "pattern": r"require(_once)?\s*\(?['\"]\/var\/www\/(playerlib|inc\/playerlib)",
+        "autofix": False,
+        "fix_description": "Use /var/www/inc/common.php instead",
+    },
+    {
+        "id": "unsafe_shell_exec",
+        "label": "Unsafe shell execution",
+        "description": "Direct shell_exec without input sanitization",
+        "severity": "warning",
+        "files": ["*.php"],
+        "pattern": r"shell_exec\s*\(\s*\$[a-zA-Z_]+\s*\)",
+        "autofix": False,
+        "fix_description": "Sanitize input with escapeshellarg() or escapeshellcmd()",
+    },
+    {
+        "id": "missing_csrf_check",
+        "label": "Form without CSRF protection",
+        "description": "POST handling without session/CSRF validation",
+        "severity": "info",
+        "files": ["*.php"],
+        "pattern": r"\$_POST\s*\[",
+        "autofix": False,
+        "fix_description": "Consider adding session validation for form submissions",
+    },
+    {
+        "id": "absolute_symlink",
+        "label": "Absolute symlink creation",
+        "description": "Creating symlinks with absolute paths outside managed root",
+        "severity": "warning",
+        "files": ["*.sh"],
+        "pattern": r"ln\s+-s[f]?\s+(/var/www/|/etc/|/usr/)",
+        "autofix": False,
+        "fix_description": "Use packages/ directory and let ext-mgr handle symlink creation",
+    },
+    {
+        "id": "direct_apt_install",
+        "label": "Direct apt install in script",
+        "description": "Running apt install directly instead of declaring dependencies",
+        "severity": "info",
+        "files": ["install.sh"],
+        "pattern": r"apt(-get)?\s+install\s+-y",
+        "autofix": False,
+        "fix_description": "Declare packages in manifest.json ext_mgr.install.packages",
+    },
+    {
+        "id": "rm_rf_dangerous",
+        "label": "Dangerous rm -rf command",
+        "description": "rm -rf with variable that could be empty",
+        "severity": "warning",
+        "files": ["*.sh"],
+        "pattern": r"rm\s+-rf\s+(\"\$|\$\{?[A-Z_]+\}?/)",
+        "autofix": False,
+        "fix_description": "Add checks: [[ -n \"$VAR\" ]] && [[ -d \"$VAR\" ]] before rm -rf",
+    },
+]
+
 
 def _read_json(path: Path, fallback: Any) -> Any:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return fallback
+
+
+def _load_custom_patterns(root: Path) -> list[dict]:
+    """Load custom code patterns from ext-mgr-patterns.json if present."""
+    custom_file = root / "ext-mgr-patterns.json"
+    if not custom_file.exists():
+        return []
+    try:
+        data = json.loads(custom_file.read_text(encoding="utf-8"))
+        return data.get("patterns", []) if isinstance(data, dict) else []
+    except Exception:
+        return []
+
+
+def _file_matches_glob(filename: str, patterns: list[str]) -> bool:
+    """Check if filename matches any of the glob patterns."""
+    import fnmatch
+    for pattern in patterns:
+        if fnmatch.fnmatch(filename, pattern):
+            return True
+    return False
+
+
+def _scan_code_patterns(root: Path, custom_patterns: list[dict] | None = None) -> dict:
+    """Scan extension files for known code patterns."""
+    all_patterns = CODE_PATTERNS + (custom_patterns or [])
+    findings: list[dict] = []
+    upgradeable: list[dict] = []
+    
+    # Collect all files to scan
+    files_to_scan: list[Path] = []
+    for pattern in ["*.php", "*.sh", "*.py", "*.js"]:
+        files_to_scan.extend(root.rglob(pattern))
+    
+    for file_path in files_to_scan:
+        if not file_path.is_file():
+            continue
+        
+        try:
+            content = file_path.read_text(encoding="utf-8", errors="ignore")
+        except Exception:
+            continue
+        
+        rel_path = str(file_path.relative_to(root)).replace("\\", "/")
+        filename = file_path.name
+        
+        for pattern_def in all_patterns:
+            # Check if this file type should be scanned for this pattern
+            file_patterns = pattern_def.get("files", ["*"])
+            if not _file_matches_glob(filename, file_patterns):
+                continue
+            
+            regex = pattern_def.get("pattern", "")
+            if not regex:
+                continue
+            
+            try:
+                matches = list(re.finditer(regex, content, re.IGNORECASE | re.MULTILINE))
+            except re.error:
+                continue
+            
+            if not matches:
+                continue
+            
+            finding = {
+                "id": pattern_def.get("id", "unknown"),
+                "label": pattern_def.get("label", "Unknown pattern"),
+                "description": pattern_def.get("description", ""),
+                "severity": pattern_def.get("severity", "info"),
+                "file": rel_path,
+                "line_numbers": [],
+                "autofix": pattern_def.get("autofix", False),
+                "fix_description": pattern_def.get("fix_description", ""),
+            }
+            
+            # Find line numbers for each match
+            for match in matches:
+                line_num = content[:match.start()].count("\n") + 1
+                if line_num not in finding["line_numbers"]:
+                    finding["line_numbers"].append(line_num)
+            
+            findings.append(finding)
+            
+            if pattern_def.get("severity") == "upgradeable":
+                upgradeable.append(finding)
+    
+    return {
+        "patterns_checked": len(all_patterns),
+        "findings": findings,
+        "upgradeable": upgradeable,
+        "by_severity": {
+            "violation": [f for f in findings if f["severity"] == "violation"],
+            "warning": [f for f in findings if f["severity"] == "warning"],
+            "info": [f for f in findings if f["severity"] == "info"],
+            "upgradeable": upgradeable,
+        },
+    }
+
+
+class ModificationLog:
+    """Log modifications made during import wizard processing."""
+    
+    def __init__(self, root: Path):
+        self.root = root
+        self.entries: list[dict] = []
+        self.log_file = root / "ext-mgr-modifications.log"
+    
+    def log(self, action: str, file: str, description: str, before: str = "", after: str = ""):
+        entry = {
+            "timestamp": datetime.now().isoformat(),
+            "action": action,
+            "file": file,
+            "description": description,
+        }
+        if before:
+            entry["before"] = before[:500] + ("..." if len(before) > 500 else "")
+        if after:
+            entry["after"] = after[:500] + ("..." if len(after) > 500 else "")
+        self.entries.append(entry)
+    
+    def save(self):
+        """Save modification log to file."""
+        if not self.entries:
+            return
+        
+        lines = ["# ext-mgr Modification Log", f"# Generated: {datetime.now().isoformat()}", ""]
+        for entry in self.entries:
+            lines.append(f"## [{entry['timestamp']}] {entry['action']}")
+            lines.append(f"File: {entry['file']}")
+            lines.append(f"Description: {entry['description']}")
+            if entry.get("before"):
+                lines.append(f"Before: {entry['before']}")
+            if entry.get("after"):
+                lines.append(f"After: {entry['after']}")
+            lines.append("")
+        
+        try:
+            self.log_file.write_text("\n".join(lines), encoding="utf-8")
+        except Exception:
+            pass
+    
+    def to_json(self) -> list[dict]:
+        return self.entries
 
 
 def _detect_type(root: Path) -> str:
@@ -135,6 +364,10 @@ def cmd_scan(args: argparse.Namespace) -> int:
     path_audit = _scan_paths(install_text)
     violations = [r for r in path_audit if r["severity"] == "violation"]
     warnings = [r for r in path_audit if r["severity"] == "warning"]
+    
+    # Scan for code patterns
+    custom_patterns = _load_custom_patterns(root)
+    code_patterns = _scan_code_patterns(root, custom_patterns)
 
     payload = {
         "ext_id": ext_id,
@@ -154,8 +387,15 @@ def cmd_scan(args: argparse.Namespace) -> int:
             p for p in ["manifest.json", "info.json", "template.php", "scripts/install.sh"]
             if (root / p).exists()
         ],
+        "code_patterns": code_patterns,
     }
     print(json.dumps(payload, ensure_ascii=True))
+    return 0
+
+
+def cmd_patterns(_: argparse.Namespace) -> int:
+    """Output the built-in code patterns as JSON."""
+    print(json.dumps(CODE_PATTERNS, ensure_ascii=True, indent=2))
     return 0
 
 
@@ -232,26 +472,29 @@ def main() -> int:
     parser = argparse.ArgumentParser(prog="ext_helper.py")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
-    p_scan = sub.add_parser("scan")
+    p_scan = sub.add_parser("scan", help="Scan extension for paths and code patterns")
     p_scan.add_argument("root")
     p_scan.set_defaults(func=cmd_scan)
 
-    p_policy = sub.add_parser("policy")
+    p_patterns = sub.add_parser("patterns", help="Output built-in code patterns as JSON")
+    p_patterns.set_defaults(func=cmd_patterns)
+
+    p_policy = sub.add_parser("policy", help="Output path policy as JSON")
     p_policy.set_defaults(func=cmd_policy)
 
-    p_rewrite = sub.add_parser("rewrite")
+    p_rewrite = sub.add_parser("rewrite", help="Rewrite extension ID in files")
     p_rewrite.add_argument("root")
     p_rewrite.add_argument("old_id")
     p_rewrite.add_argument("new_id")
     p_rewrite.set_defaults(func=cmd_rewrite)
 
-    p_reg = sub.add_parser("register")
+    p_reg = sub.add_parser("register", help="Register package ownership")
     p_reg.add_argument("registry")
     p_reg.add_argument("ext_id")
     p_reg.add_argument("package")
     p_reg.set_defaults(func=cmd_register)
 
-    p_unreg = sub.add_parser("unregister")
+    p_unreg = sub.add_parser("unregister", help="Unregister extension from packages")
     p_unreg.add_argument("registry")
     p_unreg.add_argument("ext_id")
     p_unreg.set_defaults(func=cmd_unregister)

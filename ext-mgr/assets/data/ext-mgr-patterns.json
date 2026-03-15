@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema",
+  "description": "Custom code patterns for ext-mgr import wizard. Add patterns here to detect and optionally auto-fix code issues during import.",
+  "patterns": [
+    {
+      "id": "example_custom_pattern",
+      "label": "Example custom pattern",
+      "description": "This is an example pattern showing the structure. Remove or modify as needed.",
+      "severity": "info",
+      "files": ["*.php", "*.sh"],
+      "pattern": "EXAMPLE_PLACEHOLDER_NEVER_MATCH_12345",
+      "autofix": false,
+      "fix_description": "Description of how to fix this pattern manually"
+    }
+  ],
+  "_severity_values": ["ok", "info", "warning", "violation", "upgradeable"],
+  "_notes": [
+    "Pattern is a Python regex (case-insensitive by default)",
+    "Files is a list of glob patterns to match filenames",
+    "Autofix: true = wizard will attempt automatic fix, false = manual review",
+    "Severity 'upgradeable' indicates patterns the wizard can auto-upgrade"
+  ]
+}
