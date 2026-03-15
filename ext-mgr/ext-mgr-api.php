@@ -3646,6 +3646,7 @@ function buildImportPackageReview($sourceDir)
             'repair' => is_file(rtrim($sourceDir, '/\\') . DIRECTORY_SEPARATOR . 'scripts' . DIRECTORY_SEPARATOR . 'repair.sh'),
             'uninstall' => is_file(rtrim($sourceDir, '/\\') . DIRECTORY_SEPARATOR . 'scripts' . DIRECTORY_SEPARATOR . 'uninstall.sh'),
         ],
+        'templateUpgrade' => checkTemplateNeedsHeaderUpgrade($sourceDir),
         'counts' => [
             'manifestPackages' => count($declaredPackages),
             'bundledPackageFiles' => count(array_unique($bundledPackageFiles)),
@@ -3653,6 +3654,119 @@ function buildImportPackageReview($sourceDir)
             'serviceDependencies' => count($serviceDependencies),
         ],
     ];
+}
+
+/**
+ * Check if template.php uses old-style hardcoded header suppression
+ * Returns array with detection info or null if no upgrade needed
+ */
+function checkTemplateNeedsHeaderUpgrade($sourceDir)
+{
+    $templatePath = rtrim((string)$sourceDir, '/\\') . DIRECTORY_SEPARATOR . 'template.php';
+    if (!is_file($templatePath)) {
+        return null;
+    }
+    
+    $content = @file_get_contents($templatePath);
+    if ($content === false) {
+        return null;
+    }
+    
+    // Detect old-style hardcoded header suppression (always hides #config-tabs)
+    $hasOldStyleHeader = strpos($content, '#config-tabs{display:none!important}') !== false 
+                          || strpos($content, "#config-tabs{display:none!important}") !== false;
+    
+    // Check if it already has dynamic header visibility (reads from registry)
+    $hasDynamicHeader = strpos($content, 'headerVisible') !== false 
+                         || strpos($content, 'registry.json') !== false;
+    
+    if (!$hasOldStyleHeader || $hasDynamicHeader) {
+        return null;
+    }
+    
+    return [
+        'needed' => true,
+        'reason' => 'Template uses hardcoded header suppression. Can be upgraded to dynamic per-extension header visibility.',
+        'path' => 'template.php',
+    ];
+}
+
+/**
+ * Upgrade template.php to use dynamic header visibility from registry
+ * Returns true on success, false on failure
+ */
+function upgradeTemplateForDynamicHeader($sourceDir)
+{
+    $templatePath = rtrim((string)$sourceDir, '/\\') . DIRECTORY_SEPARATOR . 'template.php';
+    if (!is_file($templatePath)) {
+        return true; // No template to upgrade
+    }
+    
+    $content = @file_get_contents($templatePath);
+    if ($content === false) {
+        return false;
+    }
+    
+    // Skip if already upgraded or doesn't have old pattern
+    if (strpos($content, 'headerVisible') !== false) {
+        return true;
+    }
+    
+    // The old pattern: echo '<style id="ext-nav-suppress">#config-tabs{display:none!important}</style>' . "\n";
+    // We need to replace the hardcoded suppression with dynamic check
+    
+    // Pattern 1: PHP echo with single quotes
+    $oldPattern1 = "echo '<style id=\"ext-nav-suppress\">#config-tabs{display:none!important}</style>' . \"\\n\";";
+    
+    // Pattern 2: Similar but with different quoting
+    $oldPattern2 = 'echo \'<style id="ext-nav-suppress">#config-tabs{display:none!important}</style>\' . "\\n";';
+    
+    // Dynamic replacement code
+    $dynamicCode = <<<'PHP'
+// Read header visibility from ext-mgr registry (dynamic per-extension)
+    $extMgrHideHeader = true; // default: hide header for extensions
+    $registryPath = '/var/local/www/extensions/registry.json';
+    if (file_exists($registryPath)) {
+        $registryData = @json_decode(@file_get_contents($registryPath), true);
+        if (is_array($registryData)) {
+            foreach ($registryData as $ext) {
+                if (isset($ext['id']) && $ext['id'] === $extRouteId) {
+                    $extMgrHideHeader = !($ext['headerVisible'] ?? false);
+                    break;
+                }
+            }
+        }
+    }
+    // Conditionally hide settings tabs based on extension's headerVisible setting
+    if ($extMgrHideHeader) {
+        echo '<style id="ext-nav-suppress">#config-tabs{display:none!important}</style>' . "\n";
+    }
+PHP;
+
+    $upgraded = false;
+    
+    // Try to replace the old pattern with the dynamic version
+    if (strpos($content, $oldPattern1) !== false) {
+        $content = str_replace($oldPattern1, $dynamicCode, $content);
+        $upgraded = true;
+    } elseif (strpos($content, $oldPattern2) !== false) {
+        $content = str_replace($oldPattern2, $dynamicCode, $content);
+        $upgraded = true;
+    } else {
+        // Try regex for variations
+        $pattern = '/echo\s+[\'"]<style\s+id=[\'"]ext-nav-suppress[\'"]\s*>\s*#config-tabs\s*\{\s*display:\s*none\s*!important\s*\}\s*<\/style>[\'"]\s*\.\s*[\'"]\\\\n[\'"];\s*/i';
+        $content = preg_replace($pattern, $dynamicCode . "\n", $content, 1, $count);
+        if ($count > 0) {
+            $upgraded = true;
+        }
+    }
+    
+    if (!$upgraded) {
+        // If no pattern matched but file has the old style, log warning but continue
+        return true;
+    }
+    
+    return @file_put_contents($templatePath, $content) !== false;
 }
 
 function runExtHelperScan($sourceDir)
@@ -5322,6 +5436,9 @@ if ($action === 'import_extension_install') {
         exit;
     }
 
+    // Auto-upgrade template.php to dynamic header visibility if needed
+    $templateUpgraded = upgradeTemplateForDynamicHeader($sourceDir);
+
     $review = buildImportPackageReview($sourceDir);
     $manifestData = readJsonFile($sourceDir . DIRECTORY_SEPARATOR . 'manifest.json', []);
     $importedId = trim((string)($manifestData['id'] ?? ($session['importedId'] ?? '')));
@@ -5362,6 +5479,7 @@ if ($action === 'import_extension_install') {
             'dryRun' => $dryRun,
             'review' => $review,
             'wizardOutput' => $wizardOutput,
+            'templateUpgraded' => $templateUpgraded,
             'state' => $state,
         ],
     ], JSON_UNESCAPED_SLASHES);

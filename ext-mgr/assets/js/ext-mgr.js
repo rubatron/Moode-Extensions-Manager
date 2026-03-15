@@ -2739,8 +2739,13 @@
 
         var violations = Array.isArray((importWizardState.scan || {}).violations) ? importWizardState.scan.violations.length : 0;
         var warnings = Array.isArray((importWizardState.scan || {}).warnings) ? importWizardState.scan.warnings.length : 0;
+        var templateUpgrade = (importWizardState.review || {}).templateUpgrade;
         if (wizardScanSummaryEl) {
-          wizardScanSummaryEl.textContent = 'Session: ' + importWizardState.sessionId + ' | Extension: ' + importWizardState.extensionId + ' | violations=' + violations + ' warnings=' + warnings;
+          var summaryParts = ['Session: ' + importWizardState.sessionId, 'Extension: ' + importWizardState.extensionId, 'violations=' + violations, 'warnings=' + warnings];
+          if (templateUpgrade && templateUpgrade.needed) {
+            summaryParts.push('template-upgrade=auto');
+          }
+          wizardScanSummaryEl.textContent = summaryParts.join(' | ');
         }
 
         if (importExtensionInstallBtn) {
@@ -2751,8 +2756,12 @@
         if (window.ExtMgrImportWizard) {
           window.ExtMgrImportWizard.markStepCompleted('upload');
         }
+        var statusNote = 'Scan complete. Review metadata and run install from Step 6.';
+        if (templateUpgrade && templateUpgrade.needed) {
+          statusNote += ' Template will be auto-upgraded for dynamic header visibility.';
+        }
         setStatus('Scan complete for ' + (importWizardState.extensionId || 'unknown') + '.', 'ok');
-        setImportWizardNote('Scan complete. Review metadata and run install from Step 6.', 'ok');
+        setImportWizardNote(statusNote, 'ok');
       })
       .catch(function (err) {
         var fullMessage = String((err && err.message) || 'Import wizard failed.');
