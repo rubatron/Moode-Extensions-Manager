@@ -1139,9 +1139,9 @@ body:not([data-standalone]) .extmgr-page-shell {
   --step-height: 2.2rem;
   --step-arrow: 0.7rem;
   --step-gap: 0.25rem;
-  --step-inactive-bg: #5a5a5a;
-  --step-inactive-text: #9aa0a6;
-  --step-completed-bg: var(--rp-accent);
+  --step-inactive-bg: color-mix(in srgb, var(--rp-accent) 25%, #3a3a3a);
+  --step-inactive-text: #b0a89f;
+  --step-completed-bg: color-mix(in srgb, var(--rp-accent) 75%, #2a1f14);
   --step-completed-text: #fff;
   --step-active-bg: var(--rp-accent);
   --step-active-text: #fff;
@@ -1205,7 +1205,7 @@ body:not([data-standalone]) .extmgr-page-shell {
 }
 
 .extmgr-wizard-step:hover:not(.is-active):not(.is-completed) {
-  background: #6a6a6a;
+  background: color-mix(in srgb, var(--rp-accent) 40%, #4a4a4a);
 }
 
 .extmgr-wizard-step.is-active {
