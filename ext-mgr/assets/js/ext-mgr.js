@@ -688,14 +688,21 @@
 
       currentStepIndex = index;
       var stepName = steps[index];
+      console.log('[ImportWizard] goToStep(' + index + ') = ' + stepName);
+      console.log('[ImportWizard] completedSteps:', JSON.stringify(completedSteps));
 
       // Update stepper indicators
       var stepBtns = stepperEl.querySelectorAll('.extmgr-wizard-step');
       stepBtns.forEach(function(btn, idx) {
         var isActive = idx === index;
         var isCompleted = completedSteps[steps[idx]];
-        btn.classList.toggle('is-active', isActive);
-        btn.classList.toggle('is-completed', isCompleted && !isActive);
+        btn.classList.remove('is-active', 'is-completed');
+        if (isActive) {
+          btn.classList.add('is-active');
+        } else if (isCompleted) {
+          btn.classList.add('is-completed');
+        }
+        console.log('[ImportWizard] step[' + idx + ']=' + steps[idx] + ' active=' + isActive + ' completed=' + !!isCompleted + ' classes=' + btn.className);
       });
 
       // Show/hide panels
@@ -707,11 +714,9 @@
     }
 
     function markStepCompleted(stepName) {
+      console.log('[ImportWizard] markStepCompleted(' + stepName + ')');
       completedSteps[stepName] = true;
-      var stepBtn = stepperEl.querySelector('[data-step="' + stepName + '"]');
-      if (stepBtn) {
-        stepBtn.classList.add('is-completed');
-      }
+      // Don't add class here - goToStep will handle it
     }
 
     function getCurrentStep() {

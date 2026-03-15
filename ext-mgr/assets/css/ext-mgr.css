@@ -1139,7 +1139,7 @@ body:not([data-standalone]) .extmgr-page-shell {
   --step-height: 2.2rem;
   --step-arrow: 0.7rem;
   --step-gap: 0.25rem;
-  --step-inactive-bg: #b0b0b0;
+  --step-inactive-bg: rgba(0,0,0,.25);
   --step-inactive-text: #4a4a4a;
   --step-completed-bg: #d3540052;
   --step-completed-text: #fff;
