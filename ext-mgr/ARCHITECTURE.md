@@ -279,6 +279,13 @@ ext-mgr/
 All extension services chain to the parent `moode-extmgr.service` via systemd dependency directives.
 This ensures graceful shutdown cascades and proper memory cleanup when the manager stops.
 
+### Service Naming Convention
+
+| Service | Purpose |
+|---------|--------|
+| `moode-extmgr.service` | Parent service - all extensions depend on this |
+| `ext-{extensionId}.service` | Per-extension service unit |
+
 ### Dependency Injection
 
 During install, the helper script automatically injects:
