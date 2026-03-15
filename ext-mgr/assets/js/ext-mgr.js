@@ -2085,7 +2085,6 @@
       left.innerHTML =
         '<div class="list-top"><div class="list-name">' + itemTitle + '</div><span class="badge ' + stateClass + '">' + stateLabel + '</span></div>' +
         '<div class="list-sub">' + escapeHtml(item.path || '#') + '</div>' +
-        '<div class="list-sub">Placement: ' + escapeHtml(visibilityLabel('m', showInM)) + ' | ' + escapeHtml(visibilityLabel('library', showInLibrary)) + ' | ' + escapeHtml(settingsCardLabel(showSettingsCard)) + '</div>' +
         '<div class="list-sub list-meta">' + extensionInfoSummary(item) + '</div>' +
         '<div class="list-sub">' + escapeHtml(extensionDescription(item)) + '</div>';
 
@@ -2942,6 +2941,11 @@
     if (wizardSuccessMessageEl) {
       wizardSuccessMessageEl.innerHTML = message || ('Extension <strong>' + extensionId + '</strong> has been successfully installed and is ready to use.');
     }
+    // Hide the wizard navigation (Back/Install buttons) after success
+    var wizardNav = document.querySelector('.extmgr-wizard-nav');
+    if (wizardNav) {
+      wizardNav.style.display = 'none';
+    }
   }
 
   function animateInstallProgress(stages, onComplete) {
@@ -3039,6 +3043,40 @@
         }
       });
   });
+
+  // Wizard close/done button handler
+  var wizardCloseBtn = document.getElementById('wizard-close-btn');
+  bindIfPresent(wizardCloseBtn, 'click', function () {
+    // Reset wizard state
+    if (wizardInstallSuccessEl) {
+      wizardInstallSuccessEl.style.display = 'none';
+    }
+    if (wizardInstallProgressEl) {
+      wizardInstallProgressEl.style.display = 'none';
+    }
+    // Restore wizard navigation
+    var wizardNav = document.querySelector('.extmgr-wizard-nav');
+    if (wizardNav) {
+      wizardNav.style.display = '';
+    }
+    importWizardState.sessionId = '';
+    importWizardState.extensionId = '';
+    if (importExtensionFileEl) {
+      importExtensionFileEl.value = '';
+    }
+    if (importExtensionFileNameEl) {
+      importExtensionFileNameEl.textContent = 'No file chosen';
+    }
+    if (importExtensionInstallBtn) {
+      importExtensionInstallBtn.disabled = true;
+    }
+    setImportWizardNote('', null);
+    // Reset wizard steps
+    if (window.ExtMgrImportWizard && window.ExtMgrImportWizard.reset) {
+      window.ExtMgrImportWizard.reset();
+    }
+  });
+
   bindIfPresent(systemUpdateBtn, 'click', function () {
     runRegistrySync('Extensions');
   });

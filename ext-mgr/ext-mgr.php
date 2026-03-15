@@ -238,6 +238,7 @@ if (file_exists('/var/www/header.php')) {
                                         <i class="fa-solid fa-circle-check"></i>
                                         <h4>Installation Complete!</h4>
                                         <p id="wizard-success-message">Extension has been successfully installed.</p>
+                                        <button type="button" id="wizard-close-btn" class="btn btn-primary btn-small" style="margin-top:1rem;"><i class="fa-solid fa-check"></i> Done</button>
                                     </div>
 
                                     <div class="extmgr-wizard-nav">
