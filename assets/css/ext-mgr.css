@@ -576,18 +576,9 @@
 }
 
 #configure-modal .extmgr-configure-entry .btn.btn-medium.btn-primary.config-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 30px;
-  margin: 0 8px 8px 0;
-  border: 1px solid transparent;
-  border-radius: 2px;
+  border-color: transparent !important;
   background-color: var(--btnshade4, rgba(255, 255, 255, 0.08)) !important;
   color: var(--adapttext, #f0f0f0) !important;
-  text-transform: uppercase;
-  font-weight: 600;
-  letter-spacing: 0;
 }
 
 #configure-modal .extmgr-configure-entry .btn.btn-medium.btn-primary.config-btn:hover,

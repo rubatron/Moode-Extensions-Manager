@@ -1278,23 +1278,25 @@
           });
       });
 
-      var removeBtn = document.createElement('button');
-      removeBtn.type = 'button';
-      removeBtn.className = 'btn btn-small btn-primary extmgr-destructive';
-      removeBtn.textContent = 'Remove Extension';
-      applyTip(removeBtn, 'extension.remove');
-      removeBtn.addEventListener('click', function () {
+      var uninstallBtn = document.createElement('button');
+      uninstallBtn.type = 'button';
+      uninstallBtn.className = 'btn btn-small btn-primary extmgr-destructive';
+      uninstallBtn.textContent = 'Uninstall';
+      applyTip(uninstallBtn, 'extension.remove');
+      uninstallBtn.addEventListener('click', function () {
         var label = item.name || item.id;
-        var ok = window.confirm('Remove extension "' + label + '"?\n\nThis removes its installed files and route. A backup is kept in ext-mgr backup/removed-extensions.');
+        var ok = window.confirm('Uninstall extension "' + label + '"?\n\nThis runs uninstall cleanup (including extension uninstall script when present), removes installed files/routes, and keeps a backup in ext-mgr backup/removed-extensions.');
         if (!ok) {
           return;
         }
 
-        removeBtn.disabled = true;
+        uninstallBtn.disabled = true;
         api({ action: 'remove_extension', id: item.id })
           .then(function (data) {
             var payload = (data && data.data) || {};
-            setStatus('Removed ' + label + '. Backup: ' + (payload.backupPath || 'n/a'), 'ok');
+            var uninstall = payload.uninstall || {};
+            var scriptState = uninstall.ranExtensionUninstallScript ? 'script: yes' : 'script: no';
+            setStatus('Uninstalled ' + label + ' (' + scriptState + '). Backup: ' + (payload.backupPath || 'n/a'), 'ok');
             runRefresh();
             reloadPageSoon();
           })
@@ -1302,7 +1304,7 @@
             setStatus(err.message, 'error');
           })
           .finally(function () {
-            removeBtn.disabled = false;
+            uninstallBtn.disabled = false;
           });
       });
 
@@ -1313,8 +1315,8 @@
           settingsCardBtn.setDisabled(disabled);
         repairSymlinkBtn.disabled = disabled;
 
-        // Remove can stay available for cleanup even when extension is inactive.
-        removeBtn.disabled = false;
+        // Uninstall can stay available for cleanup even when extension is inactive.
+        uninstallBtn.disabled = false;
 
         // Inactive extension: hide action controls from the row to keep state unambiguous.
         menuMControl.style.display = disabled ? 'none' : '';
@@ -1343,7 +1345,7 @@
 
       infoActionGroup.appendChild(enableBtn);
       infoActionGroup.appendChild(repairSymlinkBtn);
-      infoActionGroup.appendChild(removeBtn);
+      infoActionGroup.appendChild(uninstallBtn);
       if (extMgrLogsModule && typeof extMgrLogsModule.attachExtensionButton === 'function') {
         extMgrLogsModule.attachExtensionButton(item, infoActionGroup);
       }
