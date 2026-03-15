@@ -2682,7 +2682,7 @@
   bindIfPresent(syncRegistryBtn, 'click', function () {
     runRegistrySync('Registry');
   });
-  
+
   // Debug buttons
   function showDebugModal(title, data) {
     var json = JSON.stringify(data, null, 2);
@@ -2691,7 +2691,7 @@
     }
     setStatus(title + ' loaded', 'ok');
   }
-  
+
   bindIfPresent(showRegistryBtn, 'click', function() {
     setStatus('Loading registry...', null);
     fetch(buildApiUrl({ action: 'debug_registry' }))
@@ -2707,7 +2707,7 @@
         setStatus('Registry fetch error: ' + err.message, 'error');
       });
   });
-  
+
   bindIfPresent(showVariablesBtn, 'click', function() {
     setStatus('Loading variables...', null);
     fetch(buildApiUrl({ action: 'debug_variables' }))
@@ -2723,7 +2723,7 @@
         setStatus('Variables fetch error: ' + err.message, 'error');
       });
   });
-  
+
   bindIfPresent(showServicesBtn, 'click', function() {
     setStatus('Loading services...', null);
     fetch(buildApiUrl({ action: 'debug_services' }))
@@ -2739,7 +2739,7 @@
         setStatus('Services fetch error: ' + err.message, 'error');
       });
   });
-  
+
   bindIfPresent(showApiStatusBtn, 'click', function() {
     setStatus('Loading API status...', null);
     fetch(buildApiUrl({ action: 'debug_api' }))
@@ -2755,7 +2755,7 @@
         setStatus('API status fetch error: ' + err.message, 'error');
       });
   });
-  
+
   [
     [managerVisibilityHeaderBtn, 'header'],
     [managerVisibilityLibraryBtn, 'library'],

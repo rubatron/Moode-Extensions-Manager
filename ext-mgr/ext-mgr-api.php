@@ -6257,7 +6257,7 @@ if ($action === 'debug_variables') {
 if ($action === 'debug_services') {
     $registry = normalizeRegistry(readRegistry($registryPath));
     $services = [];
-    
+
     // Check moode-extmgr.service
     $mainService = 'moode-extmgr.service';
     $mainStatus = 'unknown';
@@ -6267,7 +6267,7 @@ if ($action === 'debug_services') {
         $mainStatus = isset($output[0]) ? trim($output[0]) : 'unknown';
     }
     $services[] = ['name' => $mainService, 'status' => $mainStatus, 'type' => 'main'];
-    
+
     // Check extension services
     foreach ($registry['extensions'] as $ext) {
         $extId = $ext['id'] ?? '';
@@ -6288,7 +6288,7 @@ if ($action === 'debug_services') {
             ];
         }
     }
-    
+
     echo json_encode([
         'ok' => true,
         'data' => [

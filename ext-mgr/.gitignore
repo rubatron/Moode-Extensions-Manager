@@ -14,6 +14,11 @@ copilot-instructions.md
 # Logs
 *.log
 
+# Internal docs (not needed in production)
+docs/handover/
+docs/roadmaps/
+docs/development/
+
 # Docker (removed from repo - for local dev only)
 docker/
 docker-compose.yml
