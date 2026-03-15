@@ -82,6 +82,12 @@
 
 #section-manager-options .extmgr-options-buttons {
   margin-top: 0.45rem;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+#section-manager-options .extmgr-options-buttons .btn {
+  width: auto;
 }
 
 #section-manager-options .extmgr-options-buttons .btn.btn-small,
@@ -566,7 +572,7 @@
   color: #fff;
 }
 
-.extmgr-configure-entry.btn.btn-medium.btn-primary.config-btn {
+.extmgr-configure-entry .btn.btn-medium.btn-primary.config-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -575,13 +581,13 @@
   border: 1px solid transparent;
   border-radius: 2px;
   background-color: var(--btnshade4, rgba(255, 255, 255, 0.08));
-  color: var(--accentxts, #ff8a3d);
+  color: var(--adapttext, #f0f0f0);
   text-transform: uppercase;
   font-weight: 600;
   letter-spacing: 0;
 }
 
-.extmgr-configure-entry.btn.btn-medium.btn-primary.config-btn:hover {
+.extmgr-configure-entry .btn.btn-medium.btn-primary.config-btn:hover {
   background-color: var(--btnshade3, rgba(255, 255, 255, 0.14));
   color: #fff;
   border-color: transparent;
@@ -590,9 +596,17 @@
 .extmgr-import-controls {
   margin-top: 0.55rem;
   display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.38rem;
+}
+
+.extmgr-import-primary-row,
+.extmgr-import-secondary-row {
+  display: flex;
   flex-wrap: wrap;
-  gap: 0.45rem;
   align-items: center;
+  gap: 0.45rem;
 }
 
 #import-extension-file {
@@ -615,6 +629,11 @@
   color: #a1a7ad;
   font-size: 0.84rem;
   min-width: 120px;
+}
+
+.extmgr-troubleshooting-actions {
+  flex-direction: column;
+  align-items: flex-start;
 }
 
 .extmgr-import-flag {

@@ -64,7 +64,6 @@ if (file_exists('/var/www/header.php')) {
                     <button id="refresh-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-arrows-rotate"></i> Refresh List</button>
                     <button id="sync-registry-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-database"></i> Sync Registry</button>
                     <button id="system-update-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-rotate"></i> Sync Extensions</button>
-                    <button id="open-extmgr-logs-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-file-lines"></i> Open ext-mgr Logs</button>
                 </div>
 
                 <div class="extmgr-submenu-body">
@@ -72,10 +71,14 @@ if (file_exists('/var/www/header.php')) {
                     <p class="config-help-static extmgr-help">Upload a prepared extension package (.zip) or download a starter template kit.</p>
                     <div class="extmgr-import-controls">
                         <input id="import-extension-file" class="extmgr-file-input" type="file" accept=".zip" aria-label="Upload extension package zip">
-                        <label for="import-extension-file" id="import-extension-file-trigger" class="btn btn-primary btn-small">Choose File</label>
-                        <span id="import-extension-file-name" class="extmgr-file-name">No file chosen</span>
-                        <button id="import-extension-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-upload"></i> Upload Extension</button>
-                        <a id="download-template-btn" class="btn btn-primary btn-small" href="/ext-mgr-api.php?action=download_extension_template"><i class="fa-solid fa-sharp fa-file-zipper"></i> Download Template Kit</a>
+                        <div class="extmgr-import-primary-row">
+                            <label for="import-extension-file" id="import-extension-file-trigger" class="btn btn-primary btn-small">Choose File</label>
+                            <span id="import-extension-file-name" class="extmgr-file-name">No file chosen</span>
+                            <button id="import-extension-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-upload"></i> Upload Extension</button>
+                        </div>
+                        <div class="extmgr-import-secondary-row">
+                            <a id="download-template-btn" class="btn btn-primary btn-small" href="/ext-mgr-api.php?action=download_extension_template"><i class="fa-solid fa-sharp fa-file-zipper"></i> Download Template Kit</a>
+                        </div>
                     </div>
                     <div id="import-wizard-note" class="extmgr-note">Template includes: template.php, template.js, template.css, info.json, install.sh and standard folders (including logs).</div>
                 </div>
@@ -109,7 +112,7 @@ if (file_exists('/var/www/header.php')) {
                             </div>
                         </div>
                         <div class="extmgr-manager-visibility-row">
-                            <span class="extmgr-manager-visibility-label">M menu</span>
+                            <span class="extmgr-manager-visibility-label extmgr-manager-visibility-label-m"><span class="extmgr-mbrand-badge" aria-hidden="true">m</span><span class="extmgr-mbrand-text">Menu</span></span>
                             <div class="extmgr-manager-visibility-control">
                                 <div id="manager-visibility-m-btn" class="toggle toggle-off">
                                     <label class="toggle-radio" for="manager-visibility-m-off">ON</label>
@@ -121,7 +124,7 @@ if (file_exists('/var/www/header.php')) {
                             </div>
                         </div>
                         <div class="extmgr-manager-visibility-row">
-                            <span class="extmgr-manager-visibility-label">System context</span>
+                            <span class="extmgr-manager-visibility-label extmgr-manager-visibility-label-m"><span class="extmgr-mbrand-badge" aria-hidden="true">m</span><span class="extmgr-mbrand-text">Configuration Tile</span></span>
                             <div class="extmgr-manager-visibility-control">
                                 <div id="manager-visibility-system-btn" class="toggle toggle-off">
                                     <label class="toggle-radio" for="manager-visibility-system-off">ON</label>
@@ -296,8 +299,9 @@ if (file_exists('/var/www/header.php')) {
                         </button>
                         <div class="extmgr-submenu-body">
                             <p class="config-help-static extmgr-help">Use these tools to fix common ext-mgr installation issues.</p>
-                            <div class="extmgr-actions">
+                            <div class="extmgr-actions extmgr-troubleshooting-actions">
                                 <button id="repair-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-wrench"></i> Repair Installation</button>
+                                <button id="open-extmgr-logs-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-file-lines"></i> Open ext-mgr Logs</button>
                             </div>
                             <div id="maintenance-log" class="extmgr-log">No maintenance actions executed.</div>
                         </div>

@@ -368,8 +368,8 @@
   function managerVisibilityAreaName(area) {
     return area === 'header' ? 'Header tab'
       : area === 'library' ? 'Library menu'
-      : area === 'm' ? 'M menu'
-      : 'System context';
+      : area === 'm' ? 'Menu'
+      : 'M Configuration Tile';
   }
 
   function managerVisibilityLabel(area, visible) {
@@ -951,7 +951,7 @@
   }
 
   function visibilityLabel(target, visible) {
-    var name = target === 'm' ? 'M menu' : (target === 'library' ? 'Library menu' : 'System context');
+    var name = target === 'm' ? 'Menu' : (target === 'library' ? 'Library menu' : 'M Configuration Tile');
     return name + ': ' + (visible ? 'Visible' : 'Hidden');
   }
 
@@ -965,7 +965,7 @@
 
     var label = document.createElement('span');
     label.className = 'extmgr-manager-visibility-label';
-    if (labelText === 'M menu') {
+    if (labelText === 'Menu' || labelText === 'Configuration Tile') {
       label.classList.add('extmgr-manager-visibility-label-m');
 
       var mBadge = document.createElement('span');
@@ -975,7 +975,7 @@
 
       var mText = document.createElement('span');
       mText.className = 'extmgr-mbrand-text';
-      mText.textContent = 'M menu';
+      mText.textContent = labelText;
 
       label.appendChild(mBadge);
       label.appendChild(mText);
@@ -1213,7 +1213,7 @@
         });
         applyTip(settingsCardBtn, 'extension.settingsCard');
 
-        var menuMControl = createInlineSwitchControl('M menu', menuMBtn);
+        var menuMControl = createInlineSwitchControl('Menu', menuMBtn);
         var menuLibraryControl = createInlineSwitchControl('Library menu', menuLibraryBtn);
         var settingsCardControl = createInlineSwitchControl('Settings card', settingsCardBtn);
 
