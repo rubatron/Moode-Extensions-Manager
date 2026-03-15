@@ -624,6 +624,13 @@
         return;
       }
 
+      // Reset all step states on init (clears any cached/stale classes)
+      completedSteps = {};
+      var stepBtns = stepperEl.querySelectorAll('.extmgr-wizard-step');
+      stepBtns.forEach(function(btn) {
+        btn.classList.remove('is-active', 'is-completed');
+      });
+
       bindStepperClicks();
       bindNavButtons();
       goToStep(0);
