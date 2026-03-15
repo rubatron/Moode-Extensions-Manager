@@ -3736,7 +3736,7 @@ function upgradeTemplateForDynamicHeader($sourceDir, &$modificationLog = null)
     if ($content === false) {
         return false;
     }
-    
+
     $originalContent = $content;
 
     // Skip if already upgraded or doesn't have old pattern
@@ -3826,14 +3826,14 @@ function writeModificationLog($sourceDir, $modifications)
     if (empty($modifications)) {
         return true;
     }
-    
+
     $logPath = rtrim((string)$sourceDir, '/\\') . DIRECTORY_SEPARATOR . 'ext-mgr-modifications.log';
     $lines = [
         '# ext-mgr Modification Log',
         '# Generated: ' . date('c'),
         '',
     ];
-    
+
     foreach ($modifications as $mod) {
         $lines[] = '## [' . ($mod['timestamp'] ?? date('c')) . '] ' . ($mod['action'] ?? 'unknown');
         $lines[] = 'File: ' . ($mod['file'] ?? 'unknown');
@@ -3849,7 +3849,7 @@ function writeModificationLog($sourceDir, $modifications)
         }
         $lines[] = '';
     }
-    
+
     return @file_put_contents($logPath, implode("\n", $lines)) !== false;
 }
 

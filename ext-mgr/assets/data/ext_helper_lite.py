@@ -117,7 +117,7 @@ def _scan_code_patterns(root: Path, custom: list) -> dict:
     import fnmatch
     all_patterns = CODE_PATTERNS + custom
     findings = []
-    
+
     for file_path in list(root.rglob("*.php")) + list(root.rglob("*.sh")) + list(root.rglob("*.js")):
         if not file_path.is_file():
             continue
@@ -125,18 +125,18 @@ def _scan_code_patterns(root: Path, custom: list) -> dict:
             content = file_path.read_text(encoding="utf-8", errors="ignore")
         except Exception:
             continue
-        
+
         rel_path = str(file_path.relative_to(root)).replace("\\", "/")
-        
+
         for pdef in all_patterns:
             file_globs = pdef.get("files", ["*"])
             if not any(fnmatch.fnmatch(file_path.name, g) for g in file_globs):
                 continue
-            
+
             regex = pdef.get("pattern", "")
             if not regex:
                 continue
-            
+
             try:
                 if re.search(regex, content, re.IGNORECASE | re.MULTILINE):
                     findings.append({
@@ -148,7 +148,7 @@ def _scan_code_patterns(root: Path, custom: list) -> dict:
                     })
             except re.error:
                 continue
-    
+
     return {
         "findings": findings,
         "by_severity": {
@@ -164,14 +164,14 @@ def cmd_scan(args) -> int:
     root = Path(args.root).resolve()
     manifest = _read_json(root / "manifest.json", {})
     ext_id = str(manifest.get("id") or root.name)
-    
+
     install_sh = root / "scripts" / "install.sh"
     install_text = install_sh.read_text(encoding="utf-8", errors="ignore") if install_sh.exists() else ""
-    
+
     path_audit = _scan_paths(install_text)
     custom_patterns = _load_custom_patterns(root)
     code_patterns = _scan_code_patterns(root, custom_patterns)
-    
+
     payload = {
         "ext_id": ext_id,
         "path_audit": path_audit,
@@ -179,7 +179,7 @@ def cmd_scan(args) -> int:
         "warnings": [r for r in path_audit if r["severity"] == "warning"],
         "code_patterns": code_patterns,
     }
-    
+
     print(json.dumps(payload, indent=2, ensure_ascii=True))
     return 0
 

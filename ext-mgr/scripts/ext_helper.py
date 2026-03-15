@@ -153,42 +153,42 @@ def _scan_code_patterns(root: Path, custom_patterns: list[dict] | None = None) -
     all_patterns = CODE_PATTERNS + (custom_patterns or [])
     findings: list[dict] = []
     upgradeable: list[dict] = []
-    
+
     # Collect all files to scan
     files_to_scan: list[Path] = []
     for pattern in ["*.php", "*.sh", "*.py", "*.js"]:
         files_to_scan.extend(root.rglob(pattern))
-    
+
     for file_path in files_to_scan:
         if not file_path.is_file():
             continue
-        
+
         try:
             content = file_path.read_text(encoding="utf-8", errors="ignore")
         except Exception:
             continue
-        
+
         rel_path = str(file_path.relative_to(root)).replace("\\", "/")
         filename = file_path.name
-        
+
         for pattern_def in all_patterns:
             # Check if this file type should be scanned for this pattern
             file_patterns = pattern_def.get("files", ["*"])
             if not _file_matches_glob(filename, file_patterns):
                 continue
-            
+
             regex = pattern_def.get("pattern", "")
             if not regex:
                 continue
-            
+
             try:
                 matches = list(re.finditer(regex, content, re.IGNORECASE | re.MULTILINE))
             except re.error:
                 continue
-            
+
             if not matches:
                 continue
-            
+
             finding = {
                 "id": pattern_def.get("id", "unknown"),
                 "label": pattern_def.get("label", "Unknown pattern"),
@@ -199,18 +199,18 @@ def _scan_code_patterns(root: Path, custom_patterns: list[dict] | None = None) -
                 "autofix": pattern_def.get("autofix", False),
                 "fix_description": pattern_def.get("fix_description", ""),
             }
-            
+
             # Find line numbers for each match
             for match in matches:
                 line_num = content[:match.start()].count("\n") + 1
                 if line_num not in finding["line_numbers"]:
                     finding["line_numbers"].append(line_num)
-            
+
             findings.append(finding)
-            
+
             if pattern_def.get("severity") == "upgradeable":
                 upgradeable.append(finding)
-    
+
     return {
         "patterns_checked": len(all_patterns),
         "findings": findings,
@@ -226,12 +226,12 @@ def _scan_code_patterns(root: Path, custom_patterns: list[dict] | None = None) -
 
 class ModificationLog:
     """Log modifications made during import wizard processing."""
-    
+
     def __init__(self, root: Path):
         self.root = root
         self.entries: list[dict] = []
         self.log_file = root / "ext-mgr-modifications.log"
-    
+
     def log(self, action: str, file: str, description: str, before: str = "", after: str = ""):
         entry = {
             "timestamp": datetime.now().isoformat(),
@@ -244,12 +244,12 @@ class ModificationLog:
         if after:
             entry["after"] = after[:500] + ("..." if len(after) > 500 else "")
         self.entries.append(entry)
-    
+
     def save(self):
         """Save modification log to file."""
         if not self.entries:
             return
-        
+
         lines = ["# ext-mgr Modification Log", f"# Generated: {datetime.now().isoformat()}", ""]
         for entry in self.entries:
             lines.append(f"## [{entry['timestamp']}] {entry['action']}")
@@ -260,12 +260,12 @@ class ModificationLog:
             if entry.get("after"):
                 lines.append(f"After: {entry['after']}")
             lines.append("")
-        
+
         try:
             self.log_file.write_text("\n".join(lines), encoding="utf-8")
         except Exception:
             pass
-    
+
     def to_json(self) -> list[dict]:
         return self.entries
 
@@ -364,7 +364,7 @@ def cmd_scan(args: argparse.Namespace) -> int:
     path_audit = _scan_paths(install_text)
     violations = [r for r in path_audit if r["severity"] == "violation"]
     warnings = [r for r in path_audit if r["severity"] == "warning"]
-    
+
     # Scan for code patterns
     custom_patterns = _load_custom_patterns(root)
     code_patterns = _scan_code_patterns(root, custom_patterns)

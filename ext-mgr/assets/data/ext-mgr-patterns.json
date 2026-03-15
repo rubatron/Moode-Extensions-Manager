@@ -7,13 +7,22 @@
       "label": "Example custom pattern",
       "description": "This is an example pattern showing the structure. Remove or modify as needed.",
       "severity": "info",
-      "files": ["*.php", "*.sh"],
+      "files": [
+        "*.php",
+        "*.sh"
+      ],
       "pattern": "EXAMPLE_PLACEHOLDER_NEVER_MATCH_12345",
       "autofix": false,
       "fix_description": "Description of how to fix this pattern manually"
     }
   ],
-  "_severity_values": ["ok", "info", "warning", "violation", "upgradeable"],
+  "_severity_values": [
+    "ok",
+    "info",
+    "warning",
+    "violation",
+    "upgradeable"
+  ],
   "_notes": [
     "Pattern is a Python regex (case-insensitive by default)",
     "Files is a list of glob patterns to match filenames",
