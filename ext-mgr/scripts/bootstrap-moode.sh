@@ -45,16 +45,26 @@ main() {
 
   local extracted_dir
   extracted_dir="$(find "$TMP_ROOT" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
-  if [[ -z "$extracted_dir" || ! -f "$extracted_dir/install.sh" ]]; then
+  
+  # Handle both old (root) and new (ext-mgr/) directory structures
+  local install_script=""
+  if [[ -f "$extracted_dir/install.sh" ]]; then
+    install_script="$extracted_dir/install.sh"
+  elif [[ -f "$extracted_dir/ext-mgr/install.sh" ]]; then
+    install_script="$extracted_dir/ext-mgr/install.sh"
+    extracted_dir="$extracted_dir/ext-mgr"
+  fi
+  
+  if [[ -z "$install_script" ]]; then
     echo "ERROR: Could not locate install.sh in extracted archive." >&2
     exit 1
   fi
 
   echo "[3/4] Running installer from $extracted_dir"
   if [[ "${EUID}" -eq 0 ]]; then
-    bash "$extracted_dir/install.sh" "$@"
+    bash "$install_script" "$@"
   else
-    sudo bash "$extracted_dir/install.sh" "$@"
+    sudo bash "$install_script" "$@"
   fi
 
   local host
