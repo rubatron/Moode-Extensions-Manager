@@ -85,6 +85,7 @@
   var faqDocEl = document.getElementById('faq-doc');
   var menuToggleButtons = document.querySelectorAll('[data-menu-toggle]');
   var submenuToggleButtons = document.querySelectorAll('[data-submenu-toggle]');
+  var actionModalState = { el: null, confirmHandler: null, cancelHandler: null };
 
   var allItems = [];
   var PREF_PREFIX = 'extmgr.list.';
@@ -320,6 +321,122 @@
       return;
     }
     el.addEventListener(eventName, handler);
+  }
+
+  function ensureActionModal() {
+    if (actionModalState.el) {
+      return actionModalState.el;
+    }
+
+    var modal = document.createElement('div');
+    modal.className = 'extmgr-action-modal';
+    modal.setAttribute('aria-hidden', 'true');
+    modal.innerHTML = '' +
+      '<div class="extmgr-action-modal-backdrop" data-action-modal-close="1"></div>' +
+      '<div class="extmgr-action-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="extmgr-action-modal-title">' +
+      '  <div class="extmgr-action-modal-header">' +
+      '    <h3 id="extmgr-action-modal-title" class="extmgr-action-modal-title">Attention</h3>' +
+      '    <button type="button" class="btn btn-small" data-action-modal-close="1">Close</button>' +
+      '  </div>' +
+      '  <div id="extmgr-action-modal-message" class="extmgr-action-modal-message"></div>' +
+      '  <div id="extmgr-action-modal-input-wrap" class="extmgr-action-modal-input-wrap">' +
+      '    <label for="extmgr-action-modal-input">Type confirmation</label>' +
+      '    <input id="extmgr-action-modal-input" type="text" autocomplete="off">' +
+      '  </div>' +
+      '  <div id="extmgr-action-modal-note" class="extmgr-note"></div>' +
+      '  <div class="extmgr-action-modal-actions">' +
+      '    <button type="button" id="extmgr-action-modal-cancel" class="btn btn-small">Cancel</button>' +
+      '    <button type="button" id="extmgr-action-modal-confirm" class="btn btn-small btn-primary extmgr-destructive">Confirm</button>' +
+      '  </div>' +
+      '</div>';
+
+    modal.addEventListener('click', function (evt) {
+      var target = evt.target;
+      if (target && target.getAttribute('data-action-modal-close') === '1') {
+        closeActionModal(false);
+      }
+    });
+
+    document.body.appendChild(modal);
+    actionModalState.el = modal;
+    return modal;
+  }
+
+  function closeActionModal(confirmed) {
+    var modal = actionModalState.el;
+    var confirmHandler = actionModalState.confirmHandler;
+    var cancelHandler = actionModalState.cancelHandler;
+    actionModalState.confirmHandler = null;
+    actionModalState.cancelHandler = null;
+
+    if (modal) {
+      modal.classList.remove('is-open');
+      modal.setAttribute('aria-hidden', 'true');
+    }
+
+    if (confirmed) {
+      if (typeof confirmHandler === 'function') {
+        confirmHandler();
+      }
+      return;
+    }
+
+    if (typeof cancelHandler === 'function') {
+      cancelHandler();
+    }
+  }
+
+  function openActionModal(options) {
+    var modal = ensureActionModal();
+    var config = options || {};
+    var titleEl = document.getElementById('extmgr-action-modal-title');
+    var messageEl = document.getElementById('extmgr-action-modal-message');
+    var inputWrapEl = document.getElementById('extmgr-action-modal-input-wrap');
+    var inputEl = document.getElementById('extmgr-action-modal-input');
+    var noteEl = document.getElementById('extmgr-action-modal-note');
+    var cancelBtn = document.getElementById('extmgr-action-modal-cancel');
+    var confirmBtn = document.getElementById('extmgr-action-modal-confirm');
+    var requiredText = String(config.requiredText || '');
+
+    titleEl.textContent = String(config.title || 'Attention');
+    messageEl.textContent = String(config.message || '');
+    noteEl.textContent = String(config.note || '');
+    noteEl.classList.remove('error', 'ok');
+    cancelBtn.textContent = String(config.cancelText || 'Cancel');
+    confirmBtn.textContent = String(config.confirmText || 'Confirm');
+
+    inputWrapEl.style.display = requiredText ? '' : 'none';
+    inputEl.value = '';
+    confirmBtn.disabled = !!requiredText;
+
+    function syncConfirmState() {
+      if (!requiredText) {
+        confirmBtn.disabled = false;
+        return;
+      }
+      confirmBtn.disabled = String(inputEl.value || '') !== requiredText;
+    }
+
+    inputEl.oninput = syncConfirmState;
+    syncConfirmState();
+
+    actionModalState.confirmHandler = typeof config.onConfirm === 'function' ? config.onConfirm : null;
+    actionModalState.cancelHandler = typeof config.onCancel === 'function' ? config.onCancel : null;
+
+    cancelBtn.onclick = function () {
+      closeActionModal(false);
+    };
+    confirmBtn.onclick = function () {
+      closeActionModal(true);
+    };
+
+    modal.classList.add('is-open');
+    modal.setAttribute('aria-hidden', 'false');
+    if (requiredText) {
+      inputEl.focus();
+    } else {
+      confirmBtn.focus();
+    }
   }
 
   function setImportWizardNote(text, kind) {
@@ -1368,29 +1485,39 @@
       applyTip(uninstallBtn, 'extension.remove');
       uninstallBtn.addEventListener('click', function () {
         var label = item.name || item.id;
-        var ok = window.confirm('Uninstall extension "' + label + '"?\n\nThis runs uninstall cleanup (including extension uninstall script when present) and permanently removes extension folders, routes and logs.');
-        if (!ok) {
-          return;
-        }
-
-        uninstallBtn.disabled = true;
-        api({ action: 'remove_extension', id: item.id })
-          .then(function (data) {
-            var payload = (data && data.data) || {};
-            var uninstall = payload.uninstall || {};
-            var scriptState = uninstall.ranExtensionUninstallScript ? 'script: yes' : 'script: no';
-            var removedPathsCount = Array.isArray(uninstall.removedPaths) ? uninstall.removedPaths.length : 0;
-            var failedPathsCount = Array.isArray(uninstall.failedPaths) ? uninstall.failedPaths.length : 0;
-            setStatus('Uninstalled ' + label + ' (' + scriptState + ', removed paths: ' + removedPathsCount + ', failed paths: ' + failedPathsCount + ').', 'ok');
-            runRefresh();
-            reloadPageSoon();
-          })
-          .catch(function (err) {
-            setStatus(err.message, 'error');
-          })
-          .finally(function () {
-            uninstallBtn.disabled = false;
-          });
+        openActionModal({
+          title: 'Uninstall Extension',
+          message: 'Uninstall extension "' + label + '"?',
+          note: 'This runs uninstall cleanup (including extension uninstall script when present) and permanently removes extension folders, routes and logs.',
+          confirmText: 'Uninstall',
+          cancelText: 'Cancel',
+          onConfirm: function () {
+            uninstallBtn.disabled = true;
+            api({ action: 'remove_extension', id: item.id })
+              .then(function (data) {
+                var payload = (data && data.data) || {};
+                var uninstall = payload.uninstall || {};
+                var scriptState = uninstall.ranExtensionUninstallScript ? 'script: yes' : 'script: no';
+                var removedPathsCount = Array.isArray(uninstall.removedPaths) ? uninstall.removedPaths.length : 0;
+                var failedPathsCount = Array.isArray(uninstall.failedPaths) ? uninstall.failedPaths.length : 0;
+                var removedRegistry = payload.removedFromRegistry !== false;
+                var removedInstallDir = payload.removedInstallDir !== false;
+                if (!removedRegistry || !removedInstallDir || failedPathsCount > 0) {
+                  setStatus('Uninstall incomplete for ' + label + ' (' + scriptState + ', removed paths: ' + removedPathsCount + ', failed paths: ' + failedPathsCount + ').', 'error');
+                } else {
+                  setStatus('Uninstalled ' + label + ' (' + scriptState + ', removed paths: ' + removedPathsCount + ').', 'ok');
+                }
+                runRefresh();
+                reloadPageSoon();
+              })
+              .catch(function (err) {
+                setStatus(err.message, 'error');
+              })
+              .finally(function () {
+                uninstallBtn.disabled = false;
+              });
+          }
+        });
       });
 
       function applyExtensionActionState(enabled) {
@@ -1596,34 +1723,41 @@
       'manager.troubleshooting.clearExtensionsFolder.prompt',
       'This will remove everything in the extensions and will result in all extensions not functioning. try uninstalling the single extension first. the extension manager will still be working after this action which allows you to reinstall the extensions So, is this your last resort?(type YES).'
     );
-    var answer = window.prompt(promptText, '');
-    if (answer !== 'YES') {
-      setStatus('Clear Extensions Folder cancelled. Type YES to confirm.', 'error');
-      return;
-    }
+    openActionModal({
+      title: 'Attention Required',
+      message: promptText,
+      note: 'Type YES exactly to continue.',
+      requiredText: 'YES',
+      confirmText: 'Run Last Resort',
+      cancelText: 'Cancel',
+      onConfirm: function () {
+        clearExtensionsFolderBtn.disabled = true;
+        setStatus('Running graceful clear for extensions folder...', null);
 
-    clearExtensionsFolderBtn.disabled = true;
-    setStatus('Running graceful clear for extensions folder...', null);
-
-    api({ action: 'clear_extensions_folder' })
-      .then(function (data) {
-        var payload = (data && data.data) || {};
-        var removedCount = Array.isArray(payload.removedIds) ? payload.removedIds.length : 0;
-        var failedCount = Array.isArray(payload.failedIds) ? payload.failedIds.length : 0;
-        if (failedCount > 0) {
-          setStatus('Clear Extensions Folder finished with warnings. Removed: ' + removedCount + ', failed: ' + failedCount + '.', 'error');
-        } else {
-          setStatus('Clear Extensions Folder completed. Removed: ' + removedCount + '.', 'ok');
-        }
-        runRefresh();
-        reloadPageSoon();
-      })
-      .catch(function (err) {
-        setStatus(err.message || 'Failed to clear extensions folder.', 'error');
-      })
-      .finally(function () {
-        clearExtensionsFolderBtn.disabled = false;
-      });
+        api({ action: 'clear_extensions_folder' })
+          .then(function (data) {
+            var payload = (data && data.data) || {};
+            var removedCount = Array.isArray(payload.removedIds) ? payload.removedIds.length : 0;
+            var failedCount = Array.isArray(payload.failedIds) ? payload.failedIds.length : 0;
+            if (failedCount > 0) {
+              setStatus('Clear Extensions Folder finished with warnings. Removed: ' + removedCount + ', failed: ' + failedCount + '.', 'error');
+            } else {
+              setStatus('Clear Extensions Folder completed. Removed: ' + removedCount + '.', 'ok');
+            }
+            runRefresh();
+            reloadPageSoon();
+          })
+          .catch(function (err) {
+            setStatus(err.message || 'Failed to clear extensions folder.', 'error');
+          })
+          .finally(function () {
+            clearExtensionsFolderBtn.disabled = false;
+          });
+      },
+      onCancel: function () {
+        setStatus('Clear Extensions Folder cancelled.', null);
+      }
+    });
   }
 
   function setManagerVisibility(area, visible, button) {
