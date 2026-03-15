@@ -807,6 +807,17 @@
     return tryAt(0);
   }
 
+  function buildApiUrl(params) {
+    var url = apiUrl;
+    if (params && typeof params === 'object') {
+      var qs = new URLSearchParams(params).toString();
+      if (qs) {
+        url += (url.indexOf('?') === -1 ? '?' : '&') + qs;
+      }
+    }
+    return url;
+  }
+
   function tip(key, fallback) {
     if (tooltipMap && Object.prototype.hasOwnProperty.call(tooltipMap, key)) {
       return String(tooltipMap[key] || '');
