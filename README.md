@@ -129,3 +129,8 @@ Use this quick matrix when validating `remove_extension`:
 ## Deep Architecture
 
 See ARCHITECTURE.md
+
+## Model Context
+
+Use docs/MODEL-CONTEXT.md as the canonical shared context for architecture invariants,
+contracts, runtime assumptions, and recovery policy.
