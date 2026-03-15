@@ -6291,9 +6291,9 @@ if ($action === 'set_menu_visibility') {
         exit;
     }
 
-    if ($menu !== 'm' && $menu !== 'library') {
+    if ($menu !== 'm' && $menu !== 'library' && $menu !== 'header') {
         http_response_code(400);
-        echo json_encode(['ok' => false, 'error' => 'Invalid menu target. Use m or library.']);
+        echo json_encode(['ok' => false, 'error' => 'Invalid menu target. Use m, library, or header.']);
         exit;
     }
 
@@ -6309,11 +6309,14 @@ if ($action === 'set_menu_visibility') {
                 exit;
             }
             if (!isset($ext['menuVisibility']) || !is_array($ext['menuVisibility'])) {
-                $ext['menuVisibility'] = ['m' => true, 'library' => true, 'system' => false];
+                $ext['menuVisibility'] = ['m' => true, 'library' => true, 'system' => false, 'header' => true];
             }
             $ext['menuVisibility'][$menu] = $visible;
             $ext['showInMMenu'] = (bool)$ext['menuVisibility']['m'];
             $ext['showInLibrary'] = (bool)$ext['menuVisibility']['library'];
+            if ($menu === 'header') {
+                $ext['headerVisible'] = $visible;
+            }
             $updated = true;
             break;
         }

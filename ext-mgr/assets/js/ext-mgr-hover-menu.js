@@ -541,7 +541,7 @@
     li.className = (inheritedClass ? inheritedClass + ' ' : '') + 'extmgr-configure-entry';
 
     var link = document.createElement('a');
-    link.className = 'btn btn-medium btn-primary config-btn';
+    link.className = 'btn btn-large';
     link.href = entry.href || '#';
     link.setAttribute('data-extmgr-entry', entry.id || '');
     link.innerHTML = '<i class="' + esc(entry.iconClass || 'fa-solid fa-sharp fa-puzzle-piece') + '"></i><br>' + esc(entry.label || 'Extension');

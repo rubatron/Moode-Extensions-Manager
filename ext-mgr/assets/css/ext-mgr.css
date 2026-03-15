@@ -627,33 +627,7 @@ body:not([data-standalone]) .extmgr-page-shell {
   color: #fff;
 }
 
-#configure-modal .extmgr-configure-entry .btn.btn-medium.btn-primary.config-btn {
-  border-color: transparent !important;
-  background-color: var(--btnshade4, rgba(255, 255, 255, 0.08)) !important;
-  color: var(--adapttext, #f0f0f0) !important;
-}
-
-#configure-modal #configure ul .extmgr-configure-entry {
-  display: flex;
-  align-items: stretch;
-}
-
-#configure-modal .extmgr-configure-entry .btn.btn-medium.btn-primary.config-btn {
-  width: 100%;
-  min-height: 66px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-}
-
-#configure-modal .extmgr-configure-entry .btn.btn-medium.btn-primary.config-btn:hover,
-#configure-modal .extmgr-configure-entry .btn.btn-medium.btn-primary.config-btn:focus-visible {
-  background-color: var(--adapttext, #f0f0f0) !important;
-  color: var(--adaptbg, #0f141a) !important;
-  border-color: transparent !important;
-}
+/* Extension config tile inherits moode.css #configure .btn, #configure a styles */
 
 .extmgr-import-controls {
   margin-top: 0.55rem;

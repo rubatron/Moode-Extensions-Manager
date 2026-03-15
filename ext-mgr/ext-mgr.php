@@ -251,7 +251,7 @@ if (file_exists('/var/www/header.php')) {
                         <p class="config-help-static extmgr-help">Hide/unhide ext-mgr itself in moOde menu areas without disabling the API endpoint.</p>
                         <div class="extmgr-manager-visibility-grid" role="group" aria-label="Extension manager visibility options">
                             <div class="extmgr-manager-visibility-row">
-                                <span class="extmgr-manager-visibility-label">Header tab</span>
+                                <span class="extmgr-manager-visibility-label">Header menu</span>
                                 <div class="extmgr-manager-visibility-control">
                                     <div id="manager-visibility-header-btn" class="toggle toggle-off">
                                         <label class="toggle-radio" for="manager-visibility-header-off">ON</label>

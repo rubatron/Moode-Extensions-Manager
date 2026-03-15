@@ -1304,7 +1304,7 @@
   }
 
   function managerVisibilityAreaName(area) {
-    return area === 'header' ? 'Header tab'
+    return area === 'header' ? 'Header menu'
       : area === 'library' ? 'Library menu'
       : area === 'm' ? 'Menu'
       : 'M Configuration Tile';
@@ -1883,13 +1883,13 @@
 
   function setVisibility(item, key, value) {
     if (!item.menuVisibility || typeof item.menuVisibility !== 'object') {
-      item.menuVisibility = { m: true, library: true, system: false };
+      item.menuVisibility = { m: true, library: true, system: false, header: true };
     }
     item.menuVisibility[key] = !!value;
   }
 
   function visibilityLabel(target, visible) {
-    var name = target === 'm' ? 'Menu' : (target === 'library' ? 'Library menu' : 'M Configuration Tile');
+    var name = target === 'm' ? 'Menu' : (target === 'library' ? 'Library menu' : (target === 'header' ? 'Header menu' : 'M Configuration Tile'));
     return name + ': ' + (visible ? 'Visible' : 'Hidden');
   }
 
@@ -2053,6 +2053,7 @@
 
       var showInM = getVisibility(item, 'm');
       var showInLibrary = getVisibility(item, 'library');
+      var showHeader = getVisibility(item, 'header');
       var showSettingsCard = getSettingsCardOnly(item);
 
       var left = document.createElement('div');
@@ -2174,6 +2175,23 @@
         });
         applyTip(menuLibraryBtn, 'extension.menu.library');
 
+        var menuHeaderBtn = createMoodeToggle('extmgr-tgl-hdr-' + item.id, showHeader, function (newVisible) {
+          menuHeaderBtn.setDisabled(true);
+          api({ action: 'set_menu_visibility', id: item.id, menu: 'header', value: newVisible ? '1' : '0' })
+            .then(function () {
+              setVisibility(item, 'header', newVisible);
+              setStatus('Header menu visibility updated for ' + (item.name || item.id) + '.', 'ok');
+              runRefresh();
+              reloadPageSoon();
+            })
+            .catch(function (err) {
+              menuHeaderBtn.setVisible(!newVisible);
+              setStatus(err.message + (err.message.indexOf('Failed to write registry') !== -1 ? ' Check ext-mgr permissions and restart php-fpm.' : ''), 'error');
+            })
+            .finally(function () { menuHeaderBtn.setDisabled(false); });
+        });
+        applyTip(menuHeaderBtn, 'extension.menu.header');
+
         var settingsCardBtn = createMoodeToggle('extmgr-tgl-sc-' + item.id, getSettingsCardOnly(item), function (newEnabled) {
           settingsCardBtn.setDisabled(true);
           api({ action: 'set_settings_card_only', id: item.id, value: newEnabled ? '1' : '0' })
@@ -2193,6 +2211,7 @@
 
         var menuMControl = createInlineSwitchControl('Menu', menuMBtn);
         var menuLibraryControl = createInlineSwitchControl('Library menu', menuLibraryBtn);
+        var menuHeaderControl = createInlineSwitchControl('Header menu', menuHeaderBtn);
         var settingsCardControl = createInlineSwitchControl('Configuration Tile', settingsCardBtn);
 
       var repairSymlinkBtn = document.createElement('button');
@@ -2262,6 +2281,7 @@
         var disabled = !enabled;
           menuMBtn.setDisabled(disabled);
           menuLibraryBtn.setDisabled(disabled);
+          menuHeaderBtn.setDisabled(disabled);
           settingsCardBtn.setDisabled(disabled);
         repairSymlinkBtn.disabled = disabled;
 
@@ -2271,6 +2291,7 @@
         // Inactive extension: hide action controls from the row to keep state unambiguous.
         menuMControl.style.display = disabled ? 'none' : '';
         menuLibraryControl.style.display = disabled ? 'none' : '';
+        menuHeaderControl.style.display = disabled ? 'none' : '';
         settingsCardControl.style.display = disabled ? 'none' : '';
         repairSymlinkBtn.style.display = disabled ? 'none' : '';
 
@@ -2279,6 +2300,7 @@
         var reason = disabled ? tip('extension.action.disabled', 'Disabled while extension is inactive. Enable extension first.') : tip('extension.action.ready', '');
         menuMBtn.title = reason;
         menuLibraryBtn.title = reason;
+        menuHeaderBtn.title = reason;
         settingsCardBtn.title = reason;
         repairSymlinkBtn.title = reason;
       }
@@ -2304,6 +2326,7 @@
       row.appendChild(left);
       toggleGroup.appendChild(menuMControl);
       toggleGroup.appendChild(menuLibraryControl);
+      toggleGroup.appendChild(menuHeaderControl);
       toggleGroup.appendChild(settingsCardControl);
       rightWrap.appendChild(toggleGroup);
       row.appendChild(rightWrap);
