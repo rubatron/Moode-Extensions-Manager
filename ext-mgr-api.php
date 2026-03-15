@@ -1497,13 +1497,136 @@ function sanitizeExtensionId($value)
     return $id;
 }
 
+function isPlaceholderExtensionId($value)
+{
+    $id = strtolower(trim((string)$value));
+    if ($id === '') {
+        return true;
+    }
+
+    $placeholders = [
+        'template-extension',
+        'auto-generate',
+        'auto',
+        'your-extension-id',
+        'todo-extension-id',
+    ];
+
+    return in_array($id, $placeholders, true);
+}
+
+function generateUuidV4()
+{
+    try {
+        $bytes = random_bytes(16);
+    } catch (Throwable $e) {
+        return strtolower(uniqid('ext-', true));
+    }
+
+    $bytes[6] = chr((ord($bytes[6]) & 0x0f) | 0x40);
+    $bytes[8] = chr((ord($bytes[8]) & 0x3f) | 0x80);
+
+    $hex = bin2hex($bytes);
+    return substr($hex, 0, 8)
+        . '-' . substr($hex, 8, 4)
+        . '-' . substr($hex, 12, 4)
+        . '-' . substr($hex, 16, 4)
+        . '-' . substr($hex, 20, 12);
+}
+
+function extensionIdExists($extId, $registryPath)
+{
+    $id = trim((string)$extId);
+    if ($id === '') {
+        return false;
+    }
+
+    if (is_dir('/var/www/extensions/installed/' . $id)) {
+        return true;
+    }
+
+    $registry = readRegistry($registryPath);
+    $extensions = is_array($registry['extensions'] ?? null) ? $registry['extensions'] : [];
+    foreach ($extensions as $ext) {
+        if (!is_array($ext)) {
+            continue;
+        }
+        if ((string)($ext['id'] ?? '') === $id) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function generateManagedExtensionId($registryPath)
+{
+    for ($i = 0; $i < 20; $i++) {
+        $candidate = 'ext-' . generateUuidV4();
+        if (!extensionIdExists($candidate, $registryPath)) {
+            return $candidate;
+        }
+    }
+
+    return 'ext-' . strtolower(bin2hex(random_bytes(6)));
+}
+
+function updateImportedManifestWithManagedId($sourceDir, $manifestData, $newId, &$error)
+{
+    $error = '';
+    if (!is_array($manifestData)) {
+        $error = 'Invalid manifest payload for managed id update.';
+        return null;
+    }
+
+    $oldId = strtolower(trim((string)($manifestData['id'] ?? '')));
+    $manifestData['id'] = $newId;
+
+    $extMgr = is_array($manifestData['ext_mgr'] ?? null) ? $manifestData['ext_mgr'] : [];
+    $service = is_array($extMgr['service'] ?? null) ? $extMgr['service'] : [];
+    $serviceName = trim((string)($service['name'] ?? ''));
+    $serviceIdPart = preg_replace('/\.service$/', '', strtolower($serviceName));
+    if (!is_string($serviceIdPart)) {
+        $serviceIdPart = '';
+    }
+    if ($serviceName === '' || isPlaceholderExtensionId($serviceIdPart) || ($oldId !== '' && $serviceName === $oldId . '.service')) {
+        $service['name'] = $newId . '.service';
+    }
+    $extMgr['service'] = $service;
+
+    $logging = is_array($extMgr['logging'] ?? null) ? $extMgr['logging'] : [];
+    $logging['globalDir'] = '/var/www/extensions/sys/logs/extensionslogs/' . $newId;
+    $extMgr['logging'] = $logging;
+    $manifestData['ext_mgr'] = $extMgr;
+
+    $manifestPath = rtrim($sourceDir, '/\\') . DIRECTORY_SEPARATOR . 'manifest.json';
+    if (!writeJsonFile($manifestPath, $manifestData)) {
+        $error = 'Failed to write managed extension id into manifest.json.';
+        return null;
+    }
+
+    $infoPath = rtrim($sourceDir, '/\\') . DIRECTORY_SEPARATOR . 'info.json';
+    if (is_file($infoPath)) {
+        $info = readJsonFile($infoPath, []);
+        if (is_array($info)) {
+            $settingsPage = trim((string)($info['settingsPage'] ?? ''));
+            if ($settingsPage === '' || $settingsPage === '/' . $oldId . '.php' || $settingsPage === '/template-extension.php') {
+                $info['settingsPage'] = '/' . $newId . '.php';
+            }
+            writeJsonFile($infoPath, $info);
+        }
+    }
+
+    return $manifestData;
+}
+
 function buildTemplatePackageFiles($extensionId)
 {
     $displayName = ucwords(str_replace(['-', '_', '.'], ' ', $extensionId));
     $defaultIconClass = 'fa-solid fa-sharp fa-puzzle-piece';
 
     $manifest = [
-        'id' => $extensionId,
+        'id' => 'auto-generate',
         'name' => $displayName,
         'version' => '0.1.0',
         'main' => 'template.php',
@@ -1519,14 +1642,14 @@ function buildTemplatePackageFiles($extensionId)
             'settingsCardOnly' => true,
             'iconClass' => $defaultIconClass,
             'service' => [
-                'name' => $extensionId . '.service',
+                'name' => 'auto-generate.service',
                 'requiresExtMgr' => true,
                 'parentService' => 'moode-extmgr.service',
                 'dependencies' => [],
             ],
             'logging' => [
                 'localDir' => 'logs',
-                'globalDir' => '/var/www/extensions/sys/logs/extensionslogs/' . $extensionId,
+                'globalDir' => '/var/www/extensions/sys/logs/extensionslogs/auto-generate',
                 'files' => ['install.log', 'system.log', 'error.log'],
             ],
             'install' => [
@@ -1561,13 +1684,18 @@ function buildTemplatePackageFiles($extensionId)
         . "    @sqlConnect();\n"
         . "    @phpSession('open');\n"
         . "}\n\n"
+        . "\$extRouteId = preg_replace('/\\.php$/', '', basename((string)(\$_SERVER['SCRIPT_NAME'] ?? '{$extensionId}.php')));\n"
+        . "if (!is_string(\$extRouteId) || trim(\$extRouteId) === '') {\n"
+        . "    \$extRouteId = '{$extensionId}';\n"
+        . "}\n"
+        . "\$assetBase = '/extensions/installed/' . \$extRouteId;\n\n"
         . "if (function_exists('storeBackLink')) {\n"
-        . "    @storeBackLink(\$section, '{$extensionId}');\n"
+        . "    @storeBackLink(\$section, \$extRouteId);\n"
         . "}\n\n"
         . "if (file_exists('/var/www/header.php')) {\n"
         . "    \$usingMoodeShell = true;\n"
         . "    include '/var/www/header.php';\n"
-        . "    echo '<link rel=\"stylesheet\" href=\"/extensions/installed/{$extensionId}/assets/css/template.css\">' . \"\\n\";\n"
+        . "    echo '<link rel=\"stylesheet\" href=\"' . htmlspecialchars(\$assetBase, ENT_QUOTES, 'UTF-8') . '/assets/css/template.css\">' . \"\\n\";\n"
         . "} else {\n"
         . "    ?>\n"
         . "<!doctype html>\n"
@@ -1576,7 +1704,7 @@ function buildTemplatePackageFiles($extensionId)
         . "    <meta charset=\"utf-8\">\n"
         . "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
         . "    <title>{$displayName}</title>\n"
-        . "    <link rel=\"stylesheet\" href=\"/extensions/installed/{$extensionId}/assets/css/template.css\">\n"
+        . "    <?php echo '<link rel=\"stylesheet\" href=\"' . htmlspecialchars(\$assetBase, ENT_QUOTES, 'UTF-8') . '/assets/css/template.css\">'; ?>\n"
         . "</head>\n"
         . "<body>\n"
         . "    <?php\n"
@@ -1589,6 +1717,7 @@ function buildTemplatePackageFiles($extensionId)
         . "      <h1 class=\"config-title\">{$displayName}</h1>\n"
         . "    </div>\n"
         . "    <p class=\"config-help-static\">Template extension page. The moOde shell (back, home and M menu) is provided via header.php.</p>\n"
+        . "    <?php // YOUR CODE HERE: add your minimal extension settings UI controls in this page. ?>\n"
         . "\n"
         . "    <section class=\"ext-template-card\">\n"
         . "      <h2 class=\"ext-template-card-title\">Icon Picker (Starter)</h2>\n"
@@ -1598,11 +1727,12 @@ function buildTemplatePackageFiles($extensionId)
         . "        <select id=\"ext-template-icon-picker\"></select>\n"
         . "      </div>\n"
         . "      <div id=\"ext-template-icon-value\" class=\"ext-template-code\">{$defaultIconClass}</div>\n"
+        . "      <div class=\"ext-template-code\">YOUR CODE HERE: connect controls to backend/api.php and persist extension settings.</div>\n"
         . "    </section>\n"
         . "  </div>\n"
         . "</div>\n"
         . "\n"
-        . "<script src=\"/extensions/installed/{$extensionId}/assets/js/template.js\"></script>\n"
+        . "<?php echo '<script src=\"' . htmlspecialchars(\$assetBase, ENT_QUOTES, 'UTF-8') . '/assets/js/template.js\"></script>'; ?>\n"
         . "\n"
         . "<?php\n"
         . "if (\$usingMoodeShell) {\n"
@@ -1630,6 +1760,7 @@ function buildTemplatePackageFiles($extensionId)
         . "    return;\n"
         . "  }\n"
         . "\n"
+        . "  // YOUR CODE HERE: replace this starter list or append your own UI logic.\n"
         . "  var icons = [\n"
         . "    'fa-solid fa-sharp fa-puzzle-piece',\n"
         . "    'fa-solid fa-sharp fa-music',\n"
@@ -1731,8 +1862,8 @@ function buildTemplatePackageFiles($extensionId)
         'scripts/uninstall.sh' => "#!/usr/bin/env bash\nset -euo pipefail\n\nEXT_ID='{$extensionId}'\nROOT=\"/var/www/extensions/installed/\$EXT_ID\"\nSERVICE_NAME=\"\${EXT_ID}.service\"\n\nif [[ -x /usr/bin/systemctl ]]; then\n  systemctl disable --now \"\$SERVICE_NAME\" >/dev/null 2>&1 || true\nfi\nif [[ -w /etc/systemd/system ]]; then\n  rm -f \"/etc/systemd/system/\$SERVICE_NAME\"\n  if [[ -x /usr/bin/systemctl ]]; then\n    systemctl daemon-reload >/dev/null 2>&1 || true\n  fi\nfi\nrm -rf \"\$ROOT/cache\" \"\$ROOT/data\" \"\$ROOT/logs\"\n\necho \"[\$EXT_ID] default uninstall completed\"\n",
         'scripts/service-runner.sh' => "#!/usr/bin/env bash\nset -euo pipefail\n\nEXT_ID='{$extensionId}'\nwhile true; do\n  echo \"[\$(date +'%Y-%m-%d %H:%M:%S')] [\$EXT_ID] service heartbeat\"\n  sleep 60\ndone\n",
         'scripts/' . $extensionId . '.service' => "[Unit]\nDescription={$displayName} extension service\nRequires=moode-extmgr.service\nAfter=moode-extmgr.service network.target\nPartOf=moode-extmgr.service\n\n[Service]\nType=simple\nUser=moode-extmgrusr\nGroup=moode-extmgr\nWorkingDirectory=/var/www/extensions/installed/{$extensionId}\nExecStart=/usr/bin/env bash /var/www/extensions/installed/{$extensionId}/scripts/service-runner.sh\nRestart=always\nRestartSec=5\n\n[Install]\nWantedBy=multi-user.target\n",
-        'README.md' => "# {$displayName}\n\nGenerated by ext-mgr Import Wizard template kit.\n\n## Import behavior\n- Installs into /var/www/extensions/installed/{$extensionId}\n- Creates canonical route /{$extensionId}.php\n- Starts visible in M menu and Library menu, hidden in System/Configure\n- Starts with settings-card mode enabled\n\n## Template structure\n- ExtensionTemplate/assets\n- ExtensionTemplate/backend\n- ExtensionTemplate/templates\n- ExtensionTemplate/scripts\n- ExtensionTemplate/packages\n- ExtensionTemplate/data\n- ExtensionTemplate/cache\n\n## Default maintenance scripts\n- scripts/install.sh is non-destructive by default and only installs the service when permissions allow it\n- scripts/repair.sh restores runtime directories under the managed extension root\n- scripts/uninstall.sh removes runtime artifacts and disables the extension service when possible\n\n## Packages and dependencies\n- Put bundled dependency artifacts under packages/\n- packages/services can ship extra systemd units that ext-mgr normalizes to moode-extmgrusr:moode-extmgr\n- ext_mgr.install.packages can declare apt packages for host installation\n- ext_mgr.service.dependencies can declare unit dependencies to inject into the main extension service\n\n## Logging layout\n- Extension global logs: /var/www/extensions/sys/logs/extensionslogs/{$extensionId}\n- Extension local logs: /var/www/extensions/installed/{$extensionId}/logs\n- Default files: install.log, system.log, error.log\n\n## Staged install hooks\n- Optional packages: manifest.json -> ext_mgr.install.packages\n- Optional post-copy script: manifest.json -> ext_mgr.install.script\n- ext-mgr runs the install script under moode-extmgrusr\n- Write files inside /var/www/extensions/installed/{$extensionId}; ext-mgr relocates legacy /var/www/extensions/{$extensionId} writes\n\n## Service parent dependency\n- Template manifest includes ext_mgr.service.name={$extensionId}.service\n- Generated service unit requires and starts after moode-extmgr.service\n- Keep extension daemons under moode-extmgrusr for consistent permissions\n\n## moOde shell requirements\n- Extension pages should include /var/www/header.php and footer integration\n- This guarantees Back arrow, Home button and M menu are available\n- The generated template.php already follows this requirement\n\n## Menu visibility\n- Edit manifest.json -> ext_mgr.menuVisibility\n- Current defaults:\n  1) m=true\n  2) library=true\n  3) system=false\n\n## Icon support\n- info.json now includes iconClass\n- Use the starter icon picker in template.php to pick a class\n- Copy the chosen class to info.json -> iconClass\n",
-        'backend/api.php' => "<?php\nheader('Content-Type: application/json; charset=utf-8');\necho json_encode([\n    'ok' => true,\n    'extension' => '{$extensionId}',\n    'message' => 'Starter backend endpoint is reachable.',\n], JSON_UNESCAPED_SLASHES);\n",
+        'README.md' => "# {$displayName}\n\nGenerated by ext-mgr Import Wizard template kit.\n\n## Import behavior\n- Installs into /var/www/extensions/installed/<managed-id>\n- Creates canonical route /<managed-id>.php\n- If manifest id is placeholder/missing, ext-mgr generates a unique managed id automatically\n- Starts visible in M menu and Library menu, hidden in System/Configure\n- Starts with settings-card mode enabled\n\n## Template structure\n- ExtensionTemplate/assets\n- ExtensionTemplate/backend\n- ExtensionTemplate/templates\n- ExtensionTemplate/scripts\n- ExtensionTemplate/packages\n- ExtensionTemplate/data\n- ExtensionTemplate/cache\n\n## Bare minimum UI requirements\n- Include /var/www/header.php and footer integration\n- Show one page title (`h1.config-title`)\n- Show one help line (`p.config-help-static`)\n- Keep one settings card container for user controls\n- Keep route reachable without PHP warnings/errors\n\n## YOUR CODE HERE placeholders\n- template.php contains explicit YOUR CODE HERE markers for UI and setting flow\n- assets/js/template.js has a starter marker for custom UI logic\n- backend/api.php is a starter endpoint to extend\n\n## Default maintenance scripts\n- scripts/install.sh is non-destructive by default and only installs the service when permissions allow it\n- scripts/repair.sh restores runtime directories under the managed extension root\n- scripts/uninstall.sh removes runtime artifacts and disables the extension service when possible\n\n## Packages and dependencies\n- Put bundled dependency artifacts under packages/\n- packages/services can ship extra systemd units that ext-mgr normalizes to moode-extmgrusr:moode-extmgr\n- ext_mgr.install.packages can declare apt packages for host installation\n- ext_mgr.service.dependencies can declare unit dependencies to inject into the main extension service\n\n## Logging layout\n- Extension global logs: /var/www/extensions/sys/logs/extensionslogs/<managed-id>\n- Extension local logs: /var/www/extensions/installed/<managed-id>/logs\n- Default files: install.log, system.log, error.log\n",
+        'backend/api.php' => "<?php\nheader('Content-Type: application/json; charset=utf-8');\n\n// YOUR CODE HERE: implement extension-specific API actions and persistence.\necho json_encode([\n    'ok' => true,\n    'extension' => '{$extensionId}',\n    'message' => 'Starter backend endpoint is reachable.',\n], JSON_UNESCAPED_SLASHES);\n",
         'templates/.gitkeep' => "",
         'backend/.gitkeep' => "",
         'assets/images/.gitkeep' => "",
@@ -4295,7 +4426,22 @@ if ($action === 'import_extension_upload') {
     }
 
     $manifestData = readJsonFile($sourceDir . DIRECTORY_SEPARATOR . 'manifest.json', []);
-    $importedId = sanitizeExtensionId((string)($manifestData['id'] ?? 'unknown'));
+    $manifestId = strtolower(trim((string)($manifestData['id'] ?? '')));
+    $importedId = (preg_match('/^[a-z0-9._-]+$/', $manifestId) === 1 && !isPlaceholderExtensionId($manifestId))
+        ? $manifestId
+        : generateManagedExtensionId($registryPath);
+
+    if ($manifestId === '' || $manifestId !== $importedId) {
+        $rewriteError = '';
+        $updatedManifest = updateImportedManifestWithManagedId($sourceDir, $manifestData, $importedId, $rewriteError);
+        if (!is_array($updatedManifest)) {
+            removePathRecursive($workDir);
+            http_response_code(500);
+            echo json_encode(['ok' => false, 'error' => $rewriteError !== '' ? $rewriteError : 'Failed to prepare managed extension id.']);
+            exit;
+        }
+        $manifestData = $updatedManifest;
+    }
 
     $review = buildImportPackageReview($sourceDir);
     appendExtMgrLog('install', 'import_extension_upload start id=' . $importedId . ' dryRun=' . ($dryRun ? 'true' : 'false'));
