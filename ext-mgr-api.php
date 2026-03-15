@@ -4370,6 +4370,8 @@ if ($action === 'import_extension_upload') {
 
     $dryRunRaw = (string)($_REQUEST['dry_run'] ?? '0');
     $dryRun = ($dryRunRaw === '1' || strtolower($dryRunRaw) === 'true' || strtolower($dryRunRaw) === 'yes');
+    $allowOverwriteRaw = (string)($_REQUEST['allow_overwrite'] ?? '0');
+    $allowOverwrite = ($allowOverwriteRaw === '1' || strtolower($allowOverwriteRaw) === 'true' || strtolower($allowOverwriteRaw) === 'yes');
 
     $upload = $_FILES['package'];
     $uploadError = (int)($upload['error'] ?? UPLOAD_ERR_NO_FILE);
@@ -4427,9 +4429,28 @@ if ($action === 'import_extension_upload') {
 
     $manifestData = readJsonFile($sourceDir . DIRECTORY_SEPARATOR . 'manifest.json', []);
     $manifestId = strtolower(trim((string)($manifestData['id'] ?? '')));
-    $importedId = (preg_match('/^[a-z0-9._-]+$/', $manifestId) === 1 && !isPlaceholderExtensionId($manifestId))
+    $explicitManifestId = (preg_match('/^[a-z0-9._-]+$/', $manifestId) === 1 && !isPlaceholderExtensionId($manifestId));
+    $importedId = $explicitManifestId
         ? $manifestId
         : generateManagedExtensionId($registryPath);
+
+    if ($explicitManifestId && extensionIdExists($importedId, $registryPath) && !$allowOverwrite) {
+        removePathRecursive($workDir);
+        http_response_code(409);
+        echo json_encode([
+            'ok' => false,
+            'error' => 'Extension id already exists: ' . $importedId . '. Use a placeholder id (auto-generate) or set allow_overwrite=1 for an intentional replacement.',
+            'data' => [
+                'conflictId' => $importedId,
+                'requiresConfirm' => true,
+            ],
+        ], JSON_UNESCAPED_SLASHES);
+        exit;
+    }
+
+    if ($explicitManifestId && extensionIdExists($importedId, $registryPath) && $allowOverwrite) {
+        appendExtMgrLog('system', 'import_extension_upload overwrite-approved id=' . $importedId);
+    }
 
     if ($manifestId === '' || $manifestId !== $importedId) {
         $rewriteError = '';
