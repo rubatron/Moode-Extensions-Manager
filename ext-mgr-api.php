@@ -3982,6 +3982,43 @@ function runShellCommands($commands, &$outputText)
     return false;
 }
 
+function removePathWithFallback($path, &$outputNote)
+{
+    $outputNote = '';
+    $target = trim((string)$path);
+    if ($target === '' || !file_exists($target)) {
+        return true;
+    }
+
+    removePathRecursive($target);
+    clearstatcache(true, $target);
+    if (!file_exists($target)) {
+        return true;
+    }
+
+    if (!isPhpFunctionEnabled('exec')) {
+        $outputNote = 'exec() disabled';
+        return false;
+    }
+
+    $isDir = is_dir($target) && !is_link($target);
+    $baseCmd = $isDir ? 'rm -rf -- ' : 'rm -f -- ';
+    $cmd = $baseCmd . escapeshellarg($target) . ' 2>&1';
+    $cmdOutput = '';
+    $ok = runShellCommands([
+        $cmd,
+        'sudo -n ' . $cmd,
+    ], $cmdOutput);
+
+    clearstatcache(true, $target);
+    if (!$ok || file_exists($target)) {
+        $outputNote = $cmdOutput;
+        return false;
+    }
+
+    return true;
+}
+
 function getInstalledMetadataByExtensionId($excludeExtId = '')
 {
     $result = [];
@@ -4335,6 +4372,8 @@ function removeExtensionById($extId, $registryPath, $backupRoot, &$error)
     appendExtMgrLog('install', 'remove_extension start id=' . $extId);
     appendExtensionLog($extId, 'install', 'remove_extension start');
 
+    $warnings = [];
+
     $registry = normalizeRegistry(readRegistry($registryPath));
     $found = false;
     $nextExtensions = [];
@@ -4381,7 +4420,6 @@ function removeExtensionById($extId, $registryPath, $backupRoot, &$error)
     $runtimeCacheDir = '/var/www/extensions/cache/' . $extId;
 
     $installMetadata = readExtensionInstallMetadata($extId);
-    $warnings = [];
     $uninstallSummary = [
         'metadataFound' => is_array($installMetadata),
         'ranExtensionUninstallScript' => false,
@@ -4419,14 +4457,14 @@ function removeExtensionById($extId, $registryPath, $backupRoot, &$error)
             continue;
         }
 
-        removePathRecursive($path);
-        clearstatcache(true, $path);
+        $removeNote = '';
+        $removed = removePathWithFallback($path, $removeNote);
 
-        if (!file_exists($path)) {
+        if ($removed) {
             $uninstallSummary['removedPaths'][] = $path;
         } else {
             $uninstallSummary['failedPaths'][] = $path;
-            $warnings[] = 'Failed to remove path: ' . $path;
+            $warnings[] = 'Failed to remove path: ' . $path . ($removeNote !== '' ? ' (' . $removeNote . ')' : '');
         }
     }
 
