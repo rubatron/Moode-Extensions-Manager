@@ -14,8 +14,7 @@ copilot-instructions.md
 # Logs
 *.log
 
-# Local dev environment
-docker/
+# Local dev environment (keep docker config, ignore volumes)
 1. inspiration/
 radio-browser/
 .vscode/

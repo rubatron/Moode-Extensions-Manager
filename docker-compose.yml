@@ -8,5 +8,18 @@ services:
       - "8080:80"
     volumes:
       - ./:/workspace/ext-mgr
+      - moode-extensions:/var/www/extensions
     environment:
       - EXTMGR_SRC=/workspace/ext-mgr
+      - PHP_DISPLAY_ERRORS=1
+      - PHP_ERROR_REPORTING=E_ALL
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost/ext-mgr.php" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  moode-extensions:
