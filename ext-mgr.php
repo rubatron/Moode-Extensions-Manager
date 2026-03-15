@@ -42,7 +42,7 @@ if (file_exists('/var/www/header.php')) {
         <link rel="stylesheet" href="/extensions/sys/assets/css/ext-mgr.css">
     </head>
 
-    <body>
+    <body data-standalone="true">
     <?php
 }
     ?>
