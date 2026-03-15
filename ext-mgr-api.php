@@ -3692,6 +3692,8 @@ function responseData($registryPath, $metaPath, $versionPath, $releasePath)
 
 function syncRegistryWithFilesystem($registryPath, $pruneMissing = false)
 {
+    global $extensionsInstalledPath;
+
     $registry = normalizeRegistry(readRegistry($registryPath));
     $next = [];
     $summary = [
@@ -3699,7 +3701,10 @@ function syncRegistryWithFilesystem($registryPath, $pruneMissing = false)
         'installed' => 0,
         'missing' => 0,
         'pruned' => 0,
+        'discovered' => 0,
     ];
+
+    $knownIds = [];
 
     foreach ($registry['extensions'] as $ext) {
         if (!is_array($ext)) {
@@ -3711,6 +3716,7 @@ function syncRegistryWithFilesystem($registryPath, $pruneMissing = false)
         if ($id === '') {
             continue;
         }
+        $knownIds[$id] = true;
 
         $installedDir = '/var/www/extensions/installed/' . $id;
         $canonicalLink = '/var/www/' . $id . '.php';
@@ -3737,6 +3743,52 @@ function syncRegistryWithFilesystem($registryPath, $pruneMissing = false)
         }
 
         $next[] = $ext;
+    }
+
+    // Merge installed extension folders that are not yet tracked in registry.
+    $entries = is_dir($extensionsInstalledPath) ? @scandir($extensionsInstalledPath) : null;
+    if (is_array($entries)) {
+        foreach ($entries as $entry) {
+            if ($entry === '.' || $entry === '..') {
+                continue;
+            }
+            if (!isValidExtensionId($entry) || $entry === 'ext-mgr') {
+                continue;
+            }
+
+            $fullPath = $extensionsInstalledPath . DIRECTORY_SEPARATOR . $entry;
+            if (!is_dir($fullPath)) {
+                continue;
+            }
+            if (isset($knownIds[$entry])) {
+                continue;
+            }
+
+            $next[] = [
+                'id' => $entry,
+                'name' => ucwords(str_replace(['-', '_', '.'], ' ', $entry)),
+                'entry' => '/' . $entry . '.php',
+                'path' => '/' . $entry . '.php',
+                'pinned' => false,
+                'version' => 'unknown',
+                'versionSource' => 'filesystem-discovery',
+                'enabled' => true,
+                'state' => 'active',
+                'settingsCardOnly' => false,
+                'menuVisibility' => [
+                    'm' => true,
+                    'library' => true,
+                    'system' => false,
+                ],
+                'showInMMenu' => true,
+                'showInLibrary' => true,
+                'installed' => true,
+                'routeInstalled' => (is_link('/var/www/' . $entry . '.php') || file_exists('/var/www/' . $entry . '.php')),
+            ];
+            $knownIds[$entry] = true;
+            $summary['discovered']++;
+            $summary['installed']++;
+        }
     }
 
     $registry['extensions'] = $next;
@@ -4294,16 +4346,31 @@ function removeExtensionById($extId, $registryPath, $backupRoot, &$error)
         $nextExtensions[] = $ext;
     }
 
-    if (!$found) {
-        $error = 'Extension not found in registry.';
-        return null;
-    }
+    $removedFromRegistry = false;
+    if ($found) {
+        $registry['extensions'] = $nextExtensions;
+        $registry['generated_at'] = date('c');
+        if (!writeJsonFile($registryPath, sanitizeRegistryForPersist($registry))) {
+            $error = formatWriteFailure($registryPath, 'registry');
+            return null;
+        }
 
-    $registry['extensions'] = $nextExtensions;
-    $registry['generated_at'] = date('c');
-    if (!writeJsonFile($registryPath, sanitizeRegistryForPersist($registry))) {
-        $error = formatWriteFailure($registryPath, 'registry');
-        return null;
+        // Verify persistence: entry must be absent after uninstall registry write.
+        $verifyRegistry = normalizeRegistry(readRegistry($registryPath));
+        $stillPresent = false;
+        foreach ((array)$verifyRegistry['extensions'] as $verifyExt) {
+            if ((string)($verifyExt['id'] ?? '') === $extId) {
+                $stillPresent = true;
+                break;
+            }
+        }
+        if ($stillPresent) {
+            $error = 'Failed to remove extension from registry persistently: ' . $extId;
+            return null;
+        }
+        $removedFromRegistry = true;
+    } else {
+        $warnings[] = 'Extension not found in registry; continuing with filesystem cleanup for ' . $extId . '.';
     }
 
     $installedDir = '/var/www/extensions/installed/' . $extId;
@@ -4411,7 +4478,7 @@ function removeExtensionById($extId, $registryPath, $backupRoot, &$error)
 
     return [
         'id' => $extId,
-        'removedFromRegistry' => true,
+        'removedFromRegistry' => $removedFromRegistry,
         'removedInstallDir' => $removedInstallDir,
         'removedRoute' => $removedRoute,
         'backupPath' => null,

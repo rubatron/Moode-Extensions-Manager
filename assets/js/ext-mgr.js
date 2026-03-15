@@ -1749,7 +1749,8 @@
           'Extensions sync complete. total=' + String(summary.total || 0)
             + ' installed=' + String(summary.installed || 0)
             + ' missing=' + String(summary.missing || 0)
-            + ' pruned=' + String(summary.pruned || 0),
+            + ' pruned=' + String(summary.pruned || 0)
+            + ' discovered=' + String(summary.discovered || 0),
           'ok'
         );
       })
