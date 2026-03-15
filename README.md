@@ -29,6 +29,14 @@ flowchart LR
 wget -qO- https://raw.githubusercontent.com/rubatron/Moode-Extensions-Manager/main/scripts/bootstrap-moode.sh | sudo bash
 ```
 
+## Uninstall
+
+```bash
+sudo bash install.sh --uninstall
+```
+
+This removes ext-mgr core files, installed extensions under `/var/www/extensions/installed`, ext-mgr runtime/cache/log roots, canonical extension routes, and the `moode-extmgrusr` / `moode-extmgr` security principals. A timestamped uninstall backup is kept under `/var/www/extensions/sys/backup`.
+
 ## Core Endpoints
 
 - /ext-mgr.php
@@ -61,6 +69,7 @@ wget -qO- https://raw.githubusercontent.com/rubatron/Moode-Extensions-Manager/ma
 - Standard extension logs are staged in `/var/www/extensions/installed/<id>/logs`.
 - Watchdog-managed global extension logs are written to `/var/www/extensions/sys/logs/extensionslogs/<id>`.
 - ext-mgr manager logs are written to `/var/www/extensions/sys/logs/ext-mgr logs`.
+- Template kit zip now opens with an `ExtensionTemplate/` root containing `assets/`, `backend/`, `templates/`, `scripts/`, `data/`, and `cache/`.
 
 ## Security Highlights
 

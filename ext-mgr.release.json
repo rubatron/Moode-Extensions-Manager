@@ -20,6 +20,7 @@
   "managedFiles": [
     "ext-mgr.php",
     "ext-mgr-api.php",
+    "ext-mgr-shell-bridge.php",
     "ext-mgr.meta.json",
     "ext-mgr.release.json",
     "ext-mgr.version",

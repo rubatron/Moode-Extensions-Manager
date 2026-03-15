@@ -617,6 +617,7 @@ run_uninstall() {
     local stamp
     stamp="$(date +%Y%m%d-%H%M%S)"
     local uninstall_backup_dir="$TARGET_BACKUP_DIR/uninstall-$stamp"
+    local ext_dir ext_id unit_name route_path legacy_route_path
     $SUDO mkdir -p "$uninstall_backup_dir"
 
     echo "[uninstall] Cleaning ext-mgr bridge markers from moOde shell files..."
@@ -640,9 +641,36 @@ run_uninstall() {
         fi
     done
 
+    if [[ -d "$TARGET_INSTALLED_ROOT" ]]; then
+        echo "[uninstall] Backing up installed extensions..."
+        $SUDO mkdir -p "$uninstall_backup_dir/extensions-installed"
+        $SUDO cp -a "$TARGET_INSTALLED_ROOT/." "$uninstall_backup_dir/extensions-installed/" 2>/dev/null || true
+    fi
+
+    echo "[uninstall] Stopping and removing extension services/routes..."
+    if [[ -d "$TARGET_INSTALLED_ROOT" ]]; then
+        for ext_dir in "$TARGET_INSTALLED_ROOT"/*; do
+            [[ -d "$ext_dir" ]] || continue
+            ext_id="$(basename "$ext_dir")"
+
+            for unit_path in "$ext_dir"/scripts/*.service; do
+                [[ -f "$unit_path" ]] || continue
+                unit_name="$(basename "$unit_path")"
+                if command -v systemctl >/dev/null 2>&1; then
+                    $SUDO systemctl disable --now "$unit_name" >/dev/null 2>&1 || true
+                fi
+                $SUDO rm -f "/etc/systemd/system/$unit_name"
+            done
+
+            route_path="/var/www/${ext_id}.php"
+            legacy_route_path="/var/www/extensions/${ext_id}.php"
+            $SUDO rm -f "$route_path" "$legacy_route_path"
+        done
+    fi
+
     echo "[uninstall] Removing ext-mgr files/symlinks/helpers..."
-    $SUDO rm -f "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_RELEASE" "$TARGET_VERSION" "$TARGET_INTEGRITY" "$TARGET_JS" "$TARGET_LOGS_JS" "$TARGET_MODAL_FIX_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_SHELL_BRIDGE" "$TARGET_REGISTRY_SYNC_SCRIPT" "$TARGET_IMPORT_WIZARD_SCRIPT"
-    $SUDO rm -f /var/www/extensions/ext-mgr.php /var/www/extensions/ext-mgr-api.php /var/www/extensions/ext-mgr.meta.json /var/www/extensions/ext-mgr.release.json /var/www/extensions/ext-mgr.version /var/www/extensions/ext-mgr.integrity.json /var/www/extensions/registry.json /var/www/extensions/ext-mgr-hover-menu.js
+    $SUDO rm -f "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_RELEASE" "$TARGET_VERSION" "$TARGET_INTEGRITY" "$TARGET_JS" "$TARGET_LOGS_JS" "$TARGET_MODAL_FIX_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_SHELL_BRIDGE" "$TARGET_REGISTRY" "$TARGET_REGISTRY_SYNC_SCRIPT" "$TARGET_IMPORT_WIZARD_SCRIPT"
+    $SUDO rm -f /var/www/extensions/ext-mgr.php /var/www/extensions/ext-mgr-api.php /var/www/extensions/ext-mgr.meta.json /var/www/extensions/ext-mgr.release.json /var/www/extensions/ext-mgr.version /var/www/extensions/ext-mgr.integrity.json /var/www/extensions/registry.json /var/www/extensions/ext-mgr-hover-menu.js /var/www/extensions/ext-mgr-shell-bridge.php
     $SUDO rm -f /var/www/extensions/assets/js/ext-mgr.js /var/www/extensions/assets/js/ext-mgr-logs.js /var/www/extensions/assets/css/ext-mgr.css
     $SUDO rm -f /var/www/ext-mgr.php /var/www/ext-mgr-api.php /var/www/extensions-manager.php
     if command -v systemctl >/dev/null 2>&1; then
@@ -651,8 +679,17 @@ run_uninstall() {
         $SUDO systemctl daemon-reload >/dev/null 2>&1 || true
     fi
     $SUDO rm -f "$SYMLINK_HELPER" "$SYMLINK_SUDOERS" "$TARGET_INSTALL_HELPER_SCRIPT" "$TARGET_INSTALL_VARS_FILE" "$TARGET_SERVICE_RUNNER_SCRIPT" "$TARGET_SERVICE_UNIT" "$TARGET_WATCHDOG_SCRIPT" "$TARGET_WATCHDOG_UNIT"
+    $SUDO rm -rf "$TARGET_INSTALLED_ROOT" "$TARGET_RUNTIME_ROOT" "$TARGET_CACHE_DIR" "$TARGET_SYS_EXT_LOG_ROOT" "$TARGET_SYS_MGR_LOG_DIR"
+    $SUDO rmdir "$TARGET_JS_DIR" "$TARGET_CSS_DIR" "$TARGET_ASSETS_DIR" "$TARGET_CONTENT_DIR" "$TARGET_SCRIPT_DIR" "$TARGET_SYS_LOG_ROOT" "$TARGET_SYS_DIR" 2>/dev/null || true
 
-    echo "[uninstall] Completed. Registry kept at $TARGET_REGISTRY (if present)."
+    if id -u "$SECURITY_USER" >/dev/null 2>&1; then
+        $SUDO userdel "$SECURITY_USER" >/dev/null 2>&1 || true
+    fi
+    if getent group "$SECURITY_GROUP" >/dev/null 2>&1; then
+        $SUDO groupdel "$SECURITY_GROUP" >/dev/null 2>&1 || true
+    fi
+
+    echo "[uninstall] Completed. Backup snapshot kept at $uninstall_backup_dir."
 }
 
 patch_index_template_menu() {

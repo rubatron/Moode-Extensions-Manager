@@ -11,4 +11,5 @@ if (defined('EXT_MGR_SHELL_BRIDGE_LOADED')) {
 }
 define('EXT_MGR_SHELL_BRIDGE_LOADED', true);
 
+echo '<link rel="stylesheet" href="/extensions/sys/assets/css/ext-mgr.css">' . "\n";
 echo '<script src="/extensions/sys/assets/js/ext-mgr-hover-menu.js" defer></script>' . "\n";

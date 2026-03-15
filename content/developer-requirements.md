@@ -8,6 +8,15 @@ Use this checklist when creating or importing extensions with the template kit.
 - info.json
 - Main entry PHP file (for example template.php)
 
+## Template Kit Layout
+
+- ExtensionTemplate/assets for CSS, JavaScript and images
+- ExtensionTemplate/backend for PHP/API helpers
+- ExtensionTemplate/templates for HTML fragments or view files
+- ExtensionTemplate/scripts for install, repair and uninstall helpers
+- ExtensionTemplate/data for persistent extension data
+- ExtensionTemplate/cache for temporary runtime artifacts
+
 ## ext-mgr Menu Staging
 
 The template kit ships with a hidden-until-ready profile:
@@ -45,6 +54,7 @@ Rules:
 - Write runtime files under `/var/www/extensions/installed/<id>` only.
 - If a legacy install script writes to `/var/www/extensions/<id>`, ext-mgr will relocate that tree into `/var/www/extensions/installed/<id>`.
 - Do not write directly into `/var/www/extensions/sys` from an extension package.
+- The starter kit ships `scripts/install.sh`, `scripts/repair.sh`, and `scripts/uninstall.sh` as safe defaults.
 
 ## Service Dependency Rules
 

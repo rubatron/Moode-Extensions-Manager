@@ -575,7 +575,7 @@
   color: #fff;
 }
 
-.extmgr-configure-entry .btn.btn-medium.btn-primary.config-btn {
+#configure-modal .extmgr-configure-entry .btn.btn-medium.btn-primary.config-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -583,17 +583,18 @@
   margin: 0 8px 8px 0;
   border: 1px solid transparent;
   border-radius: 2px;
-  background-color: var(--btnshade4, rgba(255, 255, 255, 0.08));
-  color: var(--adapttext, #f0f0f0);
+  background-color: var(--btnshade4, rgba(255, 255, 255, 0.08)) !important;
+  color: var(--adapttext, #f0f0f0) !important;
   text-transform: uppercase;
   font-weight: 600;
   letter-spacing: 0;
 }
 
-.extmgr-configure-entry .btn.btn-medium.btn-primary.config-btn:hover {
-  background-color: var(--btnshade3, rgba(255, 255, 255, 0.14));
-  color: #fff;
-  border-color: transparent;
+#configure-modal .extmgr-configure-entry .btn.btn-medium.btn-primary.config-btn:hover,
+#configure-modal .extmgr-configure-entry .btn.btn-medium.btn-primary.config-btn:focus-visible {
+  background-color: var(--btnshade3, rgba(255, 255, 255, 0.14)) !important;
+  color: #fff !important;
+  border-color: transparent !important;
 }
 
 .extmgr-import-controls {
