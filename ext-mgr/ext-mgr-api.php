@@ -6222,6 +6222,112 @@ if ($action === 'system_update_hook') {
     exit;
 }
 
+// Debug: Show raw registry content
+if ($action === 'debug_registry') {
+    $registry = normalizeRegistry(readRegistry($registryPath));
+    echo json_encode([
+        'ok' => true,
+        'data' => [
+            'registry' => $registry,
+            'path' => $registryPath,
+            'meta' => ['generatedAt' => date('c')],
+        ],
+    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+// Debug: Show system variables
+if ($action === 'debug_variables') {
+    $system = loadExtMgrVariables();
+    $installVars = loadInstallVarsConfig();
+    echo json_encode([
+        'ok' => true,
+        'data' => [
+            'system' => $system,
+            'installVars' => $installVars,
+            'variablesPath' => $extMgrVariablesPath ?? '',
+            'installVarsPath' => $extMgrInstallVarsPath ?? '',
+            'meta' => ['generatedAt' => date('c')],
+        ],
+    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+// Debug: Show running ext-mgr services
+if ($action === 'debug_services') {
+    $registry = normalizeRegistry(readRegistry($registryPath));
+    $services = [];
+    
+    // Check moode-extmgr.service
+    $mainService = 'moode-extmgr.service';
+    $mainStatus = 'unknown';
+    if (isPhpFunctionEnabled('exec')) {
+        $output = [];
+        @exec('systemctl is-active ' . escapeshellarg($mainService) . ' 2>/dev/null', $output, $code);
+        $mainStatus = isset($output[0]) ? trim($output[0]) : 'unknown';
+    }
+    $services[] = ['name' => $mainService, 'status' => $mainStatus, 'type' => 'main'];
+    
+    // Check extension services
+    foreach ($registry['extensions'] as $ext) {
+        $extId = $ext['id'] ?? '';
+        $serviceName = $ext['service']['name'] ?? ($extId . '.service');
+        if ($serviceName && $extId) {
+            $status = 'unknown';
+            if (isPhpFunctionEnabled('exec')) {
+                $output = [];
+                @exec('systemctl is-active ' . escapeshellarg($serviceName) . ' 2>/dev/null', $output, $code);
+                $status = isset($output[0]) ? trim($output[0]) : 'unknown';
+            }
+            $services[] = [
+                'name' => $serviceName,
+                'status' => $status,
+                'type' => 'extension',
+                'extensionId' => $extId,
+                'enabled' => $ext['enabled'] ?? true,
+            ];
+        }
+    }
+    
+    echo json_encode([
+        'ok' => true,
+        'data' => [
+            'services' => $services,
+            'meta' => ['generatedAt' => date('c')],
+        ],
+    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+// Debug: Show API status
+if ($action === 'debug_api') {
+    $meta = readMeta($metaPath);
+    $policy = readReleasePolicy($releasePath);
+    echo json_encode([
+        'ok' => true,
+        'data' => [
+            'version' => $meta['version'] ?? 'unknown',
+            'latestVersion' => $meta['latestVersion'] ?? '',
+            'phpVersion' => PHP_VERSION,
+            'paths' => [
+                'registry' => $registryPath,
+                'meta' => $metaPath,
+                'release' => $releasePath,
+                'installed' => EXT_MGR_INSTALLED_ROOT,
+                'sys' => EXT_MGR_SYS_ROOT,
+            ],
+            'meta' => $meta,
+            'releasePolicy' => $policy,
+            'phpFunctions' => [
+                'exec' => isPhpFunctionEnabled('exec'),
+                'shell_exec' => isPhpFunctionEnabled('shell_exec'),
+            ],
+            'generatedAt' => date('c'),
+        ],
+    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
 if ($action === 'repair') {
     $meta = readMeta($metaPath);
     $registry = normalizeRegistry(readRegistry($registryPath));

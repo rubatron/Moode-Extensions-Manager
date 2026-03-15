@@ -170,12 +170,6 @@ if (file_exists('/var/www/header.php')) {
                                                 <option value="other">other</option>
                                             </select>
                                         </label>
-                                        <label>Stage Profile
-                                            <select id="wizard-stage-profile" class="extmgr-input">
-                                                <option value="visible-by-default">visible-by-default</option>
-                                                <option value="hidden-by-default">hidden-by-default</option>
-                                            </select>
-                                        </label>
                                     </div>
                                     <div class="extmgr-wizard-nav">
                                         <button type="button" class="btn btn-small extmgr-wizard-prev" data-wizard-prev><i class="fa-solid fa-arrow-left"></i> Back</button>
@@ -521,6 +515,13 @@ if (file_exists('/var/www/header.php')) {
                                 <button id="open-extmgr-logs-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-file-lines"></i> Open ext-mgr Logs</button>
                                 <button id="download-extmgr-logs-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-download"></i> Download ext-mgr Logs</button>
                                 <button id="clear-extensions-folder-btn" class="btn btn-small btn-danger" type="button"><i class="fa-solid fa-sharp fa-triangle-exclamation"></i> Clear Extensions Folder</button>
+                            </div>
+                            <p class="config-help-static extmgr-help" style="margin-top:0.8rem;">Debug information for developers.</p>
+                            <div class="extmgr-actions extmgr-troubleshooting-actions">
+                                <button id="show-registry-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-database"></i> Show Registry</button>
+                                <button id="show-variables-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-code"></i> Show Variables</button>
+                                <button id="show-services-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-server"></i> Show Services</button>
+                                <button id="show-api-status-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-plug"></i> Show API Status</button>
                             </div>
                             <div id="maintenance-log" class="extmgr-log">No maintenance actions executed.</div>
                         </div>

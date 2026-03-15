@@ -72,6 +72,10 @@
   var createBackupBtn = document.getElementById('create-backup-btn');
   var clearCacheBtn = document.getElementById('clear-cache-btn');
   var syncRegistryBtn = document.getElementById('sync-registry-btn');
+  var showRegistryBtn = document.getElementById('show-registry-btn');
+  var showVariablesBtn = document.getElementById('show-variables-btn');
+  var showServicesBtn = document.getElementById('show-services-btn');
+  var showApiStatusBtn = document.getElementById('show-api-status-btn');
   var importExtensionFileEl = document.getElementById('import-extension-file');
   var importExtensionFileNameEl = document.getElementById('import-extension-file-name');
   var importExtensionBtn = document.getElementById('import-extension-btn');
@@ -83,7 +87,6 @@
   var wizardNameEl = document.getElementById('wizard-name');
   var wizardVersionEl = document.getElementById('wizard-version');
   var wizardTypeEl = document.getElementById('wizard-type');
-  var wizardStageProfileEl = document.getElementById('wizard-stage-profile');
   var wizardMenuMEl = document.getElementById('wizard-menu-m');
   var wizardMenuLibraryEl = document.getElementById('wizard-menu-library');
   var wizardMenuSystemEl = document.getElementById('wizard-menu-system');
@@ -1175,9 +1178,6 @@
     if (wizardTypeEl) {
       wizardTypeEl.value = ext.type || ((scan || {}).detected_type || 'other');
     }
-    if (wizardStageProfileEl) {
-      wizardStageProfileEl.value = ext.stageProfile || 'visible-by-default';
-    }
     if (wizardMenuMEl) {
       wizardMenuMEl.checked = !!menu.m;
     }
@@ -1211,7 +1211,7 @@
       name: wizardNameEl ? wizardNameEl.value : '',
       version: wizardVersionEl ? wizardVersionEl.value : '',
       type: wizardTypeEl ? wizardTypeEl.value : '',
-      stage_profile: wizardStageProfileEl ? wizardStageProfileEl.value : '',
+      stage_profile: 'visible-by-default',
       menu_m: wizardMenuMEl && wizardMenuMEl.checked ? '1' : '0',
       menu_library: wizardMenuLibraryEl && wizardMenuLibraryEl.checked ? '1' : '0',
       menu_system: wizardMenuSystemEl && wizardMenuSystemEl.checked ? '1' : '0',
@@ -1235,7 +1235,6 @@
         name: wizardNameEl ? wizardNameEl.value : '',
         version: wizardVersionEl ? wizardVersionEl.value : '',
         type: wizardTypeEl ? wizardTypeEl.value : '',
-        stageProfile: wizardStageProfileEl ? wizardStageProfileEl.value : '',
         menuVisibility: {
           m: !!(wizardMenuMEl && wizardMenuMEl.checked),
           library: !!(wizardMenuLibraryEl && wizardMenuLibraryEl.checked),
@@ -2683,6 +2682,80 @@
   bindIfPresent(syncRegistryBtn, 'click', function () {
     runRegistrySync('Registry');
   });
+  
+  // Debug buttons
+  function showDebugModal(title, data) {
+    var json = JSON.stringify(data, null, 2);
+    if (maintenanceLogEl) {
+      maintenanceLogEl.innerHTML = '<strong>' + title + '</strong><pre style="white-space:pre-wrap;word-break:break-word;max-height:400px;overflow:auto;font-size:0.75rem;background:rgba(0,0,0,0.3);padding:0.5rem;border-radius:4px;margin-top:0.5rem;">' + json.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</pre>';
+    }
+    setStatus(title + ' loaded', 'ok');
+  }
+  
+  bindIfPresent(showRegistryBtn, 'click', function() {
+    setStatus('Loading registry...', null);
+    fetch(buildApiUrl({ action: 'debug_registry' }))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.ok) {
+          showDebugModal('Registry Data', data.data);
+        } else {
+          setStatus('Failed to load registry: ' + (data.error || 'Unknown error'), 'error');
+        }
+      })
+      .catch(function(err) {
+        setStatus('Registry fetch error: ' + err.message, 'error');
+      });
+  });
+  
+  bindIfPresent(showVariablesBtn, 'click', function() {
+    setStatus('Loading variables...', null);
+    fetch(buildApiUrl({ action: 'debug_variables' }))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.ok) {
+          showDebugModal('System Variables', data.data);
+        } else {
+          setStatus('Failed to load variables: ' + (data.error || 'Unknown error'), 'error');
+        }
+      })
+      .catch(function(err) {
+        setStatus('Variables fetch error: ' + err.message, 'error');
+      });
+  });
+  
+  bindIfPresent(showServicesBtn, 'click', function() {
+    setStatus('Loading services...', null);
+    fetch(buildApiUrl({ action: 'debug_services' }))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.ok) {
+          showDebugModal('Running Services', data.data);
+        } else {
+          setStatus('Failed to load services: ' + (data.error || 'Unknown error'), 'error');
+        }
+      })
+      .catch(function(err) {
+        setStatus('Services fetch error: ' + err.message, 'error');
+      });
+  });
+  
+  bindIfPresent(showApiStatusBtn, 'click', function() {
+    setStatus('Loading API status...', null);
+    fetch(buildApiUrl({ action: 'debug_api' }))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.ok) {
+          showDebugModal('API Status', data.data);
+        } else {
+          setStatus('Failed to load API status: ' + (data.error || 'Unknown error'), 'error');
+        }
+      })
+      .catch(function(err) {
+        setStatus('API status fetch error: ' + err.message, 'error');
+      });
+  });
+  
   [
     [managerVisibilityHeaderBtn, 'header'],
     [managerVisibilityLibraryBtn, 'library'],
@@ -2791,7 +2864,7 @@
       });
   });
 
-  [wizardNameEl, wizardVersionEl, wizardTypeEl, wizardStageProfileEl, wizardMenuMEl, wizardMenuLibraryEl, wizardMenuSystemEl, wizardSettingsOnlyEl, wizardServiceNameEl, wizardDependenciesEl, wizardAptPackagesEl].forEach(function (el) {
+  [wizardNameEl, wizardVersionEl, wizardTypeEl, wizardMenuMEl, wizardMenuLibraryEl, wizardMenuSystemEl, wizardSettingsOnlyEl, wizardServiceNameEl, wizardDependenciesEl, wizardAptPackagesEl].forEach(function (el) {
     if (!el) {
       return;
     }
