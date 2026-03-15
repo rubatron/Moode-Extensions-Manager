@@ -2740,14 +2740,14 @@
         var violations = Array.isArray((importWizardState.scan || {}).violations) ? importWizardState.scan.violations.length : 0;
         var warnings = Array.isArray((importWizardState.scan || {}).warnings) ? importWizardState.scan.warnings.length : 0;
         var templateUpgrade = (importWizardState.review || {}).templateUpgrade;
-        
+
         // Check moOde integration from code patterns
         var codePatterns = ((importWizardState.scan || {}).code_patterns || {}).findings || [];
         var usesMoodeHeader = codePatterns.some(function(f) { return f.id === 'uses_moode_header'; });
         var usesMoodeFooter = codePatterns.some(function(f) { return f.id === 'uses_moode_footer'; });
         var hasDynamicHeader = codePatterns.some(function(f) { return f.id === 'has_dynamic_header_control'; });
         var needsHeaderUpgrade = codePatterns.some(function(f) { return f.id === 'hardcoded_navbar_suppress' || f.id === 'hardcoded_header_suppress'; });
-        
+
         if (wizardScanSummaryEl) {
           var summaryParts = ['Session: ' + importWizardState.sessionId, 'Extension: ' + importWizardState.extensionId, 'violations=' + violations, 'warnings=' + warnings];
           if (templateUpgrade && templateUpgrade.needed) {
@@ -2882,7 +2882,7 @@
     importExtensionInstallBtn.disabled = true;
     setStatus('Installing from staged review session...', null);
     wizardSetStep('review');
-    
+
     // Show progress bar
     showInstallProgress(true);
     var installStages = [
@@ -2903,19 +2903,19 @@
       .then(function (data) {
         var payload = (data || {}).data || {};
         var importedId = payload.extensionId || importWizardState.extensionId || 'unknown';
-        
+
         // Complete progress then show success
         updateInstallProgress(100, 'Installation complete!');
         setTimeout(function() {
           var summaryHtml = importReviewSummary(payload.review || {});
-          showInstallSuccess(importedId, 
+          showInstallSuccess(importedId,
             'Extension <strong>' + importedId + '</strong> has been successfully installed.' +
             (summaryHtml ? '<br><small style="opacity:0.7">' + summaryHtml.replace(/<br>/g, ' | ') + '</small>' : '')
           );
           setStatus('Extension imported: ' + importedId, 'ok');
           setImportWizardNote('Extension imported: ' + importedId + summaryHtml, 'ok');
         }, 400);
-        
+
         importWizardState.sessionId = '';
         if (importExtensionInstallBtn) {
           importExtensionInstallBtn.disabled = true;

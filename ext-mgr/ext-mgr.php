@@ -230,7 +230,7 @@ if (file_exists('/var/www/header.php')) {
                                     <p class="extmgr-panel-desc">Review configuration and install the extension.</p>
                                     <div id="wizard-scan-summary" class="extmgr-note">No scan data yet.</div>
                                     <pre id="wizard-review-json" class="extmgr-log-content">{}</pre>
-                                    
+
                                     <!-- Install Progress -->
                                     <div id="wizard-install-progress" class="extmgr-install-progress" style="display:none;">
                                         <div class="extmgr-progress-bar">
@@ -238,14 +238,14 @@ if (file_exists('/var/www/header.php')) {
                                         </div>
                                         <div id="wizard-progress-status" class="extmgr-progress-status">Preparing...</div>
                                     </div>
-                                    
+
                                     <!-- Congratulations -->
                                     <div id="wizard-install-success" class="extmgr-install-success" style="display:none;">
                                         <i class="fa-solid fa-circle-check"></i>
                                         <h4>Installation Complete!</h4>
                                         <p id="wizard-success-message">Extension has been successfully installed.</p>
                                     </div>
-                                    
+
                                     <div class="extmgr-wizard-nav">
                                         <button type="button" class="btn btn-small extmgr-wizard-prev" data-wizard-prev><i class="fa-solid fa-arrow-left"></i> Back</button>
                                         <button id="import-extension-install-btn" class="btn btn-primary btn-small" type="button" disabled><i class="fa-solid fa-sharp fa-circle-check"></i> Install Extension</button>
