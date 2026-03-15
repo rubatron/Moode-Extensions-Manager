@@ -72,7 +72,6 @@
   var syncRegistryBtn = document.getElementById('sync-registry-btn');
   var importExtensionFileEl = document.getElementById('import-extension-file');
   var importExtensionFileNameEl = document.getElementById('import-extension-file-name');
-  var importExtensionDryRunEl = document.getElementById('import-extension-dry-run');
   var importExtensionBtn = document.getElementById('import-extension-btn');
   var importWizardNoteEl = document.getElementById('import-wizard-note');
   var listFilterEl = document.getElementById('list-filter');
@@ -1631,7 +1630,7 @@
   });
   bindIfPresent(importExtensionBtn, 'click', function () {
     var files = (importExtensionFileEl && importExtensionFileEl.files) || null;
-    var dryRun = !!(importExtensionDryRunEl && importExtensionDryRunEl.checked);
+    var dryRun = false;
     if (!files || files.length === 0) {
       setStatus('Select a .zip package first.', 'error');
       setImportWizardNote('Select a .zip package first.', 'error');
@@ -1647,8 +1646,8 @@
     }
 
     importExtensionBtn.disabled = true;
-    setStatus(dryRun ? 'Uploading and validating extension package (dry-run)...' : 'Uploading and importing extension package...', null);
-    setImportWizardNote(dryRun ? 'Uploading and validating extension package (dry-run)...' : 'Uploading and importing extension package...', null);
+  setStatus('Uploading and importing extension package...', null);
+  setImportWizardNote('Uploading and importing extension package...', null);
 
     apiUpload(file, dryRun)
       .then(function (data) {
