@@ -368,7 +368,7 @@ $payload=[
   "installedAt"=>gmdate("c"),
   "sandboxRoot"=>$target,
   "manifestPath"=>"$target/manifest.json",
-  "symlinks":[
+  "symlinks"=>[
     ["source"=>"$target/$main","target"=>"/var/www/$canonical"]
   ],
   "appendOnly"=>[],
