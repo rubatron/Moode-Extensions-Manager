@@ -1178,11 +1178,12 @@ body:not([data-standalone]) .extmgr-page-shell {
 
 .extmgr-wizard-step:last-child {
   clip-path: polygon(0 0,
-      100% 0,
-      100% 100%,
+      calc(100% - var(--step-arrow)) 0,
+      100% 50%,
+      calc(100% - var(--step-arrow)) 100%,
       0 100%,
       var(--step-arrow) 50%);
-  padding-right: 0.9rem;
+  padding-right: calc(var(--step-arrow) + 0.5rem);
 }
 
 .extmgr-wizard-step:first-child:last-child {
@@ -1196,7 +1197,7 @@ body:not([data-standalone]) .extmgr-page-shell {
 }
 
 .extmgr-wizard-step.is-active {
-  background: var(--step-active-bg);
+  background: var(--rp-accent);
   color: var(--step-active-text);
   font-weight: 600;
 }
