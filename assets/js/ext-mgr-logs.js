@@ -407,6 +407,19 @@
     btn._extmgrBound = true;
   }
 
+  function bindManagerDownloadButton(buttonId) {
+    var id = String(buttonId || 'download-extmgr-logs-btn');
+    var btn = document.getElementById(id);
+    if (!btn || btn._extmgrDownloadBound) {
+      return;
+    }
+
+    btn.addEventListener('click', function () {
+      window.open(buildDownloadUrl('ext-mgr', 'all'), '_blank', 'noopener');
+    });
+    btn._extmgrDownloadBound = true;
+  }
+
   function init(options) {
     var initConfig = options || {};
     state.apiUrls = uniqUrls(initConfig.apiUrls || state.apiUrls);
@@ -421,12 +434,14 @@
     }
 
     bindManagerButton(initConfig.managerButtonId || 'open-extmgr-logs-btn');
+    bindManagerDownloadButton(initConfig.managerDownloadButtonId || 'download-extmgr-logs-btn');
   }
 
   window.ExtMgrLogs = {
     init: init,
     attachExtensionButton: attachExtensionButton,
     openFor: loadLogList,
-    bindManagerButton: bindManagerButton
+    bindManagerButton: bindManagerButton,
+    bindManagerDownloadButton: bindManagerDownloadButton
   };
 })(window, document);

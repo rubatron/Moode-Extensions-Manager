@@ -1,0 +1,33 @@
+# ext-mgr tooltip map
+
+Format: key: text
+
+extension.enable: Enable this extension and re-activate its menu integrations.
+extension.disable: Disable this extension. It remains installed but menu integrations are paused.
+extension.action.disabled: This action is unavailable while the extension is inactive. Enable extension first.
+extension.action.ready:
+extension.menu.m: Toggle this extension visibility in the M menu.
+extension.menu.library: Toggle this extension visibility in the Library menu.
+extension.menu.system: Toggle this extension visibility in the System/Configure surfaces.
+extension.settingsCard: Toggle settings-card mode for this extension.
+extension.repair: Repair the canonical route/symlink for this extension.
+extension.remove: Uninstall this extension and permanently remove installed folders, routes and logs.
+
+manager.visibility.header: Show/hide Extensions Manager in the top header tabs.
+manager.visibility.library: Show/hide Extensions Manager in the Library dropdown.
+manager.visibility.m: Show/hide Extensions Manager inside the M menu.
+manager.visibility.system: Show/hide Extensions Manager in the Configure/System tile surface.
+
+manager.action.refresh: Refresh extension list and status data.
+manager.action.syncRegistry: Rebuild registry from installed extension folders.
+manager.action.syncExtensions: Run extension-wide synchronization flow.
+manager.import.upload: Import selected extension zip package.
+manager.import.template: Download starter template extension package.
+manager.troubleshooting.repair: Run ext-mgr repair flow for common install issues.
+manager.troubleshooting.openLogs: Open ext-mgr log viewer.
+manager.troubleshooting.downloadLogs: Download combined ext-mgr and system log snapshot.
+manager.troubleshooting.clearExtensionsFolder: Gracefully uninstall all extensions and then clear remaining extension folders.
+manager.troubleshooting.clearExtensionsFolder.prompt: This will remove everything in the extensions and will result in all extensions not functioning. try uninstalling the single extension first. the extension manager will still be working after this action which allows you to reinstall the extensions So, is this your last resort?(type YES).
+manager.maintenance.backup: Create a backup snapshot for ext-mgr runtime state.
+manager.maintenance.clearCache: Clear cached files in /var/www/extensions/cache.
+manager.system.refreshResources: Refresh memory, CPU, and storage metrics.

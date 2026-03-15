@@ -5,7 +5,7 @@
   var apiUrl = init.apiUrl || '/ext-mgr-api.php';
   var apiUrls = Array.isArray(init.apiUrls) ? init.apiUrls.slice() : [apiUrl, '/extensions/sys/ext-mgr-api.php'];
   var extMgrLogsModule = window.ExtMgrLogs || null;
-  var tooltipUrl = init.tooltipUrl || '/extensions/sys/assets/data/ext-mgr-tooltips.json';
+  var tooltipUrl = init.tooltipUrl || '/extensions/sys/content/tooltips.md';
   var tooltipMap = {};
 
   var statusEl = document.getElementById('status');
@@ -66,6 +66,8 @@
   var runUpdateBtn = document.getElementById('run-update-btn');
   var systemUpdateBtn = document.getElementById('system-update-btn');
   var repairBtn = document.getElementById('repair-btn');
+  var downloadExtMgrLogsBtn = document.getElementById('download-extmgr-logs-btn');
+  var clearExtensionsFolderBtn = document.getElementById('clear-extensions-folder-btn');
   var refreshResourcesBtn = document.getElementById('refresh-resources-btn');
   var createBackupBtn = document.getElementById('create-backup-btn');
   var clearCacheBtn = document.getElementById('clear-cache-btn');
@@ -205,7 +207,11 @@
   }
 
   function loadTooltipSnippets() {
-    var urls = [tooltipUrl, '/extensions/sys/assets/data/ext-mgr-tooltips.json'];
+    var urls = [
+      tooltipUrl,
+      '/extensions/sys/content/tooltips.md',
+      '/extensions/sys/assets/data/ext-mgr-tooltips.json'
+    ];
     var deduped = [];
     urls.forEach(function (candidate) {
       var url = String(candidate || '').trim();
@@ -214,6 +220,54 @@
       }
       deduped.push(url);
     });
+
+    function parseTooltipMarkdown(text) {
+      var map = {};
+      var lines = String(text || '').split(/\r?\n/);
+      lines.forEach(function (rawLine) {
+        var line = String(rawLine || '').trim();
+        if (!line || line.charAt(0) === '#') {
+          return;
+        }
+        if (line.indexOf('- ') === 0) {
+          line = line.slice(2).trim();
+        }
+        var idx = line.indexOf(':');
+        if (idx <= 0) {
+          return;
+        }
+        var key = line.slice(0, idx).trim();
+        var value = line.slice(idx + 1).trim();
+        if (!key) {
+          return;
+        }
+        map[key] = value;
+      });
+      return map;
+    }
+
+    function tryParseTooltipBody(url, bodyText) {
+      if (/\.json($|\?)/i.test(url)) {
+        try {
+          var parsedJson = JSON.parse(bodyText);
+          return (parsedJson && typeof parsedJson === 'object' && !Array.isArray(parsedJson)) ? parsedJson : null;
+        } catch (e) {
+          return null;
+        }
+      }
+
+      var mdMap = parseTooltipMarkdown(bodyText);
+      if (Object.keys(mdMap).length) {
+        return mdMap;
+      }
+
+      try {
+        var fallbackJson = JSON.parse(bodyText);
+        return (fallbackJson && typeof fallbackJson === 'object' && !Array.isArray(fallbackJson)) ? fallbackJson : null;
+      } catch (e2) {
+        return null;
+      }
+    }
 
     var idx = 0;
     function next() {
@@ -227,7 +281,9 @@
           if (!res.ok) {
             return next();
           }
-          return res.json().catch(function () { return {}; });
+          return res.text().then(function (text) {
+            return tryParseTooltipBody(url, text);
+          }).catch(function () { return null; });
         })
         .then(function (data) {
           if (data && typeof data === 'object' && !Array.isArray(data)) {
@@ -242,6 +298,21 @@
     }
 
     return next();
+  }
+
+  function applyStaticTooltips() {
+    applyTip(refreshBtn, 'manager.action.refresh', 'Refresh extension list and status data.');
+    applyTip(syncRegistryBtn, 'manager.action.syncRegistry', 'Rebuild registry from installed extension folders.');
+    applyTip(systemUpdateBtn, 'manager.action.syncExtensions', 'Run extension-wide synchronization flow.');
+    applyTip(importExtensionBtn, 'manager.import.upload', 'Import selected extension zip package.');
+    applyTip(document.getElementById('download-template-btn'), 'manager.import.template', 'Download starter template extension package.');
+    applyTip(repairBtn, 'manager.troubleshooting.repair', 'Run ext-mgr repair flow for common install issues.');
+    applyTip(document.getElementById('open-extmgr-logs-btn'), 'manager.troubleshooting.openLogs', 'Open ext-mgr log viewer.');
+    applyTip(downloadExtMgrLogsBtn, 'manager.troubleshooting.downloadLogs', 'Download combined ext-mgr and system log snapshot.');
+    applyTip(clearExtensionsFolderBtn, 'manager.troubleshooting.clearExtensionsFolder', 'Gracefully uninstall all extensions and then clear remaining extension folders.');
+    applyTip(createBackupBtn, 'manager.maintenance.backup', 'Create a backup snapshot for ext-mgr runtime state.');
+    applyTip(clearCacheBtn, 'manager.maintenance.clearCache', 'Clear cached files in /var/www/extensions/cache.');
+    applyTip(refreshResourcesBtn, 'manager.system.refreshResources', 'Refresh memory, CPU, and storage metrics.');
   }
 
   function bindIfPresent(el, eventName, handler) {
@@ -1297,7 +1368,7 @@
       applyTip(uninstallBtn, 'extension.remove');
       uninstallBtn.addEventListener('click', function () {
         var label = item.name || item.id;
-        var ok = window.confirm('Uninstall extension "' + label + '"?\n\nThis runs uninstall cleanup (including extension uninstall script when present), removes installed files/routes, and keeps a backup in ext-mgr backup/removed-extensions.');
+        var ok = window.confirm('Uninstall extension "' + label + '"?\n\nThis runs uninstall cleanup (including extension uninstall script when present) and permanently removes extension folders, routes and logs.');
         if (!ok) {
           return;
         }
@@ -1308,7 +1379,9 @@
             var payload = (data && data.data) || {};
             var uninstall = payload.uninstall || {};
             var scriptState = uninstall.ranExtensionUninstallScript ? 'script: yes' : 'script: no';
-            setStatus('Uninstalled ' + label + ' (' + scriptState + '). Backup: ' + (payload.backupPath || 'n/a'), 'ok');
+            var removedPathsCount = Array.isArray(uninstall.removedPaths) ? uninstall.removedPaths.length : 0;
+            var failedPathsCount = Array.isArray(uninstall.failedPaths) ? uninstall.failedPaths.length : 0;
+            setStatus('Uninstalled ' + label + ' (' + scriptState + ', removed paths: ' + removedPathsCount + ', failed paths: ' + failedPathsCount + ').', 'ok');
             runRefresh();
             reloadPageSoon();
           })
@@ -1514,6 +1587,45 @@
       });
   }
 
+  function runClearExtensionsFolder() {
+    if (!clearExtensionsFolderBtn) {
+      return;
+    }
+
+    var promptText = tip(
+      'manager.troubleshooting.clearExtensionsFolder.prompt',
+      'This will remove everything in the extensions and will result in all extensions not functioning. try uninstalling the single extension first. the extension manager will still be working after this action which allows you to reinstall the extensions So, is this your last resort?(type YES).'
+    );
+    var answer = window.prompt(promptText, '');
+    if (answer !== 'YES') {
+      setStatus('Clear Extensions Folder cancelled. Type YES to confirm.', 'error');
+      return;
+    }
+
+    clearExtensionsFolderBtn.disabled = true;
+    setStatus('Running graceful clear for extensions folder...', null);
+
+    api({ action: 'clear_extensions_folder' })
+      .then(function (data) {
+        var payload = (data && data.data) || {};
+        var removedCount = Array.isArray(payload.removedIds) ? payload.removedIds.length : 0;
+        var failedCount = Array.isArray(payload.failedIds) ? payload.failedIds.length : 0;
+        if (failedCount > 0) {
+          setStatus('Clear Extensions Folder finished with warnings. Removed: ' + removedCount + ', failed: ' + failedCount + '.', 'error');
+        } else {
+          setStatus('Clear Extensions Folder completed. Removed: ' + removedCount + '.', 'ok');
+        }
+        runRefresh();
+        reloadPageSoon();
+      })
+      .catch(function (err) {
+        setStatus(err.message || 'Failed to clear extensions folder.', 'error');
+      })
+      .finally(function () {
+        clearExtensionsFolderBtn.disabled = false;
+      });
+  }
+
   function setManagerVisibility(area, visible, button) {
     if (!button) {
       return;
@@ -1669,6 +1781,7 @@
   });
   bindIfPresent(createBackupBtn, 'click', runCreateBackup);
   bindIfPresent(clearCacheBtn, 'click', runClearCache);
+  bindIfPresent(clearExtensionsFolderBtn, 'click', runClearExtensionsFolder);
   bindIfPresent(syncRegistryBtn, 'click', runRegistrySync);
   [
     [managerVisibilityHeaderBtn, 'header'],
@@ -1988,12 +2101,14 @@
     extMgrLogsModule.init({
       apiUrls: apiUrls,
       statusHandler: setStatus,
-      managerButtonId: 'open-extmgr-logs-btn'
+      managerButtonId: 'open-extmgr-logs-btn',
+      managerDownloadButtonId: 'download-extmgr-logs-btn'
     });
   }
 
   loadTooltipSnippets()
     .finally(function () {
+      applyStaticTooltips();
       loadStatusAndList(true).then(function () {
         setRunUpdateButtonState();
         clearStatus();

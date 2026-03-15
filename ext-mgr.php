@@ -4,7 +4,7 @@ header('Content-Type: text/html; charset=utf-8');
 $init = [
     'apiUrl' => '/ext-mgr-api.php',
     'apiUrls' => ['/ext-mgr-api.php', '/extensions/sys/ext-mgr-api.php'],
-    'tooltipUrl' => '/extensions/sys/assets/data/ext-mgr-tooltips.json',
+    'tooltipUrl' => '/extensions/sys/content/tooltips.md',
 ];
 
 $usingMoodeShell = false;
@@ -57,91 +57,8 @@ if (file_exists('/var/www/header.php')) {
 
             <div id="status" class="extmgr-status"></div>
 
-            <section class="extmgr-panel" id="section-manager-options">
-                <h2 class="extmgr-static-heading">Extension Manager Options</h2>
-
-                <div class="extmgr-actions extmgr-options-buttons">
-                    <button id="refresh-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-arrows-rotate"></i> Refresh List</button>
-                    <button id="sync-registry-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-database"></i> Sync Registry</button>
-                    <button id="system-update-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-rotate"></i> Sync Extensions</button>
-                </div>
-
-                <div class="extmgr-submenu-body">
-                    <h3 class="extmgr-static-heading">Import Extension Wizard</h3>
-                    <p class="config-help-static extmgr-help">Upload a prepared extension package (.zip) or download a starter template kit.</p>
-                    <div class="extmgr-import-controls">
-                        <input id="import-extension-file" class="extmgr-file-input" type="file" accept=".zip" aria-label="Upload extension package zip">
-                        <div class="extmgr-import-primary-row">
-                            <label for="import-extension-file" id="import-extension-file-trigger" class="btn btn-primary btn-small">Choose File</label>
-                            <span id="import-extension-file-name" class="extmgr-file-name">No file chosen</span>
-                            <button id="import-extension-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-upload"></i> Upload Extension</button>
-                        </div>
-                        <div class="extmgr-import-secondary-row">
-                            <a id="download-template-btn" class="btn btn-primary btn-small" href="/ext-mgr-api.php?action=download_extension_template"><i class="fa-solid fa-sharp fa-file-zipper"></i> Download Template Kit</a>
-                        </div>
-                    </div>
-                    <div id="import-wizard-note" class="extmgr-note">Template includes: template.php, backend/, templates/, assets/, packages/, scripts/install.sh, scripts/repair.sh, scripts/uninstall.sh, data/, cache/ and generated install metadata.</div>
-                </div>
-
-                <div class="extmgr-submenu-body" id="submenu-manager-visibility">
-                    <h3 class="extmgr-static-heading">Extension Manager Visibility</h3>
-                    <p class="config-help-static extmgr-help">Hide/unhide ext-mgr itself in moOde menu areas without disabling the API endpoint.</p>
-                    <div class="extmgr-manager-visibility-grid" role="group" aria-label="Extension manager visibility options">
-                        <div class="extmgr-manager-visibility-row">
-                            <span class="extmgr-manager-visibility-label">Header tab</span>
-                            <div class="extmgr-manager-visibility-control">
-                                <div id="manager-visibility-header-btn" class="toggle toggle-off">
-                                    <label class="toggle-radio" for="manager-visibility-header-off">ON</label>
-                                    <input type="radio" id="manager-visibility-header-on" name="manager-visibility-header" value="On">
-                                    <label class="toggle-radio" for="manager-visibility-header-on">OFF</label>
-                                    <input type="radio" id="manager-visibility-header-off" name="manager-visibility-header" value="Off" checked>
-                                </div>
-                                <span id="manager-visibility-header-state" class="extmgr-manager-visibility-state">Hidden</span>
-                            </div>
-                        </div>
-                        <div class="extmgr-manager-visibility-row">
-                            <span class="extmgr-manager-visibility-label">Library menu</span>
-                            <div class="extmgr-manager-visibility-control">
-                                <div id="manager-visibility-library-btn" class="toggle toggle-off">
-                                    <label class="toggle-radio" for="manager-visibility-library-off">ON</label>
-                                    <input type="radio" id="manager-visibility-library-on" name="manager-visibility-library" value="On">
-                                    <label class="toggle-radio" for="manager-visibility-library-on">OFF</label>
-                                    <input type="radio" id="manager-visibility-library-off" name="manager-visibility-library" value="Off" checked>
-                                </div>
-                                <span id="manager-visibility-library-state" class="extmgr-manager-visibility-state">Hidden</span>
-                            </div>
-                        </div>
-                        <div class="extmgr-manager-visibility-row">
-                            <span class="extmgr-manager-visibility-label extmgr-manager-visibility-label-m"><span class="extmgr-mbrand-badge" aria-hidden="true">m</span><span class="extmgr-mbrand-text">Menu</span></span>
-                            <div class="extmgr-manager-visibility-control">
-                                <div id="manager-visibility-m-btn" class="toggle toggle-off">
-                                    <label class="toggle-radio" for="manager-visibility-m-off">ON</label>
-                                    <input type="radio" id="manager-visibility-m-on" name="manager-visibility-m" value="On">
-                                    <label class="toggle-radio" for="manager-visibility-m-on">OFF</label>
-                                    <input type="radio" id="manager-visibility-m-off" name="manager-visibility-m" value="Off" checked>
-                                </div>
-                                <span id="manager-visibility-m-state" class="extmgr-manager-visibility-state">Hidden</span>
-                            </div>
-                        </div>
-                        <div class="extmgr-manager-visibility-row">
-                            <span class="extmgr-manager-visibility-label extmgr-manager-visibility-label-m"><span class="extmgr-mbrand-badge" aria-hidden="true">m</span><span class="extmgr-mbrand-text">Configuration Tile</span></span>
-                            <div class="extmgr-manager-visibility-control">
-                                <div id="manager-visibility-system-btn" class="toggle toggle-off">
-                                    <label class="toggle-radio" for="manager-visibility-system-off">ON</label>
-                                    <input type="radio" id="manager-visibility-system-on" name="manager-visibility-system" value="On">
-                                    <label class="toggle-radio" for="manager-visibility-system-on">OFF</label>
-                                    <input type="radio" id="manager-visibility-system-off" name="manager-visibility-system" value="Off" checked>
-                                </div>
-                                <span id="manager-visibility-system-state" class="extmgr-manager-visibility-state">Hidden</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div id="manager-visibility-note" class="extmgr-note">Changes apply on next menu render and page refresh.</div>
-                </div>
-            </section>
-
             <section class="extmgr-panel" id="section-installed">
-                <h2 class="extmgr-static-heading">Installed Extensions</h2>
+                <h2 class="extmgr-static-heading">Installed Extensions Settings</h2>
                 <div class="config-help-static extmgr-help">Inactive extensions remain in registry but are marked unavailable in menu integrations.</div>
                 <div class="extmgr-actions extmgr-list-controls">
                     <select id="list-filter" aria-label="Filter extensions">
@@ -158,6 +75,107 @@ if (file_exists('/var/www/header.php')) {
                 </div>
                 <div id="list-summary" class="extmgr-list-summary">-</div>
                 <div id="list" class="extmgr-list" aria-live="polite"></div>
+            </section>
+
+            <section class="extmgr-panel" id="section-manager-options">
+                <h2 class="extmgr-static-heading">Extension Manager Options</h2>
+
+                <div class="extmgr-submenu is-open" id="submenu-manager-actions">
+                    <button class="extmgr-submenu-header" type="button" data-submenu-toggle aria-expanded="false">
+                        <span>Manager Actions</span>
+                        <i class="fa-solid fa-angle-down" aria-hidden="true"></i>
+                    </button>
+                    <div class="extmgr-submenu-body">
+                        <div class="extmgr-actions extmgr-options-buttons">
+                            <button id="refresh-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-arrows-rotate"></i> Refresh List</button>
+                            <button id="sync-registry-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-database"></i> Sync Registry</button>
+                            <button id="system-update-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-rotate"></i> Sync Extensions</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="extmgr-submenu is-open" id="submenu-manager-import">
+                    <button class="extmgr-submenu-header" type="button" data-submenu-toggle aria-expanded="false">
+                        <span>Import Extension Wizard</span>
+                        <i class="fa-solid fa-angle-down" aria-hidden="true"></i>
+                    </button>
+                    <div class="extmgr-submenu-body">
+                        <p class="config-help-static extmgr-help">Upload a prepared extension package (.zip) or download a starter template kit.</p>
+                        <div class="extmgr-import-controls">
+                            <input id="import-extension-file" class="extmgr-file-input" type="file" accept=".zip" aria-label="Upload extension package zip">
+                            <div class="extmgr-import-primary-row">
+                                <label for="import-extension-file" id="import-extension-file-trigger" class="btn btn-primary btn-small">Choose File</label>
+                                <span id="import-extension-file-name" class="extmgr-file-name">No file chosen</span>
+                                <button id="import-extension-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-upload"></i> Upload Extension</button>
+                            </div>
+                            <div class="extmgr-import-secondary-row">
+                                <a id="download-template-btn" class="btn btn-primary btn-small" href="/ext-mgr-api.php?action=download_extension_template"><i class="fa-solid fa-sharp fa-file-zipper"></i> Download Template Kit</a>
+                            </div>
+                        </div>
+                        <div id="import-wizard-note" class="extmgr-note">Template includes: template.php, backend/, templates/, assets/, packages/, scripts/install.sh, scripts/repair.sh, scripts/uninstall.sh, data/, cache/ and generated install metadata.</div>
+                    </div>
+                </div>
+
+                <div class="extmgr-submenu is-open" id="submenu-manager-visibility">
+                    <button class="extmgr-submenu-header" type="button" data-submenu-toggle aria-expanded="false">
+                        <span>Extension Manager Visibility</span>
+                        <i class="fa-solid fa-angle-down" aria-hidden="true"></i>
+                    </button>
+                    <div class="extmgr-submenu-body">
+                        <p class="config-help-static extmgr-help">Hide/unhide ext-mgr itself in moOde menu areas without disabling the API endpoint.</p>
+                        <div class="extmgr-manager-visibility-grid" role="group" aria-label="Extension manager visibility options">
+                            <div class="extmgr-manager-visibility-row">
+                                <span class="extmgr-manager-visibility-label">Header tab</span>
+                                <div class="extmgr-manager-visibility-control">
+                                    <div id="manager-visibility-header-btn" class="toggle toggle-off">
+                                        <label class="toggle-radio" for="manager-visibility-header-off">ON</label>
+                                        <input type="radio" id="manager-visibility-header-on" name="manager-visibility-header" value="On">
+                                        <label class="toggle-radio" for="manager-visibility-header-on">OFF</label>
+                                        <input type="radio" id="manager-visibility-header-off" name="manager-visibility-header" value="Off" checked>
+                                    </div>
+                                    <span id="manager-visibility-header-state" class="extmgr-manager-visibility-state">Hidden</span>
+                                </div>
+                            </div>
+                            <div class="extmgr-manager-visibility-row">
+                                <span class="extmgr-manager-visibility-label">Library menu</span>
+                                <div class="extmgr-manager-visibility-control">
+                                    <div id="manager-visibility-library-btn" class="toggle toggle-off">
+                                        <label class="toggle-radio" for="manager-visibility-library-off">ON</label>
+                                        <input type="radio" id="manager-visibility-library-on" name="manager-visibility-library" value="On">
+                                        <label class="toggle-radio" for="manager-visibility-library-on">OFF</label>
+                                        <input type="radio" id="manager-visibility-library-off" name="manager-visibility-library" value="Off" checked>
+                                    </div>
+                                    <span id="manager-visibility-library-state" class="extmgr-manager-visibility-state">Hidden</span>
+                                </div>
+                            </div>
+                            <div class="extmgr-manager-visibility-row">
+                                <span class="extmgr-manager-visibility-label extmgr-manager-visibility-label-m"><span class="extmgr-mbrand-badge" aria-hidden="true">m</span><span class="extmgr-mbrand-text">Menu</span></span>
+                                <div class="extmgr-manager-visibility-control">
+                                    <div id="manager-visibility-m-btn" class="toggle toggle-off">
+                                        <label class="toggle-radio" for="manager-visibility-m-off">ON</label>
+                                        <input type="radio" id="manager-visibility-m-on" name="manager-visibility-m" value="On">
+                                        <label class="toggle-radio" for="manager-visibility-m-on">OFF</label>
+                                        <input type="radio" id="manager-visibility-m-off" name="manager-visibility-m" value="Off" checked>
+                                    </div>
+                                    <span id="manager-visibility-m-state" class="extmgr-manager-visibility-state">Hidden</span>
+                                </div>
+                            </div>
+                            <div class="extmgr-manager-visibility-row">
+                                <span class="extmgr-manager-visibility-label extmgr-manager-visibility-label-m"><span class="extmgr-mbrand-badge" aria-hidden="true">m</span><span class="extmgr-mbrand-text">Configuration Tile</span></span>
+                                <div class="extmgr-manager-visibility-control">
+                                    <div id="manager-visibility-system-btn" class="toggle toggle-off">
+                                        <label class="toggle-radio" for="manager-visibility-system-off">ON</label>
+                                        <input type="radio" id="manager-visibility-system-on" name="manager-visibility-system" value="On">
+                                        <label class="toggle-radio" for="manager-visibility-system-on">OFF</label>
+                                        <input type="radio" id="manager-visibility-system-off" name="manager-visibility-system" value="Off" checked>
+                                    </div>
+                                    <span id="manager-visibility-system-state" class="extmgr-manager-visibility-state">Hidden</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="manager-visibility-note" class="extmgr-note">Changes apply on next menu render and page refresh.</div>
+                    </div>
+                </div>
             </section>
 
             <section class="extmgr-panel extmgr-section" id="section-system">
@@ -302,6 +320,8 @@ if (file_exists('/var/www/header.php')) {
                             <div class="extmgr-actions extmgr-troubleshooting-actions">
                                 <button id="repair-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-wrench"></i> Repair Installation</button>
                                 <button id="open-extmgr-logs-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-file-lines"></i> Open ext-mgr Logs</button>
+                                <button id="download-extmgr-logs-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-download"></i> Download ext-mgr Logs</button>
+                                <button id="clear-extensions-folder-btn" class="btn btn-small btn-danger" type="button"><i class="fa-solid fa-sharp fa-triangle-exclamation"></i> Clear Extensions Folder</button>
                             </div>
                             <div id="maintenance-log" class="extmgr-log">No maintenance actions executed.</div>
                         </div>

@@ -556,6 +556,78 @@ function buildLogRow($key, $label, $path, $source)
     ];
 }
 
+function buildVirtualLogRow($key, $label, $source)
+{
+    return [
+        'key' => $key,
+        'label' => $label,
+        'source' => $source,
+        'pathHint' => null,
+        'exists' => true,
+        'sizeBytes' => 0,
+        'updatedAt' => date('c'),
+    ];
+}
+
+function extMgrSystemLogCandidates()
+{
+    return [
+        ['key' => 'moode', 'label' => 'moOde Log (/var/log/moode.log)', 'path' => '/var/log/moode.log'],
+        ['key' => 'syslog', 'label' => 'System Log (/var/log/syslog)', 'path' => '/var/log/syslog'],
+        ['key' => 'daemon', 'label' => 'Daemon Log (/var/log/daemon.log)', 'path' => '/var/log/daemon.log'],
+        ['key' => 'kern', 'label' => 'Kernel Log (/var/log/kern.log)', 'path' => '/var/log/kern.log'],
+        ['key' => 'messages', 'label' => 'System Messages (/var/log/messages)', 'path' => '/var/log/messages'],
+    ];
+}
+
+function buildCombinedLogContent($targetId, $lineLimit = 120)
+{
+    $target = trim((string)$targetId);
+    if ($target === '') {
+        return "[ext-mgr] combined logs unavailable: missing target id.\n";
+    }
+
+    $rows = availableLogsForTarget($target);
+    $parts = [];
+    $moodeLogMissing = false;
+
+    foreach ($rows as $row) {
+        $key = (string)($row['key'] ?? '');
+        $path = (string)($row['pathHint'] ?? '');
+        if ($key === '' || $key === 'all') {
+            continue;
+        }
+
+        $label = (string)($row['label'] ?? $key);
+        $source = (string)($row['source'] ?? 'runtime');
+        if ($key === 'moode' && !is_file($path)) {
+            $moodeLogMissing = true;
+        }
+
+        $parts[] = "===== " . $label . " | key=" . $key . " | source=" . $source . " | path=" . $path . " =====";
+        if ($path === '' || !is_file($path) || !is_readable($path)) {
+            $parts[] = '[missing or unreadable]';
+            $parts[] = '';
+            continue;
+        }
+
+        $content = tailFileContent($path, $lineLimit);
+        $parts[] = $content !== '' ? $content : '[empty]';
+        $parts[] = '';
+    }
+
+    if ($target === 'ext-mgr' && $moodeLogMissing) {
+        $parts[] = '[note] /var/log/moode.log is not available. moOde debug logging may be disabled on this host.';
+        $parts[] = '';
+    }
+
+    if (count($parts) === 0) {
+        return "[ext-mgr] combined logs unavailable: no logs discovered for target " . $target . ".\n";
+    }
+
+    return implode(PHP_EOL, $parts);
+}
+
 function availableLogsForTarget($targetId)
 {
     global $extensionsLogsPath, $extMgrLogsPath, $extMgrRuntimeLogsPath, $extensionsInstalledPath;
@@ -565,12 +637,16 @@ function availableLogsForTarget($targetId)
     $logs = [];
 
     if ($targetId === 'ext-mgr') {
+        $logs[] = buildVirtualLogRow('all', 'All Logs (combined)', 'combined');
         $logs[] = buildLogRow('install', 'Install Log', $extMgrLogsPath . DIRECTORY_SEPARATOR . 'install.log', 'ext-mgr');
         $logs[] = buildLogRow('system', 'System Log', $extMgrLogsPath . DIRECTORY_SEPARATOR . 'system.log', 'ext-mgr');
         $logs[] = buildLogRow('error', 'Error Log', $extMgrLogsPath . DIRECTORY_SEPARATOR . 'error.log', 'ext-mgr');
         $logs[] = buildLogRow('service', 'Service Runtime Log', $extMgrRuntimeLogsPath . DIRECTORY_SEPARATOR . 'moode-extmgr-service.log', 'runtime');
         $logs[] = buildLogRow('watchdog', 'Watchdog Runtime Log', $extMgrRuntimeLogsPath . DIRECTORY_SEPARATOR . 'moode-extmgr-watchdog.log', 'runtime');
         $logs[] = buildLogRow('install-helper', 'Install Helper Log', $extMgrRuntimeLogsPath . DIRECTORY_SEPARATOR . 'install-helper.log', 'runtime');
+        foreach (extMgrSystemLogCandidates() as $candidate) {
+            $logs[] = buildLogRow((string)$candidate['key'], (string)$candidate['label'], (string)$candidate['path'], 'system');
+        }
         return $logs;
     }
 
@@ -579,6 +655,7 @@ function availableLogsForTarget($targetId)
     $globalDir = $extensionsLogsPath . DIRECTORY_SEPARATOR . $targetId;
     $localDir = $extensionsInstalledPath . DIRECTORY_SEPARATOR . $targetId . DIRECTORY_SEPARATOR . 'logs';
 
+    $logs[] = buildVirtualLogRow('all', 'All Logs (combined)', 'combined');
     $logs[] = buildLogRow('install', 'Install Log', $globalDir . DIRECTORY_SEPARATOR . 'install.log', 'global');
     $logs[] = buildLogRow('system', 'System Log', $globalDir . DIRECTORY_SEPARATOR . 'system.log', 'global');
     $logs[] = buildLogRow('error', 'Error Log', $globalDir . DIRECTORY_SEPARATOR . 'error.log', 'global');
@@ -4203,6 +4280,9 @@ function removeExtensionById($extId, $registryPath, $backupRoot, &$error)
         return null;
     }
 
+    appendExtMgrLog('install', 'remove_extension start id=' . $extId);
+    appendExtensionLog($extId, 'install', 'remove_extension start');
+
     $registry = normalizeRegistry(readRegistry($registryPath));
     $found = false;
     $nextExtensions = [];
@@ -4229,7 +4309,9 @@ function removeExtensionById($extId, $registryPath, $backupRoot, &$error)
     $installedDir = '/var/www/extensions/installed/' . $extId;
     $linkPath = '/var/www/' . $extId . '.php';
     $legacyLinkPath = '/var/www/extensions/' . $extId . '.php';
-    $backupDir = rtrim($backupRoot, '/\\') . DIRECTORY_SEPARATOR . 'removed-extensions' . DIRECTORY_SEPARATOR . $extId . '-' . date('Ymd-His');
+    $globalLogsDir = '/var/www/extensions/sys/logs/extensionslogs/' . $extId;
+    $legacyInstalledLogsDir = '/var/www/extensions/logs/' . $extId;
+    $runtimeCacheDir = '/var/www/extensions/cache/' . $extId;
 
     $installMetadata = readExtensionInstallMetadata($extId);
     $warnings = [];
@@ -4241,6 +4323,8 @@ function removeExtensionById($extId, $registryPath, $backupRoot, &$error)
         'removedServiceUnits' => [],
         'removedPackages' => [],
         'skippedSharedPackages' => [],
+        'removedPaths' => [],
+        'failedPaths' => [],
     ];
 
     if (is_array($installMetadata)) {
@@ -4253,53 +4337,34 @@ function removeExtensionById($extId, $registryPath, $backupRoot, &$error)
         $uninstallSummary['skippedSharedPackages'] = normalizeScalarStringList($pkgResult['skippedShared'] ?? []);
     }
 
-    if (!is_dir($backupDir) && !mkdir($backupDir, 0775, true) && !is_dir($backupDir)) {
-        $error = 'Extension removed from registry but failed to create backup directory: ' . $backupDir;
-        return [
-            'id' => $extId,
-            'removedFromRegistry' => true,
-            'removedInstallDir' => false,
-            'removedRoute' => false,
-            'backupPath' => $backupDir,
-            'uninstall' => $uninstallSummary,
-            'warning' => $error,
-        ];
-    }
+    $pathsToRemove = [
+        $installedDir,
+        $linkPath,
+        $legacyLinkPath,
+        $globalLogsDir,
+        $legacyInstalledLogsDir,
+        $runtimeCacheDir,
+    ];
 
-    $removedInstallDir = false;
-    if (is_dir($installedDir)) {
-        $targetInstalledBackup = $backupDir . DIRECTORY_SEPARATOR . 'installed';
-        if (@rename($installedDir, $targetInstalledBackup)) {
-            $removedInstallDir = true;
+    foreach ($pathsToRemove as $path) {
+        $path = trim((string)$path);
+        if ($path === '' || !file_exists($path)) {
+            continue;
+        }
+
+        removePathRecursive($path);
+        clearstatcache(true, $path);
+
+        if (!file_exists($path)) {
+            $uninstallSummary['removedPaths'][] = $path;
         } else {
-            $error = 'Extension removed from registry but failed to move installed directory: ' . $installedDir;
+            $uninstallSummary['failedPaths'][] = $path;
+            $warnings[] = 'Failed to remove path: ' . $path;
         }
     }
 
-    $removedRoute = false;
-    if (is_link($linkPath)) {
-        $linkTarget = @readlink($linkPath);
-        if (is_string($linkTarget) && $linkTarget !== '') {
-            @file_put_contents($backupDir . DIRECTORY_SEPARATOR . 'route-link-target.txt', $linkTarget . PHP_EOL);
-        }
-        $removedRoute = @unlink($linkPath);
-        if (!$removedRoute && $error === '') {
-            $error = 'Failed to remove canonical route symlink: ' . $linkPath;
-        }
-    } elseif (is_file($linkPath)) {
-        $targetRouteBackup = $backupDir . DIRECTORY_SEPARATOR . basename($linkPath);
-        if (@rename($linkPath, $targetRouteBackup)) {
-            $removedRoute = true;
-        } elseif ($error === '') {
-            $error = 'Failed to move canonical route file to backup: ' . $linkPath;
-        }
-    }
-
-    if (is_link($legacyLinkPath) && !@unlink($legacyLinkPath)) {
-        $warnings[] = 'Failed to remove legacy route symlink: ' . $legacyLinkPath;
-    } elseif (is_file($legacyLinkPath)) {
-        @rename($legacyLinkPath, $backupDir . DIRECTORY_SEPARATOR . basename($legacyLinkPath));
-    }
+    $removedInstallDir = !file_exists($installedDir);
+    $removedRoute = !file_exists($linkPath) && !file_exists($legacyLinkPath);
 
     if (count($warnings) > 0) {
         $warningText = trim(implode(' | ', array_values(array_unique($warnings))));
@@ -4312,13 +4377,149 @@ function removeExtensionById($extId, $registryPath, $backupRoot, &$error)
         }
     }
 
+    $stepSummary = [
+        'metadata=' . ($uninstallSummary['metadataFound'] ? 'yes' : 'no'),
+        'script=' . ($uninstallSummary['ranExtensionUninstallScript'] ? 'yes' : 'no'),
+        'runtimeLinks=' . count((array)$uninstallSummary['removedRuntimeLinks']),
+        'aclPaths=' . count((array)$uninstallSummary['clearedAclPaths']),
+        'serviceUnits=' . count((array)$uninstallSummary['removedServiceUnits']),
+        'removedPackages=' . count((array)$uninstallSummary['removedPackages']),
+        'skippedSharedPackages=' . count((array)$uninstallSummary['skippedSharedPackages']),
+        'removedPaths=' . count((array)$uninstallSummary['removedPaths']),
+        'failedPaths=' . count((array)$uninstallSummary['failedPaths']),
+        'removedInstallDir=' . ($removedInstallDir ? 'yes' : 'no'),
+        'removedRoute=' . ($removedRoute ? 'yes' : 'no'),
+    ];
+    appendExtMgrLog('install', 'remove_extension summary id=' . $extId . ' ' . implode(' | ', $stepSummary));
+    appendExtensionLog($extId, 'install', 'remove_extension summary: ' . implode(' | ', $stepSummary));
+
+    if (count((array)$uninstallSummary['removedPaths']) > 0) {
+        $removedPathsText = implode(' | ', array_values(array_unique((array)$uninstallSummary['removedPaths'])));
+        appendExtMgrLog('install', 'remove_extension removed-paths id=' . $extId . ' paths=' . $removedPathsText);
+        appendExtensionLog($extId, 'install', 'remove_extension removed-paths: ' . $removedPathsText);
+    }
+    if (count((array)$uninstallSummary['failedPaths']) > 0) {
+        $failedPathsText = implode(' | ', array_values(array_unique((array)$uninstallSummary['failedPaths'])));
+        appendExtMgrLog('error', 'remove_extension failed-paths id=' . $extId . ' paths=' . $failedPathsText);
+        appendExtensionLog($extId, 'error', 'remove_extension failed-paths: ' . $failedPathsText);
+    }
+
+    if ($error !== '') {
+        appendExtMgrLog('error', 'remove_extension warnings id=' . $extId . ' warning=' . $error);
+        appendExtensionLog($extId, 'error', 'remove_extension warnings: ' . $error);
+    }
+
     return [
         'id' => $extId,
         'removedFromRegistry' => true,
         'removedInstallDir' => $removedInstallDir,
         'removedRoute' => $removedRoute,
-        'backupPath' => $backupDir,
+        'backupPath' => null,
         'uninstall' => $uninstallSummary,
+        'warning' => $error !== '' ? $error : null,
+    ];
+}
+
+function clearExtensionsFolderGracefully($registryPath, $backupRoot, $extensionsInstalledPath, &$error)
+{
+    $error = '';
+
+    $removedIds = [];
+    $failedIds = [];
+    $removedPaths = [];
+    $failedPaths = [];
+
+    $registry = normalizeRegistry(readRegistry($registryPath));
+    $targetIds = [];
+
+    foreach ((array)$registry['extensions'] as $ext) {
+        $id = trim((string)($ext['id'] ?? ''));
+        if ($id === '' || !isValidExtensionId($id) || $id === 'ext-mgr') {
+            continue;
+        }
+        $targetIds[$id] = true;
+    }
+
+    if (is_dir($extensionsInstalledPath)) {
+        $entries = @scandir($extensionsInstalledPath);
+        if (is_array($entries)) {
+            foreach ($entries as $entry) {
+                if ($entry === '.' || $entry === '..') {
+                    continue;
+                }
+                $fullPath = $extensionsInstalledPath . DIRECTORY_SEPARATOR . $entry;
+                if (!is_dir($fullPath)) {
+                    continue;
+                }
+                if (!isValidExtensionId($entry) || $entry === 'ext-mgr') {
+                    continue;
+                }
+                $targetIds[$entry] = true;
+            }
+        }
+    }
+
+    $ids = array_values(array_keys($targetIds));
+    sort($ids, SORT_STRING);
+
+    appendExtMgrLog('install', 'clear_extensions_folder start total=' . count($ids));
+
+    foreach ($ids as $id) {
+        $removeError = '';
+        $result = removeExtensionById($id, $registryPath, $backupRoot, $removeError);
+        if (is_array($result)) {
+            $removedIds[] = $id;
+            $uninstall = is_array($result['uninstall'] ?? null) ? $result['uninstall'] : [];
+            foreach ((array)($uninstall['removedPaths'] ?? []) as $path) {
+                $removedPaths[] = (string)$path;
+            }
+            foreach ((array)($uninstall['failedPaths'] ?? []) as $path) {
+                $failedPaths[] = (string)$path;
+            }
+            continue;
+        }
+
+        $failedIds[] = $id;
+        if ($removeError !== '') {
+            $error .= ($error !== '' ? ' | ' : '') . $id . ': ' . $removeError;
+        }
+    }
+
+    syncRegistryWithFilesystem($registryPath, true);
+
+    $removedIds = array_values(array_unique($removedIds));
+    $failedIds = array_values(array_unique($failedIds));
+    $removedPaths = array_values(array_unique(array_filter($removedPaths, static function ($p) {
+        return trim((string)$p) !== '';
+    })));
+    $failedPaths = array_values(array_unique(array_filter($failedPaths, static function ($p) {
+        return trim((string)$p) !== '';
+    })));
+
+    appendExtMgrLog(
+        'install',
+        'clear_extensions_folder completed total=' . count($ids)
+            . ' removed=' . count($removedIds)
+            . ' failed=' . count($failedIds)
+            . ' removedPaths=' . count($removedPaths)
+            . ' failedPaths=' . count($failedPaths)
+    );
+
+    if (count($failedIds) > 0 || count($failedPaths) > 0) {
+        appendExtMgrLog(
+            'error',
+            'clear_extensions_folder warnings failedIds=' . implode(',', $failedIds)
+                . ' failedPaths=' . implode(' | ', $failedPaths)
+                . ($error !== '' ? ' detail=' . $error : '')
+        );
+    }
+
+    return [
+        'totalTargets' => count($ids),
+        'removedIds' => $removedIds,
+        'failedIds' => $failedIds,
+        'removedPaths' => $removedPaths,
+        'failedPaths' => $failedPaths,
         'warning' => $error !== '' ? $error : null,
     ];
 }
@@ -4557,6 +4758,22 @@ if ($action === 'read_extension_log') {
         exit;
     }
 
+    if ($key === 'all') {
+        $content = buildCombinedLogContent($id, $lines);
+        $row = buildVirtualLogRow('all', 'All Logs (combined)', 'combined');
+
+        echo json_encode([
+            'ok' => true,
+            'data' => [
+                'id' => $id,
+                'key' => $key,
+                'content' => $content,
+                'log' => $row,
+            ],
+        ], JSON_UNESCAPED_SLASHES);
+        exit;
+    }
+
     $resolveError = '';
     $path = resolveLogPathForRead($id, $key, $resolveError);
     if (!is_string($path) || $path === '') {
@@ -4591,6 +4808,20 @@ if ($action === 'download_extension_log') {
         http_response_code(400);
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode(['ok' => false, 'error' => 'Missing id or key']);
+        exit;
+    }
+
+    if ($key === 'all') {
+        $content = buildCombinedLogContent($id, 200);
+        $safeName = preg_replace('/[^a-zA-Z0-9._-]+/', '-', $id . '-all-logs.log');
+        if (!is_string($safeName) || trim($safeName) === '') {
+            $safeName = 'extension-all-logs.log';
+        }
+
+        header('Content-Type: text/plain; charset=utf-8');
+        header('Content-Disposition: inline; filename="' . $safeName . '"');
+        header('Cache-Control: no-store');
+        echo $content;
         exit;
     }
 
@@ -5101,8 +5332,40 @@ if ($action === 'remove_extension') {
     $removeError = '';
     $result = removeExtensionById($id, $registryPath, $extensionsBackupPath, $removeError);
     if (!is_array($result)) {
+        appendExtMgrLog('error', 'remove_extension failed id=' . $id . ' error=' . ($removeError !== '' ? $removeError : 'unknown error'));
+        if (isValidExtensionId($id)) {
+            appendExtensionLog($id, 'error', 'remove_extension failed: ' . ($removeError !== '' ? $removeError : 'unknown error'));
+        }
         http_response_code(500);
         echo json_encode(['ok' => false, 'error' => $removeError !== '' ? $removeError : 'Failed to remove extension']);
+        exit;
+    }
+
+    $u = is_array($result['uninstall'] ?? null) ? $result['uninstall'] : [];
+    $actionSummary = [
+        'script=' . (!empty($u['ranExtensionUninstallScript']) ? 'yes' : 'no'),
+        'runtimeLinks=' . count((array)($u['removedRuntimeLinks'] ?? [])),
+        'aclPaths=' . count((array)($u['clearedAclPaths'] ?? [])),
+        'serviceUnits=' . count((array)($u['removedServiceUnits'] ?? [])),
+        'removedPackages=' . count((array)($u['removedPackages'] ?? [])),
+        'skippedSharedPackages=' . count((array)($u['skippedSharedPackages'] ?? [])),
+    ];
+    appendExtMgrLog('install', 'remove_extension completed id=' . $id . ' ' . implode(' | ', $actionSummary));
+
+    echo json_encode([
+        'ok' => true,
+        'data' => $result,
+    ], JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+if ($action === 'clear_extensions_folder') {
+    $clearError = '';
+    $result = clearExtensionsFolderGracefully($registryPath, $extensionsBackupPath, $extensionsInstalledPath, $clearError);
+    if (!is_array($result)) {
+        appendExtMgrLog('error', 'clear_extensions_folder failed error=' . ($clearError !== '' ? $clearError : 'unknown error'));
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'error' => $clearError !== '' ? $clearError : 'Failed to clear extensions folder']);
         exit;
     }
 

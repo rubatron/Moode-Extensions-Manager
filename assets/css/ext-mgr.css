@@ -68,10 +68,18 @@
   padding: 0.35rem 0 0.25rem;
 }
 
-#section-manager-options .extmgr-submenu-body+.extmgr-submenu-body {
+#section-manager-options .extmgr-submenu+.extmgr-submenu {
   margin-top: 0.45rem;
   padding-top: 0.55rem;
   border-top: 1px solid rgba(128, 128, 128, 0.18);
+}
+
+#section-manager-options .extmgr-submenu-header {
+  color: #c0c8d1;
+}
+
+#section-manager-options .extmgr-submenu-header:hover {
+  color: #d4dbe3;
 }
 
 #section-manager-options h3.extmgr-static-heading {
@@ -581,10 +589,25 @@
   color: var(--adapttext, #f0f0f0) !important;
 }
 
+#configure-modal #configure ul .extmgr-configure-entry {
+  display: flex;
+  align-items: stretch;
+}
+
+#configure-modal .extmgr-configure-entry .btn.btn-medium.btn-primary.config-btn {
+  width: 100%;
+  min-height: 66px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
 #configure-modal .extmgr-configure-entry .btn.btn-medium.btn-primary.config-btn:hover,
 #configure-modal .extmgr-configure-entry .btn.btn-medium.btn-primary.config-btn:focus-visible {
-  background-color: var(--btnshade3, rgba(255, 255, 255, 0.14)) !important;
-  color: #fff !important;
+  background-color: var(--adapttext, #f0f0f0) !important;
+  color: var(--adaptbg, #0f141a) !important;
   border-color: transparent !important;
 }
 

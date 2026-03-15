@@ -536,7 +536,9 @@
 
   function appendConfigureEntry(list, entry) {
     var li = document.createElement('li');
-    li.className = 'extmgr-configure-entry';
+    var templateLi = list.querySelector('li');
+    var inheritedClass = (templateLi && typeof templateLi.className === 'string') ? templateLi.className : '';
+    li.className = (inheritedClass ? inheritedClass + ' ' : '') + 'extmgr-configure-entry';
 
     var link = document.createElement('a');
     link.className = 'btn btn-medium btn-primary config-btn';
