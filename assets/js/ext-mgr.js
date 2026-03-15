@@ -181,7 +181,11 @@
         });
       }).catch(function (err) {
         lastErr = err;
-        return tryAt(idx + 1);
+        var status = err && typeof err.status !== 'undefined' ? err.status : null;
+        if (status === null || status === 0 || status === 404) {
+          return tryAt(idx + 1);
+        }
+        throw err;
       });
     }
 
@@ -505,7 +509,11 @@
         });
       }).catch(function (err) {
         lastErr = err;
-        return tryAt(idx + 1);
+        var status = err && typeof err.status !== 'undefined' ? err.status : null;
+        if (status === null || status === 0 || status === 404) {
+          return tryAt(idx + 1);
+        }
+        throw err;
       });
     }
 
