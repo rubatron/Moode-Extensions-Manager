@@ -19,8 +19,8 @@ manager.visibility.m: Show/hide Extensions Manager inside the M menu.
 manager.visibility.system: Show/hide Extensions Manager in the Configure/System tile surface.
 
 manager.action.refresh: Refresh extension list and status data.
-manager.action.syncRegistry: Rebuild registry from installed extension folders.
-manager.action.syncExtensions: Run extension-wide synchronization flow.
+manager.action.syncRegistry: Reconcile registry and installed extension folders (prunes stale entries).
+manager.action.syncExtensions: Same as Sync Registry: reconcile registry and installed extension folders.
 manager.import.upload: Import selected extension zip package.
 manager.import.template: Download starter template extension package.
 manager.troubleshooting.repair: Run ext-mgr repair flow for common install issues.

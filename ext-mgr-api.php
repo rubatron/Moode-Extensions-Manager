@@ -4631,6 +4631,10 @@ if ($action === 'import_extension_upload') {
     $manifestData = readJsonFile($sourceDir . DIRECTORY_SEPARATOR . 'manifest.json', []);
     $manifestId = strtolower(trim((string)($manifestData['id'] ?? '')));
     $explicitManifestId = (preg_match('/^[a-z0-9._-]+$/', $manifestId) === 1 && !isPlaceholderExtensionId($manifestId));
+
+    // Prevent stale registry entries from blocking replacement imports after manual folder cleanup.
+    syncRegistryWithFilesystem($registryPath, true);
+
     $importedId = $explicitManifestId
         ? $manifestId
         : generateManagedExtensionId($registryPath);
@@ -5165,23 +5169,21 @@ if ($action === 'set_update_advanced') {
 }
 
 if ($action === 'system_update_hook') {
-    [$meta, $policy] = buildMeta($metaPath, $versionPath, $releasePath);
-    $resolveError = '';
-    $candidate = resolveRemoteReleaseCandidate($policy, $resolveError);
+    $summary = syncRegistryWithFilesystem($registryPath, true);
+    $state = responseData($registryPath, $metaPath, $versionPath, $releasePath);
     echo json_encode([
         'ok' => true,
         'data' => [
-            'meta' => $meta,
-            'releasePolicy' => $policy,
+            'state' => $state,
+            'summary' => $summary,
             'hook' => [
-                'status' => is_array($candidate) ? 'ready' : 'degraded',
-                'description' => 'Sync Extensions uses provider metadata and managed-file apply flow.',
-                'lastError' => $candidate === null ? $resolveError : null,
-                'candidate' => $candidate,
+                'status' => 'merged',
+                'description' => 'Sync Extensions now shares the same prune-and-merge flow as Sync Registry.',
+                'lastError' => null,
+                'candidate' => null,
                 'nextSteps' => [
-                    'Resolve trusted signing key source',
-                    'Enable signature verification as required in release policy',
-                    'Verify package signature before applying update',
+                    'Use either Sync Registry or Sync Extensions; both run the same reconciliation.',
+                    'Missing registry entries are pruned when extension folders are gone.',
                 ],
             ],
         ],

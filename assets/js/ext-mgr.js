@@ -1730,9 +1730,10 @@
       });
   }
 
-  function runRegistrySync() {
-    setStatus('Syncing registry with installed extensions...');
-    api({ action: 'registry_sync' })
+  function runRegistrySync(triggerLabel) {
+    var source = String(triggerLabel || 'Registry');
+    setStatus('Syncing registry and extensions (' + source + ')...', null);
+    api({ action: 'registry_sync', prune: '1' })
       .then(function (data) {
         var payload = data.data || {};
         var summary = payload.summary || {};
@@ -1745,9 +1746,10 @@
         renderItems(allItems);
 
         setStatus(
-          'Registry sync complete. total=' + String(summary.total || 0)
+          'Extensions sync complete. total=' + String(summary.total || 0)
             + ' installed=' + String(summary.installed || 0)
-            + ' missing=' + String(summary.missing || 0),
+            + ' missing=' + String(summary.missing || 0)
+            + ' pruned=' + String(summary.pruned || 0),
           'ok'
         );
       })
@@ -1782,7 +1784,9 @@
   bindIfPresent(createBackupBtn, 'click', runCreateBackup);
   bindIfPresent(clearCacheBtn, 'click', runClearCache);
   bindIfPresent(clearExtensionsFolderBtn, 'click', runClearExtensionsFolder);
-  bindIfPresent(syncRegistryBtn, 'click', runRegistrySync);
+  bindIfPresent(syncRegistryBtn, 'click', function () {
+    runRegistrySync('Registry');
+  });
   [
     [managerVisibilityHeaderBtn, 'header'],
     [managerVisibilityLibraryBtn, 'library'],
@@ -1851,16 +1855,7 @@
       });
   });
   bindIfPresent(systemUpdateBtn, 'click', function () {
-    setStatus('Syncing extensions metadata...', null);
-    api({ action: 'system_update_hook' })
-      .then(function (data) {
-        var hook = (data.data && data.data.hook) || {};
-        var desc = hook.description || 'Extensions sync hook placeholder.';
-        setStatus(desc, 'ok');
-      })
-      .catch(function (err) {
-        setStatus(err.message, 'error');
-      });
+    runRegistrySync('Extensions');
   });
 
   advancedModeButtons.forEach(function (btn) {

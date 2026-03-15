@@ -13,6 +13,8 @@
   "manager.visibility.library": "Show/hide Extensions Manager in the Library dropdown.",
   "manager.visibility.m": "Show/hide Extensions Manager inside the M menu.",
   "manager.visibility.system": "Show/hide Extensions Manager in the Configure/System tile surface.",
+  "manager.action.syncRegistry": "Reconcile registry and installed extension folders (prunes stale entries).",
+  "manager.action.syncExtensions": "Same as Sync Registry: reconcile registry and installed extension folders.",
   "manager.troubleshooting.clearExtensionsFolder": "Gracefully uninstall all extensions and then clear remaining extension folders.",
   "manager.troubleshooting.clearExtensionsFolder.prompt": "This will remove everything in the extensions and will result in all extensions not functioning. try uninstalling the single extension first. the extension manager will still be working after this action which allows you to reinstall the extensions So, is this your last resort?(type YES)."
 }
