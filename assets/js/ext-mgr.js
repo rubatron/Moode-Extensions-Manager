@@ -998,11 +998,23 @@
 
   function extensionInfoSummary(item) {
     var info = (item && item.extensionInfo) || {};
+    var installMetadata = (item && item.installMetadata) || {};
+    var counts = installMetadata.counts || {};
     var version = info.version || item.version || 'unknown';
     var type = info.type || 'unknown';
     var author = info.author || 'unknown';
     var license = info.license || 'unknown';
-    return 'Version: ' + version + ' | Type: ' + type + ' | Author: ' + author + ' | License: ' + license;
+    var packageBits = [];
+    if (counts.installedApt) {
+      packageBits.push('APT: ' + String(counts.installedApt));
+    }
+    if (counts.installedBundles) {
+      packageBits.push('Bundled: ' + String(counts.installedBundles));
+    }
+    if (counts.servicesInstalled) {
+      packageBits.push('Services: ' + String(counts.servicesInstalled));
+    }
+    return 'Version: ' + version + ' | Type: ' + type + ' | Author: ' + author + ' | License: ' + license + (packageBits.length ? ' | ' + packageBits.join(' | ') : '');
   }
 
   function extensionDescription(item) {
@@ -1013,6 +1025,25 @@
   function extensionSettingsPage(item) {
     var info = (item && item.extensionInfo) || {};
     return info.settingsPage || item.entry || ('/' + (item.id || '') + '.php');
+  }
+
+  function importReviewSummary(review) {
+    var r = review || {};
+    var counts = r.counts || {};
+    var bits = [];
+    if (counts.manifestPackages) {
+      bits.push('apt=' + String(counts.manifestPackages));
+    }
+    if (counts.bundledPackageFiles) {
+      bits.push('bundles=' + String(counts.bundledPackageFiles));
+    }
+    if (counts.serviceUnits) {
+      bits.push('services=' + String(counts.serviceUnits));
+    }
+    if (counts.serviceDependencies) {
+      bits.push('deps=' + String(counts.serviceDependencies));
+    }
+    return bits.length ? ' | review: ' + bits.join(', ') : '';
   }
 
   function applyListControls(items) {
@@ -1670,9 +1701,11 @@
     apiUpload(file, dryRun)
       .then(function (data) {
         var importedId = ((data || {}).data || {}).extensionId || 'unknown';
+        var review = ((data || {}).data || {}).review || {};
+        var reviewText = importReviewSummary(review);
         var outcome = ((data || {}).data || {}).dryRun ? 'Dry-run validated' : 'Extension imported';
         setStatus(outcome + ': ' + importedId, 'ok');
-        setImportWizardNote(outcome + ': ' + importedId, 'ok');
+        setImportWizardNote(outcome + ': ' + importedId + reviewText, 'ok');
         if (importExtensionFileEl) {
           importExtensionFileEl.value = '';
         }

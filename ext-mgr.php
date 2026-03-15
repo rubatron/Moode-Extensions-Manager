@@ -80,7 +80,7 @@ if (file_exists('/var/www/header.php')) {
                             <a id="download-template-btn" class="btn btn-primary btn-small" href="/ext-mgr-api.php?action=download_extension_template"><i class="fa-solid fa-sharp fa-file-zipper"></i> Download Template Kit</a>
                         </div>
                     </div>
-                    <div id="import-wizard-note" class="extmgr-note">Template includes: template.php, backend/, templates/, assets/, scripts/install.sh, scripts/repair.sh, scripts/uninstall.sh, data/ and cache/.</div>
+                    <div id="import-wizard-note" class="extmgr-note">Template includes: template.php, backend/, templates/, assets/, packages/, scripts/install.sh, scripts/repair.sh, scripts/uninstall.sh, data/, cache/ and generated install metadata.</div>
                 </div>
 
                 <div class="extmgr-submenu-body" id="submenu-manager-visibility">

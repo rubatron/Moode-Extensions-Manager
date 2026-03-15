@@ -63,13 +63,16 @@ This removes ext-mgr core files, installed extensions under `/var/www/extensions
 - New imports default to hidden in M/Library menus until explicitly enabled.
 - Optional manifest hook `ext_mgr.install.packages` installs required OS packages before post-copy setup.
 - Optional manifest hook `ext_mgr.install.script` runs under `moode-extmgrusr` with ext-mgr environment variables.
+- Optional manifest key `ext_mgr.service.dependencies` declares additional service dependencies to inject into the main extension unit.
 - Legacy writes to `/var/www/extensions/<id>` are relocated into `/var/www/extensions/installed/<id>` during staged import.
 - Helper/wizard path defaults are controlled by `scripts/ext-mgr-install-vars.json`.
 - ext-mgr runtime installs both `moode-extmgr.service` and `moode-extmgr-watchdog.service`.
 - Standard extension logs are staged in `/var/www/extensions/installed/<id>/logs`.
 - Watchdog-managed global extension logs are written to `/var/www/extensions/sys/logs/extensionslogs/<id>`.
 - ext-mgr manager logs are written to `/var/www/extensions/sys/logs/ext-mgr logs`.
-- Template kit zip now opens with an `ExtensionTemplate/` root containing `assets/`, `backend/`, `templates/`, `scripts/`, `data/`, and `cache/`.
+- Template kit zip now opens with an `ExtensionTemplate/` root containing `assets/`, `backend/`, `templates/`, `scripts/`, `packages/`, `data/`, and `cache/`.
+- Import review now scans declared apt packages, bundled package artifacts, and shipped service units before execution.
+- Installed extensions get `.ext-mgr/install-metadata.json` with package, service, link, and runtime metadata.
 
 ## Security Highlights
 

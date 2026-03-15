@@ -613,6 +613,30 @@ print('cleaned ext-mgr bridge and legacy injections')
 PY
 }
 
+restore_latest_backup_file() {
+    local original="$1"
+    local latest_backup=""
+    latest_backup="$(ls -1t "$original".bak-extmgr-* 2>/dev/null | head -n 1 || true)"
+    if [[ -z "$latest_backup" || ! -f "$latest_backup" ]]; then
+        return 1
+    fi
+
+    echo "[uninstall] Restoring backup $latest_backup -> $original"
+    $SUDO cp -a "$latest_backup" "$original"
+    return 0
+}
+
+restore_core_web_files_from_backups() {
+    local restored=1
+    local file
+    for file in "$HEADER_FILE" "$FOOTER_MIN_FILE" "$FOOTER_FILE" "$INDEX_TEMPLATE_FILE"; do
+        if restore_latest_backup_file "$file"; then
+            restored=0
+        fi
+    done
+    return $restored
+}
+
 run_uninstall() {
     local stamp
     stamp="$(date +%Y%m%d-%H%M%S)"
@@ -687,6 +711,15 @@ run_uninstall() {
     fi
     if getent group "$SECURITY_GROUP" >/dev/null 2>&1; then
         $SUDO groupdel "$SECURITY_GROUP" >/dev/null 2>&1 || true
+    fi
+
+    echo "[uninstall] Restoring original moOde web files where possible..."
+    if restore_core_web_files_from_backups; then
+        echo "[uninstall] Restored moOde core web files from .bak-extmgr snapshots."
+    elif ls -1 /home/pi/moode-oobe-backups/moode-oobe-web-*.tgz >/dev/null 2>&1; then
+        run_restore_oobe || echo "WARN: moOde OOBE restore failed during uninstall" >&2
+    else
+        echo "WARN: no .bak-extmgr snapshots or moOde OOBE archive found; cleanup-only uninstall applied" >&2
     fi
 
     echo "[uninstall] Completed. Backup snapshot kept at $uninstall_backup_dir."
