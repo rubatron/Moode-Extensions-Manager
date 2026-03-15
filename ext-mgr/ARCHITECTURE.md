@@ -274,23 +274,56 @@ ext-mgr/
 }
 ```
 
-## Service Parenting
+## Service Parenting & Memory Management
 
-All extension services chain to ext-mgr:
+All extension services chain to the parent `moode-extmgr.service` via systemd dependency directives.
+This ensures graceful shutdown cascades and proper memory cleanup when the manager stops.
+
+### Dependency Injection
+
+During install, the helper script automatically injects:
+
+1. **Manifest dependencies**: Declared in `ext_mgr.service.dependencies`
+2. **Bundled services**: Auto-detected `.service` files in `scripts/` or `packages/services/`
+3. **Package services**: Services from bundled packages
+
+All dependencies are combined into the main service unit's `Requires` and `After` directives.
+
+### Service Unit Template
 
 ```ini
 [Unit]
 Description=My Extension Service
-Requires=moode-extmgr.service
-After=moode-extmgr.service
+Requires=moode-extmgr.service <injected-dependencies>
+After=moode-extmgr.service network.target <injected-dependencies>
+PartOf=moode-extmgr.service
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/python3 /var/www/extensions/installed/my-extension/backend/worker.py
+User=moode-extmgrusr
+Group=moode-extmgr
+WorkingDirectory=/var/www/extensions/installed/my-extension
+ExecStart=/usr/bin/python3 backend/worker.py
+Restart=always
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
 ```
+
+### Cascade Behavior
+
+| Directive | Effect |
+|-----------|--------|
+| `Requires=` | Service fails if dependency fails |
+| `After=` | Ensures startup order |
+| `PartOf=` | **Stopping parent stops all children** - enables graceful memory cleanup |
+
+Stopping `moode-extmgr.service` propagates to all extension services, ensuring proper resource release.
+
+### Tracking
+
+Injected dependencies are recorded in `install-metadata.json` under `services.dependenciesInjected` for audit and clean removal.
 
 ## Install Metadata
 

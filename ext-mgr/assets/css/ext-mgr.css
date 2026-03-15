@@ -1143,7 +1143,7 @@ body:not([data-standalone]) .extmgr-page-shell {
   --step-inactive-text: #4a4a4a;
   --step-completed-bg: var(--rp-accent);
   --step-completed-text: #fff;
-  --step-active-bg: var(--rp-accent);
+  --step-active-bg: #d35400ab;
   --step-active-text: #fff;
   display: flex;
   flex-wrap: nowrap;
