@@ -2865,7 +2865,7 @@ function resolveAvailableRemoteBranches($repository, &$error)
     $payload = httpGet($apiUrl, $networkError);
     if ($payload === null) {
         $tagError = '';
-        $tagCandidate = resolveRemoteTagCandidate($repository, $channel, $tagError);
+        $tagCandidate = resolveRemoteTagCandidate($repository, 'stable', $tagError);
         if (is_array($tagCandidate)) {
             $error = '';
             return $tagCandidate;
@@ -6351,8 +6351,8 @@ if ($action === 'debug_api') {
                 'registry' => $registryPath,
                 'meta' => $metaPath,
                 'release' => $releasePath,
-                'installed' => EXT_MGR_INSTALLED_ROOT,
-                'sys' => EXT_MGR_SYS_ROOT,
+                'installed' => $extensionsInstalledPath,
+                'sys' => $extensionsRootPath . '/sys',
             ],
             'meta' => $meta,
             'releasePolicy' => $policy,
