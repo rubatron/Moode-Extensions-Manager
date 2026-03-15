@@ -3984,6 +3984,8 @@ function runShellCommands($commands, &$outputText)
 
 function removePathWithFallback($path, &$outputNote)
 {
+    global $baseDir;
+
     $outputNote = '';
     $target = trim((string)$path);
     if ($target === '' || !file_exists($target)) {
@@ -3999,6 +4001,23 @@ function removePathWithFallback($path, &$outputNote)
     if (!isPhpFunctionEnabled('exec')) {
         $outputNote = 'exec() disabled';
         return false;
+    }
+
+    $helperScript = rtrim((string)$baseDir, '/\\') . DIRECTORY_SEPARATOR . 'scripts' . DIRECTORY_SEPARATOR . 'ext-mgr-remove-path.sh';
+    if (is_file($helperScript)) {
+        $helperOutput = '';
+        $helperCmd = 'bash ' . escapeshellarg($helperScript) . ' ' . escapeshellarg($target) . ' 2>&1';
+        $helperOk = runShellCommands([
+            $helperCmd,
+            'sudo -n ' . $helperCmd,
+        ], $helperOutput);
+        clearstatcache(true, $target);
+        if ($helperOk && !file_exists($target)) {
+            return true;
+        }
+        if ($helperOutput !== '') {
+            $outputNote = 'helper: ' . $helperOutput;
+        }
     }
 
     $isDir = is_dir($target) && !is_link($target);
