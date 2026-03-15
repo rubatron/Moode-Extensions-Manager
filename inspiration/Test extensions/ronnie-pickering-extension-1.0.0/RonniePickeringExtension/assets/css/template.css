@@ -1,0 +1,539 @@
+/* ═══════════════════════════════════════════════════════════════
+   Ronnie Pickering's Extension — template.css
+   v2 — moOde CSS alignment + glass/gloss layer
+
+   LAYERING STRATEGY
+   ─────────────────
+   1. moOde shell variables  — consumed via var(--xxx, fallback)
+      moOde injects these at runtime through its theme engine:
+        --accentxts            primary accent (orange by default)
+        --color-1 … --color-10 theme palette
+        body / #container      background already set by moOde
+
+   2. Our own tokens          — prefixed --rp-* to avoid collisions
+      Used in both moOde-shell mode and standalone mode.
+      In standalone mode these also drive the base layout.
+
+   3. Glass / gloss layer     — purely additive, works on any dark bg
+      Uses rgba + backdrop-filter so it degrades gracefully where
+      backdrop-filter is unsupported (older Pi browsers).
+
+   STANDALONE vs MOODE SHELL
+   ──────────────────────────
+   When moOde's header.php is present the <body> and #container
+   are already styled. Our rules scope to .ext-template-shell and
+   below, so we never fight moOde's base layout.
+   body/html resets are only applied in standalone mode via the
+   [data-standalone] attribute that template.php sets on <body>.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Google Fonts — standalone only (moOde already has fonts) ── */
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ═══════════════════════════════════════════════════════════════
+   1. DESIGN TOKENS
+   ═══════════════════════════════════════════════════════════════ */
+:root {
+  /* Accent — defer to moOde's --accentxts, fallback to our orange */
+  --rp-accent:         var(--accentxts, #d35400);
+  --rp-accent-bright:  #ff6b1a;
+  --rp-accent-glow:    rgba(211, 84, 0, 0.45);
+  --rp-accent-dim:     rgba(211, 84, 0, 0.10);
+
+  /* Backgrounds — moOde dark theme approximations as fallbacks.
+     In moOde shell mode the actual bg comes from moOde's own CSS.  */
+  --rp-bg-page:        #161616;   /* moOde Midnight body bg        */
+  --rp-bg-surface:     #1c1c1c;   /* moOde card/section bg         */
+  --rp-bg-raised:      #222222;   /* slightly elevated surface     */
+
+  /* Glass layer — additive on top of any dark background          */
+  --rp-glass-bg:       rgba(255, 255, 255, 0.035);
+  --rp-glass-bg-h:     rgba(255, 255, 255, 0.060);
+  --rp-glass-border:   rgba(255, 255, 255, 0.08);
+  --rp-glass-border-a: rgba(211, 84, 0, 0.40);
+  --rp-glass-shine:    rgba(255, 255, 255, 0.10);
+
+  /* Text — aligned to moOde's light-on-dark palette              */
+  --rp-text:           #d6dbe0;   /* moOde default body text       */
+  --rp-text-muted:     rgba(214, 219, 224, 0.50);
+  --rp-text-label:     rgba(214, 219, 224, 0.55);
+
+  /* Shadows */
+  --rp-shadow:         0 4px 20px rgba(0,0,0,0.50),
+                       0 1px 0 rgba(255,255,255,0.05) inset,
+                       0 -1px 0 rgba(0,0,0,0.25) inset;
+  --rp-shadow-glow:    0 0 24px rgba(211,84,0,0.18),
+                       0 0 48px rgba(211,84,0,0.07);
+
+  /* Typography */
+  --rp-font-display:   'Bebas Neue', Impact, sans-serif;
+  --rp-font-body:      'DM Sans', system-ui, -apple-system, sans-serif;
+  --rp-font-mono:      'JetBrains Mono', 'Courier New', monospace;
+
+  /* Geometry */
+  --rp-radius-sm:      5px;
+  --rp-radius-md:      8px;
+  --rp-radius-lg:      12px;
+  --rp-transition:     0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   2. STANDALONE MODE BASE
+   Applied only when template.php is running without moOde shell.
+   ═══════════════════════════════════════════════════════════════ */
+body[data-standalone] {
+  background: var(--rp-bg-page);
+  background-image:
+    radial-gradient(ellipse 70% 40% at 50% -5%,
+      rgba(211,84,0,0.10) 0%, transparent 55%);
+  color: var(--rp-text);
+  font-family: var(--rp-font-body);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  min-height: 100vh;
+  padding: 1.5rem 1rem 3rem;
+}
+
+body[data-standalone] *,
+body[data-standalone] *::before,
+body[data-standalone] *::after {
+  box-sizing: border-box;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   3. ORIGINAL TEMPLATE CLASSES
+   These are the ext-template-* classes defined in the template kit.
+   They are kept 100% compatible — moOde's ext-mgr may rely on them.
+   We only ADD visual layering on top via ::before / ::after.
+   ═══════════════════════════════════════════════════════════════ */
+
+.ext-template-shell {
+  padding-bottom: 1.2rem;
+  max-width: 820px;
+  margin: 0 auto;
+}
+
+.ext-template-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 1rem;
+  padding: 0.25rem 0;
+}
+
+.ext-template-header i {
+  font-size: 1.15rem;
+  color: var(--rp-accent);
+  filter: drop-shadow(0 0 5px var(--rp-accent-glow));
+}
+
+/* ── Glass card ────────────────────────────────────────────────
+   Visually: translucent dark glass plate with gloss top edge.
+   Compatible with moOde's dark backgrounds of any shade.        */
+.ext-template-card {
+  position: relative;
+  margin-top: 0.8rem;
+  border: 1px solid var(--rp-glass-border);
+  border-radius: var(--rp-radius-lg);
+  padding: 0.85rem 1rem;
+  background: var(--rp-glass-bg);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  box-shadow: var(--rp-shadow);
+  overflow: hidden;
+  transition:
+    border-color var(--rp-transition),
+    box-shadow   var(--rp-transition),
+    background   var(--rp-transition),
+    transform    var(--rp-transition);
+}
+
+/* Top gloss line */
+.ext-template-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    var(--rp-glass-shine) 25%,
+    rgba(255,255,255,0.20) 50%,
+    var(--rp-glass-shine) 75%,
+    transparent 100%);
+  border-radius: var(--rp-radius-lg) var(--rp-radius-lg) 0 0;
+  pointer-events: none;
+}
+
+/* Inner bevel highlight */
+.ext-template-card::after {
+  content: '';
+  position: absolute;
+  top: 1px; left: 8%; right: 8%;
+  height: 35%;
+  background: linear-gradient(180deg,
+    rgba(255,255,255,0.045) 0%,
+    transparent 100%);
+  border-radius: 0 0 50% 50% / 0 0 100% 100%;
+  pointer-events: none;
+}
+
+.ext-template-card:hover {
+  border-color: var(--rp-glass-border-a);
+  background: var(--rp-glass-bg-h);
+  box-shadow: var(--rp-shadow), var(--rp-shadow-glow);
+  transform: translateY(-1px);
+}
+
+.ext-template-card-title {
+  font-size: 0.70rem;
+  font-weight: 600;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--rp-accent);
+  margin: 0 0 0.55rem 0;
+  text-shadow: 0 0 10px var(--rp-accent-glow);
+}
+
+.ext-template-picker-row {
+  display: grid;
+  grid-template-columns: 110px minmax(200px, 1fr);
+  gap: 0.4rem 0.65rem;
+  align-items: center;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.ext-template-picker-row:last-of-type {
+  border-bottom: none;
+}
+
+.ext-template-code {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: var(--rp-radius-sm);
+  font-family: monospace;
+  font-size: 0.82rem;
+  color: var(--rp-text);
+  background: rgba(0,0,0,0.30);
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.35);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   4. RONNIE PICKERING EXTENSION — ext-rp-* classes
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Page title (standalone only, hidden in moOde shell) ──────── */
+.ext-rp-page-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1.1rem;
+  margin-bottom: 0.3rem;
+  border-radius: var(--rp-radius-lg);
+  background: linear-gradient(135deg,
+    rgba(211,84,0,0.16) 0%,
+    rgba(255,120,40,0.06) 45%,
+    rgba(255,255,255,0.02) 100%);
+  border: 1px solid var(--rp-glass-border-a);
+  box-shadow:
+    0 4px 20px rgba(211,84,0,0.12),
+    0 1px 0 rgba(255,255,255,0.07) inset;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Diagonal gloss sweep */
+.ext-rp-page-title::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -50%; width: 55%; height: 100%;
+  background: linear-gradient(105deg,
+    transparent 0%,
+    rgba(255,255,255,0.05) 50%,
+    transparent 100%);
+  transform: skewX(-12deg);
+  pointer-events: none;
+}
+
+.ext-rp-title-text {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.ext-rp-yt-icon {
+  font-size: 1.9rem;
+  color: var(--rp-accent-bright);
+  filter:
+    drop-shadow(0 0 7px var(--rp-accent-glow))
+    drop-shadow(0 0 18px rgba(211,84,0,0.25));
+  transition: filter var(--rp-transition), transform var(--rp-transition);
+}
+.ext-rp-yt-icon:hover {
+  filter: drop-shadow(0 0 14px var(--rp-accent-bright))
+          drop-shadow(0 0 28px rgba(255,107,26,0.45));
+  transform: scale(1.07);
+}
+
+.ext-rp-h1 {
+  font-family: var(--rp-font-display);
+  font-size: clamp(1.4rem, 4vw, 2.2rem);
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  color: var(--rp-text);
+  line-height: 1;
+  text-shadow: 0 0 24px rgba(211,84,0,0.25), 0 1px 0 rgba(255,255,255,0.08);
+  margin: 0;
+}
+
+.ext-rp-badge {
+  font-family: var(--rp-font-mono);
+  font-size: 0.63rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--rp-accent-bright);
+  background: rgba(211,84,0,0.12);
+  border: 1px solid rgba(211,84,0,0.38);
+  border-radius: 4px;
+  padding: 0.2rem 0.5rem;
+  white-space: nowrap;
+  box-shadow: 0 0 8px rgba(211,84,0,0.15),
+              inset 0 1px 0 rgba(255,255,255,0.07);
+}
+
+/* ── Video card ──────────────────────────────────────────────── */
+.ext-rp-video-wrapper {
+  position: relative;
+  padding-bottom: 56.25%;
+  height: 0;
+  overflow: hidden;
+  border-radius: var(--rp-radius-md);
+  background: #000;
+  box-shadow:
+    0 0 0 1px rgba(211,84,0,0.25),
+    0 0 0 3px rgba(211,84,0,0.06),
+    0 10px 40px rgba(0,0,0,0.65);
+}
+
+/* Shiny top edge on video frame */
+.ext-rp-video-wrapper::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 8%; right: 8%;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(255,200,120,0.55) 30%,
+    rgba(255,255,255,0.85) 50%,
+    rgba(255,200,120,0.55) 70%,
+    transparent);
+  z-index: 3;
+  border-radius: 1px;
+  filter: blur(0.3px);
+}
+
+.ext-rp-video-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--rp-radius-md);
+  background: radial-gradient(ellipse at 50% 0%,
+    rgba(211,84,0,0.15) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.ext-rp-video-wrapper iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%; height: 100%;
+  border: none;
+  border-radius: var(--rp-radius-md);
+  z-index: 1;
+}
+
+/* ── Meta labels & values ────────────────────────────────────── */
+.ext-rp-label {
+  font-size: 0.78rem;
+  color: var(--rp-text-label);
+}
+
+.ext-rp-value {
+  font-size: 0.87rem;
+  color: var(--rp-text);
+  font-weight: 500;
+}
+
+.ext-rp-mono {
+  font-family: var(--rp-font-mono);
+  font-size: 0.79rem;
+  color: var(--rp-accent-bright);
+  text-shadow: 0 0 7px var(--rp-accent-glow);
+}
+
+.ext-rp-pill {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 20px;
+  padding: 0.1rem 0.6rem;
+  font-size: 0.74rem;
+  color: var(--rp-text-muted);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+}
+
+/* ── Embed code block ────────────────────────────────────────── */
+.ext-rp-code-block {
+  font-family: var(--rp-font-mono) !important;
+  font-size: 0.73rem !important;
+  line-height: 1.6 !important;
+  background: rgba(0,0,0,0.45) !important;
+  border: 1px solid rgba(255,255,255,0.06) !important;
+  border-radius: var(--rp-radius-sm) !important;
+  color: #82c882 !important;
+  word-break: break-all;
+  white-space: pre-wrap;
+  box-shadow:
+    inset 0 2px 8px rgba(0,0,0,0.40),
+    inset 0 1px 0 rgba(255,255,255,0.03) !important;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────── */
+.ext-rp-btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.7rem;
+}
+
+/* Primary — glassy orange */
+.ext-rp-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  padding: 0.4rem 0.95rem;
+  font-family: var(--rp-font-body);
+  font-size: 0.80rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: var(--rp-radius-sm);
+  text-decoration: none;
+  overflow: hidden;
+  transition: box-shadow var(--rp-transition), transform var(--rp-transition),
+              background var(--rp-transition), border-color var(--rp-transition);
+  background: linear-gradient(160deg,
+    rgba(255,120,40,0.90) 0%,
+    rgba(175,52,0,0.95)   100%);
+  border: 1px solid rgba(255,140,60,0.45);
+  color: #fff;
+  box-shadow:
+    0 2px 10px rgba(211,84,0,0.35),
+    inset 0 1px 0 rgba(255,255,255,0.22),
+    inset 0 -1px 0 rgba(0,0,0,0.18);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.30);
+}
+
+/* Gloss sweep */
+.ext-rp-btn::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 48%;
+  background: linear-gradient(180deg,
+    rgba(255,255,255,0.16) 0%,
+    rgba(255,255,255,0.03) 100%);
+  border-radius: var(--rp-radius-sm) var(--rp-radius-sm) 50% 50%;
+  pointer-events: none;
+}
+
+.ext-rp-btn:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 5px 18px rgba(211,84,0,0.50),
+    0 0 0 1px rgba(255,140,60,0.55),
+    inset 0 1px 0 rgba(255,255,255,0.28),
+    inset 0 -1px 0 rgba(0,0,0,0.12);
+}
+.ext-rp-btn:active { transform: translateY(0); }
+
+/* Ghost variant */
+.ext-rp-btn-ghost {
+  background: rgba(255,255,255,0.03);
+  border-color: var(--rp-glass-border);
+  color: var(--rp-text-label);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.07);
+  text-shadow: none;
+}
+.ext-rp-btn-ghost:hover {
+  background: rgba(211,84,0,0.08);
+  border-color: rgba(211,84,0,0.38);
+  color: var(--rp-accent-bright);
+  box-shadow: 0 3px 14px rgba(211,84,0,0.18),
+              inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+/* Copied / success state */
+.ext-rp-btn.copied {
+  background: linear-gradient(160deg,
+    rgba(48,155,75,0.85) 0%,
+    rgba(28,90,50,0.92)  100%);
+  border-color: rgba(70,190,90,0.38);
+  color: #a6f0b4;
+  box-shadow: 0 2px 10px rgba(48,155,75,0.28),
+              inset 0 1px 0 rgba(255,255,255,0.18);
+  transform: none;
+  pointer-events: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   5. MOODE SHELL COMPATIBILITY
+   These rules ensure our extension looks good inside moOde's
+   existing #container / .container Bootstrap grid.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* moOde's config-title class — used in ext-template-header */
+.config-title {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--rp-text);
+  letter-spacing: 0.01em;
+}
+
+/* moOde's config-help-static — muted helper text */
+.config-help-static {
+  font-size: 0.82rem;
+  color: var(--rp-text-muted);
+  margin: 0.3rem 0 0.6rem;
+  line-height: 1.5;
+}
+
+/* Inside moOde shell: shell already provides padding via Bootstrap #container,
+   so we reduce our own shell padding to avoid double-spacing */
+body:not([data-standalone]) .ext-template-shell {
+  padding-top: 0.5rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   6. RESPONSIVE
+   ═══════════════════════════════════════════════════════════════ */
+@media (max-width: 540px) {
+  .ext-rp-h1       { font-size: 1.25rem; }
+  .ext-rp-page-title { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+  .ext-template-picker-row { grid-template-columns: 88px 1fr; }
+  .ext-rp-btn-row   { flex-direction: column; }
+  .ext-rp-btn       { justify-content: center; }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SETTINGS NAV SUPPRESSION — extension detail pages
+   ═══════════════════════════════════════════════════════════════
+   Selector confirmed from ext-mgr source (ext-mgr-hover-menu.js):
+   The moOde settings tabs (Library|Audio|Network|System|…) live in
+   #config-tabs. Hiding this element leaves back (<), home and M
+   buttons untouched — they are outside #config-tabs in header.php.
+   ═══════════════════════════════════════════════════════════════ */
+#config-tabs { display: none !important; }

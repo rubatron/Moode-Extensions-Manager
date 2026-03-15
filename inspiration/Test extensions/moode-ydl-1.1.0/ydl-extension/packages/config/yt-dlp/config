@@ -1,0 +1,19 @@
+# yt-dlp default config for moode-ydl extension
+# This file is symlinked to /etc/yt-dlp.conf or ~/.config/yt-dlp/config
+# Edit via the extension settings page
+
+# Audio format preference
+--format bestaudio/best
+--extract-audio
+--audio-format mp3
+--audio-quality 0
+
+# Embed metadata
+--embed-thumbnail
+--add-metadata
+
+# Output template (overridden by extension settings)
+--output "%(artist)s - %(title)s.%(ext)s"
+
+# Quiet (extension uses JSON output)
+--no-warnings

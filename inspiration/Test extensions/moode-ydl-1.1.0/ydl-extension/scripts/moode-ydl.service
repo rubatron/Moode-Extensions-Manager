@@ -1,0 +1,18 @@
+[Unit]
+Description=moode-ydl YouTube Audioplayback extension
+After=network.target moode-extmgr.service mpd.service
+Requires=moode-extmgr.service
+PartOf=moode-extmgr.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=moode-extmgrusr
+Group=moode-extmgr
+WorkingDirectory=/var/www/extensions/installed/moode-ydl
+ExecStart=/bin/true
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

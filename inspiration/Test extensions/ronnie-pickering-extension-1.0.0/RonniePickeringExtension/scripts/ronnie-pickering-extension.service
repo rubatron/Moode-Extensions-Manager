@@ -1,0 +1,17 @@
+[Unit]
+Description=Template Extension extension service
+Requires=moode-extmgr.service
+After=moode-extmgr.service network.target
+PartOf=moode-extmgr.service
+
+[Service]
+Type=simple
+User=moode-extmgrusr
+Group=moode-extmgr
+WorkingDirectory=/var/www/extensions/installed/ronnie-pickering-extension
+ExecStart=/usr/bin/env bash /var/www/extensions/installed/ronnie-pickering-extension/scripts/service-runner.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

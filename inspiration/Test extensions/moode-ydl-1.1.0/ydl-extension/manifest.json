@@ -1,0 +1,43 @@
+{
+    "id": "moode-ydl",
+    "name": "YouTube Audioplayback",
+    "version": "1.1.0",
+    "main": "template.php",
+    "ext_mgr": {
+        "enabled": true,
+        "state": "active",
+        "type": "functionality",
+        "stageProfile": "visible-by-default",
+        "menuVisibility": {
+            "m": true,
+            "library": true,
+            "system": false
+        },
+        "settingsCardOnly": false,
+        "iconClass": "fa-brands fa-youtube",
+        "service": {
+            "name": "moode-ydl.service",
+            "requiresExtMgr": true,
+            "parentService": "moode-extmgr.service",
+            "dependencies": [
+                "moode-extmgr.service"
+            ]
+        },
+        "logging": {
+            "localDir": "logs",
+            "globalDir": "/var/www/extensions/sys/logs/extensionslogs/moode-ydl",
+            "files": [
+                "install.log",
+                "system.log",
+                "error.log"
+            ]
+        },
+        "install": {
+            "packages": [
+                "python3-pip"
+            ],
+            "script": "scripts/install.sh",
+            "packageArtifacts": []
+        }
+    }
+}

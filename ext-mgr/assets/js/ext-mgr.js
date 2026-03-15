@@ -2864,13 +2864,27 @@
       });
   });
 
-  [wizardNameEl, wizardVersionEl, wizardTypeEl, wizardMenuMEl, wizardMenuLibraryEl, wizardMenuSystemEl, wizardSettingsOnlyEl, wizardServiceNameEl, wizardDependenciesEl, wizardAptPackagesEl].forEach(function (el) {
+  // Only name/version/type trigger review jump
+  [wizardNameEl, wizardVersionEl, wizardTypeEl].forEach(function (el) {
     if (!el) {
       return;
     }
     el.addEventListener('change', function () {
       renderWizardReview();
       wizardSetStep('review');
+    });
+    el.addEventListener('keyup', function () {
+      renderWizardReview();
+    });
+  });
+
+  // Menu/service/package fields update review but don't jump
+  [wizardMenuMEl, wizardMenuLibraryEl, wizardMenuSystemEl, wizardSettingsOnlyEl, wizardServiceNameEl, wizardDependenciesEl, wizardAptPackagesEl].forEach(function (el) {
+    if (!el) {
+      return;
+    }
+    el.addEventListener('change', function () {
+      renderWizardReview();
     });
     el.addEventListener('keyup', function () {
       renderWizardReview();

@@ -597,7 +597,7 @@ body:not([data-standalone]) .extmgr-page-shell {
 .extmgr-import-controls .btn.btn-small:hover {
   background-color: var(--extmgr-btn-bg-hover);
   border-color: transparent;
-  color: #fff;
+  color: var(--rp-accent);
 }
 
 .extmgr-page-shell .btn.btn-small:focus-visible,
@@ -1200,6 +1200,7 @@ body:not([data-standalone]) .extmgr-page-shell {
   background: var(--rp-accent);
   color: var(--step-active-text);
   font-weight: 600;
+  box-shadow: 0 0 12px color-mix(in srgb, var(--rp-accent) 60%, transparent);
 }
 
 .extmgr-wizard-step.is-completed {
