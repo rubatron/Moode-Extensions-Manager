@@ -699,7 +699,7 @@ body:not([data-standalone]) .extmgr-page-shell {
 }
 
 .extmgr-note.ok {
-  color: #5fcf80;
+  color: var(--rp-accent);
 }
 
 .extmgr-note.error {
@@ -1361,7 +1361,7 @@ body:not([data-standalone]) .extmgr-page-shell {
 
 .extmgr-install-success i {
   font-size: 2.5rem;
-  color: var(--rp-accent);
+  color: var(--rp-accent) !important;
   margin-bottom: 0.5rem;
   filter: drop-shadow(0 0 12px color-mix(in srgb, var(--rp-accent) 60%, transparent));
 }

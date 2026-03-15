@@ -25,7 +25,7 @@ for f in "${FILES[@]}"; do
     existing+=("${f}")
   fi
 done
-
+review d
 if [[ ${#existing[@]} -eq 0 ]]; then
   echo "No target files found. Nothing to back up." >&2
   exit 1

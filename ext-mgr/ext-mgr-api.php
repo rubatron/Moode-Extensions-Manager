@@ -2112,31 +2112,7 @@ function buildTemplatePackageFiles($extensionId)
         . "    apply(picker.value);\n"
         . "  });\n"
         . "})();\n"
-        . "\n"
-        . "(function () {\n"
-        . "  'use strict';\n"
-        . "\n"
-        . "  function syncHeaderMenuVisibility() {\n"
-        . "    var tabs = document.getElementById('config-tabs');\n"
-        . "    if (tabs) {\n"
-        . "      tabs.style.setProperty('display', 'none', 'important');\n"
-        . "    }\n"
-        . "  }\n"
-        . "\n"
-        . "  syncHeaderMenuVisibility();\n"
-        . "\n"
-        . "  if (document.readyState === 'loading') {\n"
-        . "    document.addEventListener('DOMContentLoaded', syncHeaderMenuVisibility);\n"
-        . "  }\n"
-        . "\n"
-        . "  if (window.MutationObserver) {\n"
-        . "    var observer = new MutationObserver(syncHeaderMenuVisibility);\n"
-        . "    observer.observe(document.documentElement, { childList: true, subtree: true });\n"
-        . "    setTimeout(function () {\n"
-        . "      observer.disconnect();\n"
-        . "    }, 3000);\n"
-        . "  }\n"
-        . "})();\n";
+        . "// Header menu visibility is controlled via PHP and ext-mgr registry (headerVisible setting).\n";
 
     $templateCss = ".ext-template-shell {\n"
         . "  padding-bottom: 1.2rem;\n"
@@ -3853,6 +3829,65 @@ function writeModificationLog($sourceDir, $modifications)
     return @file_put_contents($logPath, implode("\n", $lines)) !== false;
 }
 
+/**
+ * Upgrade template.js to remove hardcoded header suppression
+ * The old template.js had syncHeaderMenuVisibility() that unconditionally hid #config-tabs
+ * This is now handled by PHP in template.php via the headerVisible registry setting.
+ * Returns true on success, false on failure
+ */
+function upgradeTemplateJsForHeaderVisibility($sourceDir, &$modificationLog = null)
+{
+    $templateJsPath = rtrim((string)$sourceDir, '/\\') . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'js' . DIRECTORY_SEPARATOR . 'template.js';
+    if (!is_file($templateJsPath)) {
+        return true; // No template.js to upgrade
+    }
+
+    $content = @file_get_contents($templateJsPath);
+    if ($content === false) {
+        return false;
+    }
+
+    $originalContent = $content;
+
+    // Skip if the file doesn't contain the problematic pattern
+    if (strpos($content, 'syncHeaderMenuVisibility') === false) {
+        return true;
+    }
+
+    // Pattern: The entire IIFE block that unconditionally hides #config-tabs
+    // This matches: (function () { ... syncHeaderMenuVisibility ... })();
+    $pattern = '/\(function\s*\(\)\s*\{\s*[\'"]use strict[\'"];\s*function\s+syncHeaderMenuVisibility\s*\(\)\s*\{[^}]*#config-tabs[^}]*\}[^}]*\}\)\(\);\s*/s';
+
+    $replacement = "// Header menu visibility is controlled via PHP and ext-mgr registry (headerVisible setting).\n";
+
+    $content = preg_replace($pattern, $replacement, $content, 1, $count);
+
+    if ($count === 0) {
+        // Try a more aggressive cleanup for variations
+        $pattern2 = '/\n?\(function\s*\(\)\s*\{[\s\S]*?syncHeaderMenuVisibility[\s\S]*?\}\)\(\);\s*\n?/';
+        $content = preg_replace($pattern2, "\n" . $replacement, $content, 1, $count);
+    }
+
+    if ($count > 0 && $content !== $originalContent) {
+        // Log the modification
+        if ($modificationLog !== null) {
+            $modificationLog[] = [
+                'timestamp' => date('c'),
+                'action' => 'template_js_upgrade',
+                'file' => 'assets/js/template.js',
+                'pattern' => 'syncHeaderMenuVisibility IIFE',
+                'description' => 'Removed hardcoded header suppression JS (now controlled by PHP via headerVisible registry setting)',
+                'before_snippet' => 'syncHeaderMenuVisibility() {...}',
+                'after_snippet' => 'Comment noting PHP handles visibility',
+            ];
+        }
+
+        return @file_put_contents($templateJsPath, $content) !== false;
+    }
+
+    return true;
+}
+
 function runExtHelperScan($sourceDir)
 {
     $helperPath = __DIR__ . DIRECTORY_SEPARATOR . 'scripts' . DIRECTORY_SEPARATOR . 'ext_helper.py';
@@ -5525,6 +5560,9 @@ if ($action === 'import_extension_install') {
 
     // Auto-upgrade template.php to dynamic header visibility if needed
     $templateUpgraded = upgradeTemplateForDynamicHeader($sourceDir, $modificationLog);
+
+    // Auto-upgrade template.js to remove hardcoded header suppression if present
+    $templateJsUpgraded = upgradeTemplateJsForHeaderVisibility($sourceDir, $modificationLog);
 
     $review = buildImportPackageReview($sourceDir);
     $manifestData = readJsonFile($sourceDir . DIRECTORY_SEPARATOR . 'manifest.json', []);

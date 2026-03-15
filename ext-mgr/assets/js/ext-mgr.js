@@ -731,13 +731,15 @@
 
   // ═══════════════════════════════════════════════════════════════════════════════
 
-  function setStatus(text, kind) {
+  function setStatus(text, kind, options) {
+    options = options || {};
     if (!statusEl) {
       return;
     }
 
     // User preference: suppress success/info toast-style status noise.
-    if (kind === 'ok') {
+    // Exception: force=true shows the message regardless (used for uninstall etc.)
+    if (kind === 'ok' && !options.force) {
       statusEl.textContent = '';
       statusEl.classList.remove('error', 'ok');
       return;
@@ -2261,7 +2263,7 @@
                 if (!removedRegistry || !removedInstallDir || failedPathsCount > 0) {
                   setStatus('Uninstall incomplete for ' + label + ' (' + scriptState + ', removed paths: ' + removedPathsCount + ', failed paths: ' + failedPathsCount + ').', 'error');
                 } else {
-                  setStatus('Uninstalled ' + label + ' (' + scriptState + ', removed paths: ' + removedPathsCount + ').', 'ok');
+                  setStatus('Uninstalled ' + label + ' (' + scriptState + ', removed paths: ' + removedPathsCount + ').', 'ok', { force: true });
                 }
                 runRefresh();
                 reloadPageSoon();
