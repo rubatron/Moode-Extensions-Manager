@@ -25,9 +25,11 @@ docker-compose.yml
 
 # Local dev environment
 1. inspiration/
+inspiration/
 radio-browser/
 .vscode/
 radio-browser-menu-integration/
+.venv/
 # OS/editor
 .DS_Store
 Thumbs.db
