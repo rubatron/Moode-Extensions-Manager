@@ -1141,7 +1141,7 @@ body:not([data-standalone]) .extmgr-page-shell {
   --step-gap: 0.25rem;
   --step-inactive-bg: #b0b0b0;
   --step-inactive-text: #4a4a4a;
-  --step-completed-bg: var(--rp-accent);
+  --step-completed-bg: #d3540052;
   --step-completed-text: #fff;
   --step-active-bg: #d35400ab;
   --step-active-text: #fff;
@@ -1205,7 +1205,7 @@ body:not([data-standalone]) .extmgr-page-shell {
 }
 
 .extmgr-wizard-step:hover:not(.is-active):not(.is-completed) {
-  background: #9a9a9a;
+  background: #d354002d;
 }
 
 .extmgr-wizard-step.is-active {
