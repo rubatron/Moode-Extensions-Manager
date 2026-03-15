@@ -1,0 +1,144 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "ext-mgr: Scan extension",
+      "type": "shell",
+      "command": "python3 backend/ext_helper.py scan .",
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      },
+      "problemMatcher": [],
+      "detail": "Runs ext_helper.py scan on this extension root \u2014 shows type, path audit, dependencies"
+    },
+    {
+      "label": "ext-mgr: Show path policy",
+      "type": "shell",
+      "command": "python3 backend/ext_helper.py policy | python3 -m json.tool",
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      },
+      "problemMatcher": [],
+      "detail": "Prints the full PATH_POLICY table (22 entries)"
+    },
+    {
+      "label": "ext-mgr: Validate manifest.json",
+      "type": "shell",
+      "command": "python3 -c \"import json, sys; m=json.load(open('manifest.json')); missing=[f for f in ['id','name','version','main'] if f not in m]; print('OK' if not missing else f'Missing: {missing}')\"",
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      },
+      "problemMatcher": [],
+      "detail": "Checks manifest.json for required top-level fields"
+    },
+    {
+      "label": "ext-mgr: Show footprint",
+      "type": "shell",
+      "command": "python3 backend/ext_helper.py footprint . | python3 -m json.tool",
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      },
+      "problemMatcher": [],
+      "detail": "Shows data/install-footprint.json if present"
+    },
+    {
+      "label": "ext-mgr: Build zip",
+      "type": "shell",
+      "command": "bash scripts/build-zip.sh",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      },
+      "problemMatcher": [],
+      "detail": "Builds <ext-id>-<version>.zip \u2014 runs path audit, strips dev files"
+    },
+    {
+      "label": "ext-mgr: PHP dev server (standalone preview)",
+      "type": "shell",
+      "command": "php -S localhost:8080 -t .",
+      "group": "test",
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^(.*)$",
+          "file": 1
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^PHP",
+          "endsPattern": "^Listening"
+        }
+      },
+      "detail": "Starts PHP built-in server on :8080 for standalone template.php preview"
+    },
+    {
+      "label": "ext-mgr: Rewrite extension ID",
+      "type": "shell",
+      "command": "python3 backend/ext_helper.py rewrite . template-extension ${input:newId}",
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      },
+      "problemMatcher": [],
+      "detail": "Renames all occurrences of 'template-extension' to your new ID"
+    },
+    {
+      "label": "ext-mgr: ShellCheck all scripts",
+      "type": "shell",
+      "command": "shellcheck scripts/*.sh || true",
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      },
+      "problemMatcher": [],
+      "detail": "Runs shellcheck on all scripts in scripts/"
+    },
+    {
+      "label": "ext-mgr: Build zip (dry run)",
+      "type": "shell",
+      "command": "bash scripts/build-zip.sh --dry-run",
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      },
+      "problemMatcher": [],
+      "detail": "Shows which files would be included without building"
+    }
+  ],
+  "inputs": [
+    {
+      "id": "newId",
+      "type": "promptString",
+      "description": "New extension ID (slug, e.g. my-cool-extension)",
+      "default": "my-extension"
+    }
+  ]
+}

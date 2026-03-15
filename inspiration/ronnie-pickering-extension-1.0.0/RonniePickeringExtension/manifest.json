@@ -1,0 +1,43 @@
+{
+    "id": "ronnie-pickering-extension",
+    "name": "Ronnie Pickering's Extension",
+    "version": "1.0.0",
+    "main": "template.php",
+    "ext_mgr": {
+        "enabled": true,
+        "state": "active",
+        "stageProfile": "visible-by-default",
+        "menuVisibility": {
+            "m": true,
+            "library": true,
+            "system": false
+        },
+        "settingsCardOnly": false,
+        "iconClass": "fa-brands fa-youtube",
+        "service": {
+            "name": "ronnie-pickering-extension.service",
+            "requiresExtMgr": true,
+            "parentService": "moode-extmgr.service",
+            "dependencies": [
+                "ronnie-pickering-helper.service"
+            ]
+        },
+        "logging": {
+            "localDir": "logs",
+            "globalDir": "/var/www/extensions/sys/logs/extensionslogs/ronnie-pickering-extension",
+            "files": [
+                "install.log",
+                "system.log",
+                "error.log"
+            ]
+        },
+        "install": {
+            "packages": [],
+            "script": "scripts/install.sh",
+            "packageArtifacts": [
+                "packages/services/ronnie-pickering-helper.service",
+                "packages/data/video-config.json"
+            ]
+        }
+    }
+}

@@ -1,0 +1,11 @@
+{
+    "videoId": "r0dcv6GKNNw",
+    "platform": "youtube",
+    "aspectRatio": "16:9",
+    "params": {
+        "rel": 0,
+        "modestbranding": 1,
+        "color": "white"
+    },
+    "_comment": "Bundled default video config — test package artifact for ext-mgr import test"
+}

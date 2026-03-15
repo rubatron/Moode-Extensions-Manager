@@ -1,0 +1,59 @@
+{
+  "files.associations": {
+    "*.service": "ini",
+    "*.sh": "shellscript",
+    "install-footprint.json": "json",
+    "pkg-register.json": "json",
+    "ext-mgr.menu-preset.json": "json"
+  },
+
+  "files.exclude": {
+    "**/.gitkeep": true,
+    "**/__pycache__": true,
+    "**/*.pyc": true,
+    "cache/**": true,
+    "logs/**": true
+  },
+
+  "search.exclude": {
+    "cache/**": true,
+    "logs/**": true,
+    "data/install-footprint.json": true
+  },
+
+  "[php]": {
+    "editor.defaultFormatter": "bmewburn.vscode-intelephense-client",
+    "editor.tabSize": 4,
+    "editor.insertSpaces": true
+  },
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.python",
+    "editor.tabSize": 4
+  },
+  "[shellscript]": {
+    "editor.defaultFormatter": "foxundermoon.shell-format",
+    "editor.tabSize": 2
+  },
+  "[json]": {
+    "editor.tabSize": 2
+  },
+  "[css]": {
+    "editor.tabSize": 2
+  },
+
+  "python.defaultInterpreterPath": "python3",
+  "shellcheck.enable": true,
+  "shellcheck.run": "onSave",
+
+  "editor.rulers": [100],
+  "editor.trimAutoWhitespace": true,
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.patterns": {
+    "manifest.json": "info.json, ext-mgr.menu-preset.json",
+    "template.php": "template.css, template.js",
+    "install.sh": "uninstall.sh, repair.sh, service-runner.sh, *.service"
+  }
+}

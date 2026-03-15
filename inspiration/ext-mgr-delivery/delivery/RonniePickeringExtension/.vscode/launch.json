@@ -1,0 +1,57 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+
+    {
+      "name": "PHP: template.php (standalone)",
+      "type": "php",
+      "request": "launch",
+      "program": "${workspaceFolder}/template.php",
+      "cwd": "${workspaceFolder}",
+      "port": 9003,
+      "runtimeArgs": ["-S", "localhost:8080"],
+      "env": {},
+      "pathMappings": {},
+      "externalConsole": false
+    },
+
+    {
+      "name": "Python: ext_helper scan",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/backend/ext_helper.py",
+      "args": ["scan", "${workspaceFolder}"],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}"
+    },
+
+    {
+      "name": "Python: ext_helper policy",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/backend/ext_helper.py",
+      "args": ["policy"],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}"
+    },
+
+    {
+      "name": "Python: ext_helper rewrite",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/backend/ext_helper.py",
+      "args": ["rewrite", "${workspaceFolder}", "template-extension", "${input:newExtId}"],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}"
+    }
+
+  ],
+  "inputs": [
+    {
+      "id": "newExtId",
+      "type": "promptString",
+      "description": "New extension ID",
+      "default": "my-extension"
+    }
+  ]
+}
