@@ -4474,13 +4474,17 @@ if ($action === 'import_extension_upload') {
     $execError = '';
     $wizardOutput = '';
     if (!runImportWizard($wizardPath, $sourceDir, $dryRun, $execError, $wizardOutput)) {
+        appendExtMgrLog('install', 'import_extension_upload failed id=' . $importedId . ' error=' . $execError);
         appendExtMgrLog('error', 'import_extension_upload failed id=' . $importedId . ' error=' . $execError);
         if ($wizardOutput !== '') {
+            appendExtMgrLog('install', 'import_extension_upload wizard-output id=' . $importedId . ' output=' . $wizardOutput);
             appendExtMgrLog('error', 'import_extension_upload wizard-output id=' . $importedId . ' output=' . $wizardOutput);
         }
         if (isValidExtensionId($importedId)) {
+            appendExtensionLog($importedId, 'install', 'import failed: ' . $execError);
             appendExtensionLog($importedId, 'error', 'import failed: ' . $execError);
             if ($wizardOutput !== '') {
+                appendExtensionLog($importedId, 'install', 'wizard output: ' . $wizardOutput);
                 appendExtensionLog($importedId, 'error', 'wizard output: ' . $wizardOutput);
             }
         }

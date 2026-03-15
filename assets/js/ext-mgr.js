@@ -262,6 +262,18 @@
     }
   }
 
+  function firstSentence(text) {
+    var value = String(text || '').trim();
+    if (!value) {
+      return value;
+    }
+    var idx = value.search(/[.!?]/);
+    if (idx === -1) {
+      return value;
+    }
+    return value.slice(0, idx + 1).trim();
+  }
+
   function apiUpload(file, dryRun) {
     var formData = new FormData();
     formData.append('action', 'import_extension_upload');
@@ -1717,8 +1729,9 @@
         runRefresh();
       })
       .catch(function (err) {
-        setStatus(err.message, 'error');
-        setImportWizardNote(err.message, 'error');
+        var fullMessage = String((err && err.message) || 'Import wizard failed.');
+        setStatus(firstSentence(fullMessage), 'error');
+        setImportWizardNote(fullMessage, 'error');
       })
       .finally(function () {
         importExtensionBtn.disabled = false;
