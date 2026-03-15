@@ -20,7 +20,8 @@ $extensionsLogsPath = $extensionsSysLogsRootPath . '/extensionslogs';
 $extMgrLogsPath = $extensionsSysLogsRootPath . '/ext-mgr logs';
 $extMgrRuntimeLogsPath = $extensionsRootPath . '/sys/.ext-mgr/logs';
 
-function defaultMeta() {
+function defaultMeta()
+{
     return [
         'name' => 'Extension Manager',
         'slug' => 'ext-mgr',
@@ -51,7 +52,8 @@ function defaultMeta() {
     ];
 }
 
-function defaultReleasePolicy() {
+function defaultReleasePolicy()
+{
     return [
         'schemaVersion' => '2',
         'channel' => 'stable',
@@ -89,7 +91,8 @@ function defaultReleasePolicy() {
     ];
 }
 
-function isSafeManagedPath($filePath) {
+function isSafeManagedPath($filePath)
+{
     if (!is_string($filePath)) {
         return false;
     }
@@ -109,7 +112,8 @@ function isSafeManagedPath($filePath) {
     return true;
 }
 
-function normalizeReleasePolicy($policy) {
+function normalizeReleasePolicy($policy)
+{
     $defaults = defaultReleasePolicy();
     if (!is_array($policy)) {
         $policy = [];
@@ -194,7 +198,8 @@ function normalizeReleasePolicy($policy) {
     return $normalized;
 }
 
-function normalizeVersion($value) {
+function normalizeVersion($value)
+{
     $version = trim((string)$value);
     if ($version === '') {
         return '';
@@ -205,7 +210,8 @@ function normalizeVersion($value) {
     return trim($version);
 }
 
-function safeVersionCompare($left, $right, $operator) {
+function safeVersionCompare($left, $right, $operator)
+{
     $leftNormalized = normalizeVersion($left);
     $rightNormalized = normalizeVersion($right);
     if ($leftNormalized === '' || $rightNormalized === '') {
@@ -214,11 +220,13 @@ function safeVersionCompare($left, $right, $operator) {
     return version_compare($leftNormalized, $rightNormalized, $operator);
 }
 
-function safeHasUpdate($latestVersion, $currentVersion) {
+function safeHasUpdate($latestVersion, $currentVersion)
+{
     return safeVersionCompare($latestVersion, $currentVersion, '>');
 }
 
-function readJsonFile($path, $fallback) {
+function readJsonFile($path, $fallback)
+{
     if (!file_exists($path)) {
         return $fallback;
     }
@@ -233,7 +241,8 @@ function readJsonFile($path, $fallback) {
     return $data;
 }
 
-function readTextFile($path, $fallback) {
+function readTextFile($path, $fallback)
+{
     if (!is_string($path) || !file_exists($path) || !is_readable($path)) {
         return $fallback;
     }
@@ -244,7 +253,8 @@ function readTextFile($path, $fallback) {
     return $data;
 }
 
-function readGuidanceDocs($baseDir) {
+function readGuidanceDocs($baseDir)
+{
     $contentDir = rtrim((string)$baseDir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'content';
 
     return [
@@ -269,7 +279,8 @@ function readGuidanceDocs($baseDir) {
     ];
 }
 
-function writeJsonFile($path, $data) {
+function writeJsonFile($path, $data)
+{
     $tmp = $path . '.tmp';
     $encoded = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
     if ($encoded === false) {
@@ -289,14 +300,16 @@ function writeJsonFile($path, $data) {
     return file_put_contents($path, $payload, LOCK_EX) !== false;
 }
 
-function canWriteJsonPath($path) {
+function canWriteJsonPath($path)
+{
     if (file_exists($path)) {
         return is_writable($path);
     }
     return is_writable(dirname($path));
 }
 
-function formatWriteFailure($path, $label) {
+function formatWriteFailure($path, $label)
+{
     $dir = dirname($path);
     $fileWritable = file_exists($path) ? (is_writable($path) ? 'yes' : 'no') : 'missing';
     $dirWritable = is_writable($dir) ? 'yes' : 'no';
@@ -308,7 +321,8 @@ function formatWriteFailure($path, $label) {
         . ').';
 }
 
-function readSystemTotalMemMiB() {
+function readSystemTotalMemMiB()
+{
     $meminfoPath = '/proc/meminfo';
     if (!is_readable($meminfoPath)) {
         return null;
@@ -331,7 +345,8 @@ function readSystemTotalMemMiB() {
     return $totalKiB / 1024.0;
 }
 
-function buildRuntimeMemoryHealth() {
+function buildRuntimeMemoryHealth()
+{
     $currentMiB = memory_get_usage(true) / 1048576.0;
     $totalMiB = readSystemTotalMemMiB();
     $pct = null;
@@ -346,7 +361,8 @@ function buildRuntimeMemoryHealth() {
     ];
 }
 
-function readExtMgrServiceHealth() {
+function readExtMgrServiceHealth()
+{
     $statePath = '/var/www/extensions/sys/.ext-mgr/service-state.json';
     $fallback = [
         'status' => 'not-installed',
@@ -383,7 +399,8 @@ function readExtMgrServiceHealth() {
     ];
 }
 
-function readExtMgrWatchdogHealth() {
+function readExtMgrWatchdogHealth()
+{
     $statePath = '/var/www/extensions/sys/.ext-mgr/watchdog-state.json';
     $fallback = [
         'status' => 'not-installed',
@@ -420,11 +437,13 @@ function readExtMgrWatchdogHealth() {
     ];
 }
 
-function logTypes() {
+function logTypes()
+{
     return ['install', 'system', 'error'];
 }
 
-function ensureExtMgrLogLayout() {
+function ensureExtMgrLogLayout()
+{
     global $extensionsSysLogsRootPath, $extensionsLogsPath, $extMgrLogsPath;
 
     ensureDirectory($extensionsSysLogsRootPath, 0775);
@@ -439,7 +458,8 @@ function ensureExtMgrLogLayout() {
     }
 }
 
-function ensureExtensionLogLayout($extensionId) {
+function ensureExtensionLogLayout($extensionId)
+{
     global $extensionsInstalledPath, $extensionsLogsPath;
 
     if (!isValidExtensionId($extensionId)) {
@@ -468,7 +488,8 @@ function ensureExtensionLogLayout($extensionId) {
     }
 }
 
-function buildLogRow($key, $label, $path, $source) {
+function buildLogRow($key, $label, $path, $source)
+{
     $exists = is_file($path);
     $size = $exists ? @filesize($path) : null;
     $mtime = $exists ? @filemtime($path) : false;
@@ -484,7 +505,8 @@ function buildLogRow($key, $label, $path, $source) {
     ];
 }
 
-function availableLogsForTarget($targetId) {
+function availableLogsForTarget($targetId)
+{
     global $extensionsLogsPath, $extMgrLogsPath, $extMgrRuntimeLogsPath, $extensionsInstalledPath;
 
     ensureExtMgrLogLayout();
@@ -516,7 +538,8 @@ function availableLogsForTarget($targetId) {
     return $logs;
 }
 
-function resolveLogPathForRead($targetId, $key, &$error) {
+function resolveLogPathForRead($targetId, $key, &$error)
+{
     $error = '';
     $targetId = trim((string)$targetId);
     $key = trim((string)$key);
@@ -543,7 +566,8 @@ function resolveLogPathForRead($targetId, $key, &$error) {
     return null;
 }
 
-function tailFileContent($path, $lineLimit = 120) {
+function tailFileContent($path, $lineLimit = 120)
+{
     if (!is_string($path) || $path === '' || !is_file($path) || !is_readable($path)) {
         return '';
     }
@@ -566,7 +590,8 @@ function tailFileContent($path, $lineLimit = 120) {
     return implode(PHP_EOL, $lines);
 }
 
-function readLogLines($path, $lineLimit = 1200) {
+function readLogLines($path, $lineLimit = 1200)
+{
     if (!is_string($path) || $path === '' || !is_file($path) || !is_readable($path)) {
         return [];
     }
@@ -589,7 +614,8 @@ function readLogLines($path, $lineLimit = 1200) {
     return $lines;
 }
 
-function parseLogLineEvent($line) {
+function parseLogLineEvent($line)
+{
     $raw = trim((string)$line);
     if ($raw === '') {
         return null;
@@ -609,7 +635,8 @@ function parseLogLineEvent($line) {
     ];
 }
 
-function normalizeErrorSignature($message) {
+function normalizeErrorSignature($message)
+{
     $msg = strtolower(trim((string)$message));
     if ($msg === '') {
         return '';
@@ -620,7 +647,8 @@ function normalizeErrorSignature($message) {
     return trim((string)$msg);
 }
 
-function lineLooksError($line) {
+function lineLooksError($line)
+{
     $l = strtolower((string)$line);
     return (strpos($l, 'error') !== false
         || strpos($l, 'failed') !== false
@@ -630,7 +658,8 @@ function lineLooksError($line) {
         || strpos($l, 'stale') !== false);
 }
 
-function lineLooksRestartEvent($line) {
+function lineLooksRestartEvent($line)
+{
     $l = strtolower((string)$line);
     return (strpos($l, 'restart') !== false
         || strpos($l, 'restarting') !== false
@@ -639,7 +668,8 @@ function lineLooksRestartEvent($line) {
         || strpos($l, 'state=inactive') !== false);
 }
 
-function summarizeLogsForTarget($targetId, $lineLimit = 1200) {
+function summarizeLogsForTarget($targetId, $lineLimit = 1200)
+{
     $rows = availableLogsForTarget($targetId);
 
     $systemLines = 0;
@@ -724,7 +754,8 @@ function summarizeLogsForTarget($targetId, $lineLimit = 1200) {
     ];
 }
 
-function discoverKnownExtensionIds($registryPath, $extensionsLogsPath) {
+function discoverKnownExtensionIds($registryPath, $extensionsLogsPath)
+{
     $ids = [];
 
     $registry = normalizeRegistry(readRegistry($registryPath));
@@ -753,7 +784,8 @@ function discoverKnownExtensionIds($registryPath, $extensionsLogsPath) {
     return array_values(array_keys($ids));
 }
 
-function buildLogAnalysisPayload($registryPath, $extensionsLogsPath, $targetId = '') {
+function buildLogAnalysisPayload($registryPath, $extensionsLogsPath, $targetId = '')
+{
     $targetId = trim((string)$targetId);
 
     if ($targetId !== '') {
@@ -832,7 +864,8 @@ function buildLogAnalysisPayload($registryPath, $extensionsLogsPath, $targetId =
     ];
 }
 
-function ensureDirectory($path, $mode = 0775) {
+function ensureDirectory($path, $mode = 0775)
+{
     if (!is_string($path) || $path === '') {
         return false;
     }
@@ -842,7 +875,8 @@ function ensureDirectory($path, $mode = 0775) {
     return mkdir($path, $mode, true) || is_dir($path);
 }
 
-function removePathRecursiveWithStats($path, &$removedEntries, &$freedBytes) {
+function removePathRecursiveWithStats($path, &$removedEntries, &$freedBytes)
+{
     if (!is_string($path) || $path === '' || !file_exists($path)) {
         return;
     }
@@ -875,7 +909,8 @@ function removePathRecursiveWithStats($path, &$removedEntries, &$freedBytes) {
     }
 }
 
-function clearDirectoryContents($dir, &$removedEntries, &$freedBytes, &$error) {
+function clearDirectoryContents($dir, &$removedEntries, &$freedBytes, &$error)
+{
     $removedEntries = 0;
     $freedBytes = 0;
     $error = '';
@@ -901,7 +936,8 @@ function clearDirectoryContents($dir, &$removedEntries, &$freedBytes, &$error) {
     return true;
 }
 
-function computeDirectorySizeBytes($path) {
+function computeDirectorySizeBytes($path)
+{
     if (!is_string($path) || $path === '' || !file_exists($path)) {
         return 0;
     }
@@ -924,7 +960,8 @@ function computeDirectorySizeBytes($path) {
     return $total;
 }
 
-function computeDirectoryEntryCount($path) {
+function computeDirectoryEntryCount($path)
+{
     if (!is_dir($path)) {
         return 0;
     }
@@ -940,7 +977,8 @@ function computeDirectoryEntryCount($path) {
     return $count;
 }
 
-function copyPathRecursive($sourcePath, $targetPath, &$copiedItems, &$error) {
+function copyPathRecursive($sourcePath, $targetPath, &$copiedItems, &$error)
+{
     if (is_link($sourcePath) || is_file($sourcePath)) {
         $targetDir = dirname($targetPath);
         if (!ensureDirectory($targetDir)) {
@@ -981,7 +1019,8 @@ function copyPathRecursive($sourcePath, $targetPath, &$copiedItems, &$error) {
     return true;
 }
 
-function createExtMgrBackupSnapshot($baseDir, $backupRoot, &$snapshotPath, &$copiedItems, &$error) {
+function createExtMgrBackupSnapshot($baseDir, $backupRoot, &$snapshotPath, &$copiedItems, &$error)
+{
     $snapshotPath = '';
     $copiedItems = 0;
     $error = '';
@@ -1025,7 +1064,8 @@ function createExtMgrBackupSnapshot($baseDir, $backupRoot, &$snapshotPath, &$cop
     return true;
 }
 
-function readCpuUsageSamplePct() {
+function readCpuUsageSamplePct()
+{
     $statPath = '/proc/stat';
     if (!is_readable($statPath)) {
         return null;
@@ -1068,7 +1108,8 @@ function readCpuUsageSamplePct() {
     return round(max(0.0, min(100.0, (($deltaTotal - $deltaIdle) / $deltaTotal) * 100.0)), 2);
 }
 
-function readMemoryOverview() {
+function readMemoryOverview()
+{
     $memTotal = null;
     $memAvailable = null;
     $meminfoPath = '/proc/meminfo';
@@ -1101,7 +1142,8 @@ function readMemoryOverview() {
     ];
 }
 
-function diskUsageForPath($path) {
+function diskUsageForPath($path)
+{
     if (!is_string($path) || $path === '' || !file_exists($path)) {
         return [
             'path' => $path,
@@ -1134,7 +1176,8 @@ function diskUsageForPath($path) {
     ];
 }
 
-function readProcessRssMiBFromProc($pid) {
+function readProcessRssMiBFromProc($pid)
+{
     $statusPath = '/proc/' . $pid . '/status';
     if (!is_readable($statusPath)) {
         return null;
@@ -1149,7 +1192,8 @@ function readProcessRssMiBFromProc($pid) {
     return ((float)$m[1]) / 1024.0;
 }
 
-function estimateExtensionRuntimeMemory($extensions) {
+function estimateExtensionRuntimeMemory($extensions)
+{
     $totals = [];
     $requirements = [];
     $scanPath = '/proc';
@@ -1199,9 +1243,11 @@ function estimateExtensionRuntimeMemory($extensions) {
         $cmdline = str_replace("\0", ' ', $cmdline);
 
         foreach ($extensionIds as $id) {
-            if (strpos($cmdline, '/extensions/installed/' . $id . '/') === false
+            if (
+                strpos($cmdline, '/extensions/installed/' . $id . '/') === false
                 && strpos($cmdline, $id . '.service') === false
-                && strpos($cmdline, 'ext-mgr-' . $id) === false) {
+                && strpos($cmdline, 'ext-mgr-' . $id) === false
+            ) {
                 continue;
             }
 
@@ -1244,7 +1290,8 @@ function estimateExtensionRuntimeMemory($extensions) {
     ];
 }
 
-function buildExtensionsStorageSummary($extensionsInstalledPath, $registryExtensions) {
+function buildExtensionsStorageSummary($extensionsInstalledPath, $registryExtensions)
+{
     $total = 0;
     $count = 0;
     foreach ((array)$registryExtensions as $ext) {
@@ -1266,7 +1313,8 @@ function buildExtensionsStorageSummary($extensionsInstalledPath, $registryExtens
     ];
 }
 
-function readBackupSnapshotInfo($backupRoot) {
+function readBackupSnapshotInfo($backupRoot)
+{
     if (!ensureDirectory($backupRoot)) {
         return [
             'path' => $backupRoot,
@@ -1303,7 +1351,8 @@ function readBackupSnapshotInfo($backupRoot) {
     ];
 }
 
-function buildMaintenanceStatus($cacheDir, $backupRoot) {
+function buildMaintenanceStatus($cacheDir, $backupRoot)
+{
     ensureDirectory($cacheDir);
     ensureDirectory($backupRoot);
 
@@ -1317,7 +1366,8 @@ function buildMaintenanceStatus($cacheDir, $backupRoot) {
     ];
 }
 
-function buildSystemResourceSnapshot($registryExtensions, $extensionsInstalledPath) {
+function buildSystemResourceSnapshot($registryExtensions, $extensionsInstalledPath)
+{
     $memory = readMemoryOverview();
     $load = sys_getloadavg();
     $runtimeMemory = buildRuntimeMemoryHealth();
@@ -1348,7 +1398,8 @@ function buildSystemResourceSnapshot($registryExtensions, $extensionsInstalledPa
     ];
 }
 
-function readMeta($path) {
+function readMeta($path)
+{
     $defaults = defaultMeta();
     $meta = readJsonFile($path, $defaults);
     // Shallow merge with defaults so missing keys remain available.
@@ -1356,7 +1407,8 @@ function readMeta($path) {
     return $meta;
 }
 
-function readVersionValue($path) {
+function readVersionValue($path)
+{
     if (!file_exists($path)) {
         return null;
     }
@@ -1368,14 +1420,16 @@ function readVersionValue($path) {
     return $version === '' ? null : $version;
 }
 
-function writeVersionValue($path, $version) {
+function writeVersionValue($path, $version)
+{
     if (!is_string($version) || trim($version) === '') {
         return false;
     }
     return file_put_contents($path, trim($version) . PHP_EOL) !== false;
 }
 
-function writeTextFileAtomic($path, $content) {
+function writeTextFileAtomic($path, $content)
+{
     $tmp = $path . '.tmp';
     if (file_put_contents($tmp, $content) === false) {
         return false;
@@ -1383,7 +1437,8 @@ function writeTextFileAtomic($path, $content) {
     return rename($tmp, $path);
 }
 
-function sanitizeExtensionId($value) {
+function sanitizeExtensionId($value)
+{
     $id = strtolower(trim((string)$value));
     if ($id === '' || preg_match('/^[a-z0-9._-]+$/', $id) !== 1) {
         return 'template-extension';
@@ -1391,7 +1446,8 @@ function sanitizeExtensionId($value) {
     return $id;
 }
 
-function buildTemplatePackageFiles($extensionId) {
+function buildTemplatePackageFiles($extensionId)
+{
     $displayName = ucwords(str_replace(['-', '_', '.'], ' ', $extensionId));
     $defaultIconClass = 'fa-solid fa-sharp fa-puzzle-piece';
 
@@ -1618,7 +1674,7 @@ function buildTemplatePackageFiles($extensionId) {
         'template.php' => $templatePhp,
         'assets/js/template.js' => $templateJs,
         'assets/css/template.css' => $templateCss,
-        'scripts/install.sh' => "#!/usr/bin/env bash\nset -euo pipefail\n\nEXT_ID='{$extensionId}'\nROOT=\"/var/www/extensions/installed/$EXT_ID\"\nMANIFEST=\"$ROOT/manifest.json\"\n\nservice_name=\"${EXT_ID}.service\"\nif [[ -f \"$MANIFEST\" ]]; then\n  detected_name=$(php -r '$j=@json_decode(@file_get_contents($argv[1]), true); if(is_array($j) && isset($j["ext_mgr"]["service"]["name"])) echo trim((string)$j["ext_mgr"]["service"]["name"]);' \"$MANIFEST\" 2>/dev/null || true)\n  if [[ -n \"$detected_name\" ]]; then\n    service_name=\"$detected_name\"\n  fi\nfi\n\nservice_file=\"$ROOT/scripts/$service_name\"\nif [[ -f \"$service_file\" && -x /usr/bin/systemctl ]]; then\n  install -o root -g root -m 0644 \"$service_file\" \"/etc/systemd/system/$service_name\"\n  systemctl daemon-reload\n  systemctl enable --now moode-extmgr.service >/dev/null 2>&1 || true\n  systemctl enable --now \"$service_name\" >/dev/null 2>&1 || true\nfi\n\necho \"[${EXT_ID}] install.sh completed\"\n",
+        'scripts/install.sh' => "#!/usr/bin/env bash\nset -euo pipefail\n\nEXT_ID='{$extensionId}'\nROOT=\"/var/www/extensions/installed/$EXT_ID\"\n\nservice_name=\"${EXT_ID}.service\"\nservice_file=\"$ROOT/scripts/$service_name\"\nif [[ -f \"$service_file\" && -x /usr/bin/systemctl ]]; then\n  install -o root -g root -m 0644 \"$service_file\" \"/etc/systemd/system/$service_name\"\n  systemctl daemon-reload\n  systemctl enable --now moode-extmgr.service >/dev/null 2>&1 || true\n  systemctl enable --now \"$service_name\" >/dev/null 2>&1 || true\nfi\n\necho \"[${EXT_ID}] install.sh completed\"\n",
         'scripts/service-runner.sh' => "#!/usr/bin/env bash\nset -euo pipefail\n\nEXT_ID='{$extensionId}'\nwhile true; do\n  echo \"[$(date +'%Y-%m-%d %H:%M:%S')] [$EXT_ID] service heartbeat\"\n  sleep 60\ndone\n",
         'scripts/' . $extensionId . '.service' => "[Unit]\nDescription={$displayName} extension service\nRequires=moode-extmgr.service\nAfter=moode-extmgr.service network.target\nPartOf=moode-extmgr.service\n\n[Service]\nType=simple\nUser=moode-extmgrusr\nGroup=moode-extmgr\nWorkingDirectory=/var/www/extensions/installed/{$extensionId}\nExecStart=/usr/bin/env bash /var/www/extensions/installed/{$extensionId}/scripts/service-runner.sh\nRestart=always\nRestartSec=5\n\n[Install]\nWantedBy=multi-user.target\n",
         'README.md' => "# {$displayName}\n\nGenerated by ext-mgr Import Wizard template kit.\n\n## Import behavior\n- Installs into /var/www/extensions/installed/{$extensionId}\n- Creates canonical route /{$extensionId}.php\n- Starts visible in M menu and Library menu, hidden in System/Configure\n- Starts with settings-card mode enabled\n\n## Logging layout\n- Extension global logs: /var/www/extensions/sys/logs/extensionslogs/{$extensionId}\n- Extension local logs: /var/www/extensions/installed/{$extensionId}/logs\n- Default files: install.log, system.log, error.log\n\n## Staged install hooks\n- Optional packages: manifest.json -> ext_mgr.install.packages\n- Optional post-copy script: manifest.json -> ext_mgr.install.script\n- ext-mgr runs the install script under moode-extmgrusr\n- Write files inside /var/www/extensions/installed/{$extensionId}; ext-mgr relocates legacy /var/www/extensions/{$extensionId} writes\n\n## Service parent dependency\n- Template manifest includes ext_mgr.service.name={$extensionId}.service\n- Generated service unit requires and starts after moode-extmgr.service\n- Keep extension daemons under moode-extmgrusr for consistent permissions\n\n## moOde shell requirements\n- Extension pages should include /var/www/header.php and footer integration\n- This guarantees Back arrow, Home button and M menu are available\n- The generated template.php already follows this requirement\n\n## Menu visibility\n- Edit manifest.json -> ext_mgr.menuVisibility\n- Current defaults:\n  1) m=true\n  2) library=true\n  3) system=false\n\n## Icon support\n- info.json now includes iconClass\n- Use the starter icon picker in template.php to pick a class\n- Copy the chosen class to info.json -> iconClass\n\n## Minimum files\n- template.php\n- assets/js/template.js\n- assets/css/template.css\n- info.json\n- logs/.gitkeep\n- scripts/install.sh\n- scripts/service-runner.sh\n- scripts/{$extensionId}.service\n",
@@ -1629,7 +1685,8 @@ function buildTemplatePackageFiles($extensionId) {
     ];
 }
 
-function writeTemplateFilesToDirectory($rootDir, $files, &$error) {
+function writeTemplateFilesToDirectory($rootDir, $files, &$error)
+{
     $error = '';
 
     foreach ($files as $relativePath => $content) {
@@ -1654,7 +1711,8 @@ function writeTemplateFilesToDirectory($rootDir, $files, &$error) {
     return true;
 }
 
-function writeTemplateZipViaCommand($zipPath, $extensionId, $files, &$error) {
+function writeTemplateZipViaCommand($zipPath, $extensionId, $files, &$error)
+{
     $error = '';
 
     if (!isPhpFunctionEnabled('exec')) {
@@ -1719,7 +1777,8 @@ function writeTemplateZipViaCommand($zipPath, $extensionId, $files, &$error) {
     return true;
 }
 
-function writeTemplateZipArchive($zipPath, $extensionId, &$error) {
+function writeTemplateZipArchive($zipPath, $extensionId, &$error)
+{
     $error = '';
     $files = buildTemplatePackageFiles($extensionId);
 
@@ -1756,7 +1815,8 @@ function writeTemplateZipArchive($zipPath, $extensionId, &$error) {
     return true;
 }
 
-function isSafeArchiveEntryPath($entryPath) {
+function isSafeArchiveEntryPath($entryPath)
+{
     if (!is_string($entryPath)) {
         return false;
     }
@@ -1781,7 +1841,8 @@ function isSafeArchiveEntryPath($entryPath) {
     return true;
 }
 
-function listZipEntriesViaUnzip($zipPath, &$error) {
+function listZipEntriesViaUnzip($zipPath, &$error)
+{
     $error = '';
     if (!isPhpFunctionEnabled('exec')) {
         $error = 'unzip fallback unavailable: exec() is disabled.';
@@ -1817,7 +1878,8 @@ function listZipEntriesViaUnzip($zipPath, &$error) {
     ];
 }
 
-function extractZipArchiveSafely($zipPath, $extractDir, &$error) {
+function extractZipArchiveSafely($zipPath, $extractDir, &$error)
+{
     $error = '';
 
     if (class_exists('ZipArchive')) {
@@ -1883,7 +1945,8 @@ function extractZipArchiveSafely($zipPath, $extractDir, &$error) {
     return true;
 }
 
-function removePathRecursive($path) {
+function removePathRecursive($path)
+{
     if (!is_string($path) || $path === '' || !file_exists($path)) {
         return;
     }
@@ -1907,7 +1970,8 @@ function removePathRecursive($path) {
     @rmdir($path);
 }
 
-function detectImportSourceDir($extractRoot) {
+function detectImportSourceDir($extractRoot)
+{
     $manifestAtRoot = $extractRoot . DIRECTORY_SEPARATOR . 'manifest.json';
     if (is_file($manifestAtRoot)) {
         return $extractRoot;
@@ -1934,7 +1998,8 @@ function detectImportSourceDir($extractRoot) {
     return null;
 }
 
-function runImportWizard($wizardPath, $sourceDir, $dryRun, &$error, &$outputText) {
+function runImportWizard($wizardPath, $sourceDir, $dryRun, &$error, &$outputText)
+{
     $error = '';
     $outputText = '';
 
@@ -1968,7 +2033,8 @@ function runImportWizard($wizardPath, $sourceDir, $dryRun, &$error, &$outputText
     return false;
 }
 
-function isPhpFunctionEnabled($name) {
+function isPhpFunctionEnabled($name)
+{
     if (!function_exists($name)) {
         return false;
     }
@@ -1980,7 +2046,8 @@ function isPhpFunctionEnabled($name) {
     return !in_array($name, $items, true);
 }
 
-function httpGetViaWget($url, &$error) {
+function httpGetViaWget($url, &$error)
+{
     $error = '';
 
     if (!isPhpFunctionEnabled('exec')) {
@@ -2034,7 +2101,8 @@ function httpGetViaWget($url, &$error) {
     return $content;
 }
 
-function httpGet($url, &$error) {
+function httpGet($url, &$error)
+{
     $error = '';
 
     if (function_exists('curl_init')) {
@@ -2099,7 +2167,8 @@ function httpGet($url, &$error) {
     return $response;
 }
 
-function githubApiUrl($repository, $path) {
+function githubApiUrl($repository, $path)
+{
     $parts = explode('/', (string)$repository, 2);
     if (count($parts) !== 2 || $parts[0] === '' || $parts[1] === '') {
         return null;
@@ -2107,7 +2176,8 @@ function githubApiUrl($repository, $path) {
     return 'https://api.github.com/repos/' . rawurlencode($parts[0]) . '/' . rawurlencode($parts[1]) . $path;
 }
 
-function githubRawFileUrl($repository, $ref, $filePath) {
+function githubRawFileUrl($repository, $ref, $filePath)
+{
     $parts = explode('/', (string)$repository, 2);
     if (count($parts) !== 2 || $parts[0] === '' || $parts[1] === '') {
         return null;
@@ -2117,7 +2187,8 @@ function githubRawFileUrl($repository, $ref, $filePath) {
     return 'https://raw.githubusercontent.com/' . rawurlencode($parts[0]) . '/' . rawurlencode($parts[1]) . '/' . rawurlencode($ref) . '/' . implode('/', $pathSegments);
 }
 
-function normalizeCustomBaseUrl($url) {
+function normalizeCustomBaseUrl($url)
+{
     $normalized = trim((string)$url);
     if ($normalized === '') {
         return '';
@@ -2128,7 +2199,8 @@ function normalizeCustomBaseUrl($url) {
     return rtrim($normalized, '/');
 }
 
-function buildCustomFileUrl($baseUrl, $filePath) {
+function buildCustomFileUrl($baseUrl, $filePath)
+{
     $base = normalizeCustomBaseUrl($baseUrl);
     if ($base === '' || !isSafeManagedPath($filePath)) {
         return null;
@@ -2138,7 +2210,8 @@ function buildCustomFileUrl($baseUrl, $filePath) {
     return $base . '/' . implode('/', $pathSegments);
 }
 
-function chooseGithubReleaseByChannel($releases, $channel) {
+function chooseGithubReleaseByChannel($releases, $channel)
+{
     $stable = [];
     $prerelease = [];
 
@@ -2175,14 +2248,16 @@ function chooseGithubReleaseByChannel($releases, $channel) {
     return null;
 }
 
-function githubReleaseApiPathForChannel($channel) {
+function githubReleaseApiPathForChannel($channel)
+{
     if ($channel === 'stable') {
         return '/releases/latest';
     }
     return '/releases?per_page=30';
 }
 
-function resolveRemoteBranchCandidate($repository, $branch, &$error) {
+function resolveRemoteBranchCandidate($repository, $branch, &$error)
+{
     $error = '';
     $branch = trim((string)$branch);
     if ($branch === '') {
@@ -2242,7 +2317,8 @@ function resolveRemoteBranchCandidate($repository, $branch, &$error) {
     ];
 }
 
-function resolveAvailableRemoteBranches($repository, &$error) {
+function resolveAvailableRemoteBranches($repository, &$error)
+{
     $error = '';
     $apiUrl = githubApiUrl($repository, '/branches?per_page=50');
     if ($apiUrl === null) {
@@ -2290,7 +2366,8 @@ function resolveAvailableRemoteBranches($repository, &$error) {
     return array_values(array_unique($branches));
 }
 
-function hasUpdateForCandidate($candidate, $currentVersion, $policy) {
+function hasUpdateForCandidate($candidate, $currentVersion, $policy)
+{
     if (!is_array($candidate)) {
         return false;
     }
@@ -2311,7 +2388,8 @@ function hasUpdateForCandidate($candidate, $currentVersion, $policy) {
     return safeHasUpdate((string)($candidate['version'] ?? ''), (string)$currentVersion);
 }
 
-function chooseGithubTagByChannel($tags, $channel) {
+function chooseGithubTagByChannel($tags, $channel)
+{
     if (!is_array($tags) || count($tags) === 0) {
         return null;
     }
@@ -2358,7 +2436,8 @@ function chooseGithubTagByChannel($tags, $channel) {
     return $stable[0] ?? ($beta[0] ?? ($dev[0] ?? null));
 }
 
-function resolveRemoteTagCandidate($repository, $channel, &$error) {
+function resolveRemoteTagCandidate($repository, $channel, &$error)
+{
     $error = '';
     $apiUrl = githubApiUrl($repository, '/tags?per_page=50');
     if ($apiUrl === null) {
@@ -2412,7 +2491,8 @@ function resolveRemoteTagCandidate($repository, $channel, &$error) {
     ];
 }
 
-function resolveCustomBaseCandidate($policy, &$error) {
+function resolveCustomBaseCandidate($policy, &$error)
+{
     $error = '';
     $baseUrl = normalizeCustomBaseUrl($policy['customBaseUrl'] ?? '');
     if ($baseUrl === '') {
@@ -2456,7 +2536,8 @@ function resolveCustomBaseCandidate($policy, &$error) {
     ];
 }
 
-function resolveRemoteReleaseCandidate($policy, &$error) {
+function resolveRemoteReleaseCandidate($policy, &$error)
+{
     $error = '';
     $updateTrack = (string)($policy['updateTrack'] ?? 'channel');
     if ($updateTrack === 'custom') {
@@ -2542,7 +2623,8 @@ function resolveRemoteReleaseCandidate($policy, &$error) {
     ];
 }
 
-function fetchManagedFilesFromRelease($policy, $candidate, &$error) {
+function fetchManagedFilesFromRelease($policy, $candidate, &$error)
+{
     $error = '';
     $files = $policy['managedFiles'] ?? [];
     if (!is_array($files) || count($files) === 0) {
@@ -2592,7 +2674,8 @@ function fetchManagedFilesFromRelease($policy, $candidate, &$error) {
     return $payloads;
 }
 
-function normalizeDigestValue($value) {
+function normalizeDigestValue($value)
+{
     $normalized = strtolower(trim((string)$value));
     if (strpos($normalized, 'sha256:') === 0) {
         $normalized = substr($normalized, 7);
@@ -2600,7 +2683,8 @@ function normalizeDigestValue($value) {
     return $normalized;
 }
 
-function fetchIntegrityManifestFromRelease($policy, $candidate, &$error) {
+function fetchIntegrityManifestFromRelease($policy, $candidate, &$error)
+{
     $error = '';
 
     $source = (string)($candidate['source'] ?? 'releases');
@@ -2683,7 +2767,8 @@ function fetchIntegrityManifestFromRelease($policy, $candidate, &$error) {
     ];
 }
 
-function verifyPayloadsAgainstManifest($payloads, $managedFiles, $manifest, &$error, &$details) {
+function verifyPayloadsAgainstManifest($payloads, $managedFiles, $manifest, &$error, &$details)
+{
     $error = '';
     $details = [
         'checked' => 0,
@@ -2737,7 +2822,8 @@ function verifyPayloadsAgainstManifest($payloads, $managedFiles, $manifest, &$er
     return true;
 }
 
-function applyManagedFiles($baseDir, $payloads, &$error) {
+function applyManagedFiles($baseDir, $payloads, &$error)
+{
     $error = '';
     if (!is_array($payloads) || count($payloads) === 0) {
         $error = 'No payloads to apply.';
@@ -2853,7 +2939,8 @@ function applyManagedFiles($baseDir, $payloads, &$error) {
     return true;
 }
 
-function updateReleasePolicyFromCandidate($policyPath, $policy, $candidate) {
+function updateReleasePolicyFromCandidate($policyPath, $policy, $candidate)
+{
     if (!is_array($policy)) {
         return;
     }
@@ -2866,7 +2953,8 @@ function updateReleasePolicyFromCandidate($policyPath, $policy, $candidate) {
     writeJsonFile($policyPath, $policy);
 }
 
-function markMetaMaintenance($meta, $actionName, $result) {
+function markMetaMaintenance($meta, $actionName, $result)
+{
     if (!is_array($meta)) {
         $meta = defaultMeta();
     }
@@ -2879,12 +2967,14 @@ function markMetaMaintenance($meta, $actionName, $result) {
     return $meta;
 }
 
-function readReleasePolicy($path) {
+function readReleasePolicy($path)
+{
     $policy = readJsonFile($path, defaultReleasePolicy());
     return normalizeReleasePolicy($policy);
 }
 
-function buildMeta($metaPath, $versionPath, $releasePath) {
+function buildMeta($metaPath, $versionPath, $releasePath)
+{
     $meta = readMeta($metaPath);
     $policy = readReleasePolicy($releasePath);
     $currentVersion = readVersionValue($versionPath);
@@ -2914,7 +3004,8 @@ function buildMeta($metaPath, $versionPath, $releasePath) {
     return [$meta, $policy];
 }
 
-function readRegistry($path) {
+function readRegistry($path)
+{
     $data = readJsonFile($path, ['extensions' => []]);
     if (!isset($data['extensions']) || !is_array($data['extensions'])) {
         $data['extensions'] = [];
@@ -2922,7 +3013,8 @@ function readRegistry($path) {
     return $data;
 }
 
-function normalizeUiPathOrUrl($value) {
+function normalizeUiPathOrUrl($value)
+{
     $v = trim((string)$value);
     if ($v === '') {
         return null;
@@ -2936,7 +3028,8 @@ function normalizeUiPathOrUrl($value) {
     return $v;
 }
 
-function normalizeIconClass($value, $fallback = 'fa-solid fa-sharp fa-puzzle-piece') {
+function normalizeIconClass($value, $fallback = 'fa-solid fa-sharp fa-puzzle-piece')
+{
     $raw = trim((string)$value);
     if ($raw === '') {
         return $fallback;
@@ -2950,7 +3043,8 @@ function normalizeIconClass($value, $fallback = 'fa-solid fa-sharp fa-puzzle-pie
     return $raw;
 }
 
-function loadExtensionInfo($extId, $entryPath, $fallbackName, $fallbackVersion) {
+function loadExtensionInfo($extId, $entryPath, $fallbackName, $fallbackVersion)
+{
     $installedDir = '/var/www/extensions/installed/' . $extId;
     $candidates = [
         $installedDir . '/info.json',
@@ -2993,7 +3087,8 @@ function loadExtensionInfo($extId, $entryPath, $fallbackName, $fallbackVersion) 
     ];
 }
 
-function normalizeRegistry($registry) {
+function normalizeRegistry($registry)
+{
     if (!isset($registry['extensions']) || !is_array($registry['extensions'])) {
         $registry['extensions'] = [];
     }
@@ -3074,7 +3169,8 @@ function normalizeRegistry($registry) {
     return $registry;
 }
 
-function sanitizeRegistryForPersist($registry) {
+function sanitizeRegistryForPersist($registry)
+{
     if (!isset($registry['extensions']) || !is_array($registry['extensions'])) {
         $registry['extensions'] = [];
         return $registry;
@@ -3092,7 +3188,8 @@ function sanitizeRegistryForPersist($registry) {
     return $registry;
 }
 
-function applyImportedExtensionDefaults($registryPath, $extId) {
+function applyImportedExtensionDefaults($registryPath, $extId)
+{
     if (!isValidExtensionId($extId)) {
         return false;
     }
@@ -3126,7 +3223,8 @@ function applyImportedExtensionDefaults($registryPath, $extId) {
     return writeJsonFile($registryPath, sanitizeRegistryForPersist($registry));
 }
 
-function responseData($registryPath, $metaPath, $versionPath, $releasePath) {
+function responseData($registryPath, $metaPath, $versionPath, $releasePath)
+{
     global $extensionsCachePath, $extensionsBackupPath, $extensionsLogsPath, $extMgrLogsPath;
 
     $registry = normalizeRegistry(readRegistry($registryPath));
@@ -3190,7 +3288,8 @@ function responseData($registryPath, $metaPath, $versionPath, $releasePath) {
     ];
 }
 
-function syncRegistryWithFilesystem($registryPath, $pruneMissing = false) {
+function syncRegistryWithFilesystem($registryPath, $pruneMissing = false)
+{
     $registry = normalizeRegistry(readRegistry($registryPath));
     $next = [];
     $summary = [
@@ -3245,11 +3344,13 @@ function syncRegistryWithFilesystem($registryPath, $pruneMissing = false) {
     return $summary;
 }
 
-function isValidExtensionId($id) {
+function isValidExtensionId($id)
+{
     return is_string($id) && preg_match('/^[a-zA-Z0-9._-]+$/', $id) === 1;
 }
 
-function isSafeRelativeSubPath($path) {
+function isSafeRelativeSubPath($path)
+{
     if (!is_string($path)) {
         return false;
     }
@@ -3260,7 +3361,8 @@ function isSafeRelativeSubPath($path) {
     return true;
 }
 
-function resolveExtensionEntryFile($extId, $entryPath, &$error) {
+function resolveExtensionEntryFile($extId, $entryPath, &$error)
+{
     $error = '';
     $installedDir = '/var/www/extensions/installed/' . $extId;
     if (!is_dir($installedDir)) {
@@ -3309,7 +3411,8 @@ function resolveExtensionEntryFile($extId, $entryPath, &$error) {
     return null;
 }
 
-function repairExtensionSymlink($extId, $entryPath, &$error) {
+function repairExtensionSymlink($extId, $entryPath, &$error)
+{
     $error = '';
     if (!isValidExtensionId($extId)) {
         $error = 'Invalid extension id.';
@@ -3351,7 +3454,8 @@ function repairExtensionSymlink($extId, $entryPath, &$error) {
     ];
 }
 
-function runPrivilegedSymlinkRepair($extId, $entryPath, &$error) {
+function runPrivilegedSymlinkRepair($extId, $entryPath, &$error)
+{
     global $symlinkHelperPath;
     $error = '';
 
@@ -3404,7 +3508,8 @@ function runPrivilegedSymlinkRepair($extId, $entryPath, &$error) {
     ];
 }
 
-function removeExtensionById($extId, $registryPath, $backupRoot, &$error) {
+function removeExtensionById($extId, $registryPath, $backupRoot, &$error)
+{
     $error = '';
 
     if (!isValidExtensionId($extId)) {
