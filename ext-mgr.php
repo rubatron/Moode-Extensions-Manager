@@ -100,18 +100,92 @@ if (file_exists('/var/www/header.php')) {
                         <i class="fa-solid fa-angle-down" aria-hidden="true"></i>
                     </button>
                     <div class="extmgr-submenu-body">
-                        <p class="config-help-static extmgr-help">Upload a prepared extension package (.zip) or download a starter template kit.</p>
-                        <div class="extmgr-import-controls">
-                            <input id="import-extension-file" class="extmgr-file-input" type="file" accept=".zip" aria-label="Upload extension package zip">
-                            <div class="extmgr-import-primary-row">
-                                <label for="import-extension-file" id="import-extension-file-trigger" class="btn btn-primary btn-small">Choose File</label>
-                                <span id="import-extension-file-name" class="extmgr-file-name">No file chosen</span>
-                                <button id="import-extension-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-upload"></i> Upload Extension</button>
-                            </div>
-                            <div class="extmgr-import-secondary-row">
-                                <a id="download-template-btn" class="btn btn-primary btn-small" href="/ext-mgr-api.php?action=download_extension_template"><i class="fa-solid fa-sharp fa-file-zipper"></i> Download Template Kit</a>
-                            </div>
+                        <p class="config-help-static extmgr-help">Upload a prepared extension package (.zip), review scan results, adjust metadata, then install.</p>
+
+                        <div class="extmgr-wizard-stepper extmgr-wizard-card" id="import-wizard-stepper" aria-label="Import wizard steps">
+                            <span class="extmgr-wizard-step is-active" data-step="upload">1. Upload</span>
+                            <span class="extmgr-wizard-step" data-step="metadata">2. Metadata</span>
+                            <span class="extmgr-wizard-step" data-step="menu">3. Menu</span>
+                            <span class="extmgr-wizard-step" data-step="service">4. Service</span>
+                            <span class="extmgr-wizard-step" data-step="packages">5. Packages</span>
+                            <span class="extmgr-wizard-step" data-step="review">6. Review</span>
                         </div>
+
+                        <section class="extmgr-wizard-card" data-panel="upload">
+                            <h3 class="extmgr-static-heading">Step 1: Upload + Scan</h3>
+                            <div class="extmgr-import-controls">
+                                <input id="import-extension-file" class="extmgr-file-input" type="file" accept=".zip" aria-label="Upload extension package zip">
+                                <div class="extmgr-import-primary-row">
+                                    <label for="import-extension-file" id="import-extension-file-trigger" class="btn btn-primary btn-small">Choose File</label>
+                                    <span id="import-extension-file-name" class="extmgr-file-name">No file chosen</span>
+                                    <button id="import-extension-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-upload"></i> Upload + Scan</button>
+                                </div>
+                                <div class="extmgr-import-secondary-row">
+                                    <a id="download-template-btn" class="btn btn-primary btn-small" href="/ext-mgr-api.php?action=download_extension_template"><i class="fa-solid fa-sharp fa-file-zipper"></i> Download Template Kit</a>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="extmgr-wizard-card" data-panel="metadata">
+                            <h3 class="extmgr-static-heading">Step 2: Metadata</h3>
+                            <div class="extmgr-form-grid">
+                                <label>Name<input id="wizard-name" class="extmgr-input" type="text" placeholder="Extension name"></label>
+                                <label>Version<input id="wizard-version" class="extmgr-input" type="text" placeholder="1.0.0"></label>
+                                <label>Type
+                                    <select id="wizard-type" class="extmgr-input">
+                                        <option value="functionality">functionality</option>
+                                        <option value="hardware">hardware</option>
+                                        <option value="streaming_service">streaming_service</option>
+                                        <option value="theme">theme</option>
+                                        <option value="page">page</option>
+                                        <option value="other">other</option>
+                                    </select>
+                                </label>
+                                <label>Stage Profile
+                                    <select id="wizard-stage-profile" class="extmgr-input">
+                                        <option value="visible-by-default">visible-by-default</option>
+                                        <option value="hidden-by-default">hidden-by-default</option>
+                                    </select>
+                                </label>
+                            </div>
+                        </section>
+
+                        <section class="extmgr-wizard-card" data-panel="menu">
+                            <h3 class="extmgr-static-heading">Step 3: Menu</h3>
+                            <div class="extmgr-form-inline">
+                                <label><input id="wizard-menu-m" type="checkbox"> M menu</label>
+                                <label><input id="wizard-menu-library" type="checkbox"> Library menu</label>
+                                <label><input id="wizard-menu-system" type="checkbox"> System/configure</label>
+                                <label><input id="wizard-settings-only" type="checkbox"> Settings-card only</label>
+                            </div>
+                        </section>
+
+                        <section class="extmgr-wizard-card" data-panel="service">
+                            <h3 class="extmgr-static-heading">Step 4: Service</h3>
+                            <div class="extmgr-form-grid">
+                                <label>Service name<input id="wizard-service-name" class="extmgr-input" type="text" placeholder="my-extension.service"></label>
+                                <label class="extmgr-form-grid-wide">Dependencies (one per line)
+                                    <textarea id="wizard-dependencies" class="extmgr-input" rows="3" placeholder="moode-extmgr.service"></textarea>
+                                </label>
+                            </div>
+                        </section>
+
+                        <section class="extmgr-wizard-card" data-panel="packages">
+                            <h3 class="extmgr-static-heading">Step 5: Packages</h3>
+                            <label>APT packages (one per line)
+                                <textarea id="wizard-apt-packages" class="extmgr-input" rows="4" placeholder="curl\nffmpeg"></textarea>
+                            </label>
+                        </section>
+
+                        <section class="extmgr-review-pane" data-panel="review">
+                            <h3 class="extmgr-static-heading">Step 6: Review + Install</h3>
+                            <div id="wizard-scan-summary" class="extmgr-note">No scan data yet.</div>
+                            <pre id="wizard-review-json" class="extmgr-log-content">{}</pre>
+                            <div class="extmgr-import-secondary-row">
+                                <button id="import-extension-install-btn" class="btn btn-primary btn-small" type="button" disabled><i class="fa-solid fa-sharp fa-circle-check"></i> Install From Review</button>
+                            </div>
+                        </section>
+
                         <div id="import-wizard-note" class="extmgr-note">Template includes: template.php, backend/, templates/, assets/, packages/, scripts/install.sh, scripts/repair.sh, scripts/uninstall.sh, data/, cache/ and generated install metadata.</div>
                     </div>
                 </div>

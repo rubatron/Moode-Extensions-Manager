@@ -3426,6 +3426,250 @@ function buildImportPackageReview($sourceDir)
     ];
 }
 
+function runExtHelperScan($sourceDir)
+{
+    $helperPath = __DIR__ . DIRECTORY_SEPARATOR . 'scripts' . DIRECTORY_SEPARATOR . 'ext_helper.py';
+    if (!is_file($helperPath)) {
+        return null;
+    }
+    if (!isPhpFunctionEnabled('exec')) {
+        return null;
+    }
+
+    $pythonBin = trim((string)@shell_exec('command -v python3 2>/dev/null'));
+    if ($pythonBin === '') {
+        $pythonBin = trim((string)@shell_exec('command -v python 2>/dev/null'));
+    }
+    if ($pythonBin === '') {
+        return null;
+    }
+
+    $cmd = escapeshellarg($pythonBin)
+        . ' ' . escapeshellarg($helperPath)
+        . ' scan ' . escapeshellarg((string)$sourceDir)
+        . ' 2>&1';
+
+    $out = [];
+    $code = 0;
+    @exec($cmd, $out, $code);
+    if ($code !== 0) {
+        return null;
+    }
+
+    $decoded = json_decode(trim(implode("\n", $out)), true);
+    return is_array($decoded) ? $decoded : null;
+}
+
+function importSessionRootPath()
+{
+    global $extensionsCachePath;
+    return rtrim((string)$extensionsCachePath, '/\\') . DIRECTORY_SEPARATOR . 'import-sessions';
+}
+
+function writeImportSession($sessionId, $payload)
+{
+    $root = importSessionRootPath();
+    if (!is_dir($root) && !mkdir($root, 0775, true) && !is_dir($root)) {
+        return false;
+    }
+    $path = $root . DIRECTORY_SEPARATOR . $sessionId . '.json';
+    return writeJsonFile($path, $payload);
+}
+
+function readImportSession($sessionId)
+{
+    $root = importSessionRootPath();
+    $path = $root . DIRECTORY_SEPARATOR . $sessionId . '.json';
+    return readJsonFile($path, null);
+}
+
+function deleteImportSession($sessionId)
+{
+    $root = importSessionRootPath();
+    $path = $root . DIRECTORY_SEPARATOR . $sessionId . '.json';
+    if (is_file($path)) {
+        @unlink($path);
+    }
+}
+
+function applyWizardOverridesToManifest($sourceDir, $overridePayload, &$error)
+{
+    $error = '';
+    if (!is_array($overridePayload)) {
+        return true;
+    }
+
+    $manifestPath = rtrim((string)$sourceDir, '/\\') . DIRECTORY_SEPARATOR . 'manifest.json';
+    $manifest = readJsonFile($manifestPath, null);
+    if (!is_array($manifest)) {
+        $error = 'Invalid manifest.json in staged package.';
+        return false;
+    }
+
+    if (isset($overridePayload['name'])) {
+        $name = trim((string)$overridePayload['name']);
+        if ($name !== '') {
+            $manifest['name'] = $name;
+        }
+    }
+
+    if (isset($overridePayload['version'])) {
+        $version = trim((string)$overridePayload['version']);
+        if ($version !== '') {
+            $manifest['version'] = $version;
+        }
+    }
+
+    if (!isset($manifest['ext_mgr']) || !is_array($manifest['ext_mgr'])) {
+        $manifest['ext_mgr'] = [];
+    }
+    if (!isset($manifest['ext_mgr']['menuVisibility']) || !is_array($manifest['ext_mgr']['menuVisibility'])) {
+        $manifest['ext_mgr']['menuVisibility'] = ['m' => true, 'library' => true, 'system' => false];
+    }
+    if (!isset($manifest['ext_mgr']['service']) || !is_array($manifest['ext_mgr']['service'])) {
+        $manifest['ext_mgr']['service'] = [];
+    }
+    if (!isset($manifest['ext_mgr']['install']) || !is_array($manifest['ext_mgr']['install'])) {
+        $manifest['ext_mgr']['install'] = [];
+    }
+
+    if (isset($overridePayload['type'])) {
+        $type = trim((string)$overridePayload['type']);
+        if ($type !== '') {
+            $manifest['ext_mgr']['type'] = $type;
+        }
+    }
+
+    if (isset($overridePayload['stageProfile'])) {
+        $profile = trim((string)$overridePayload['stageProfile']);
+        if ($profile === 'visible-by-default' || $profile === 'hidden-by-default') {
+            $manifest['ext_mgr']['stageProfile'] = $profile;
+        }
+    }
+
+    foreach (['m', 'library', 'system'] as $menuKey) {
+        if (array_key_exists($menuKey, $overridePayload)) {
+            $v = (string)$overridePayload[$menuKey];
+            $manifest['ext_mgr']['menuVisibility'][$menuKey] = ($v === '1' || strtolower($v) === 'true' || strtolower($v) === 'on');
+        }
+    }
+
+    if (array_key_exists('settingsCardOnly', $overridePayload)) {
+        $v = (string)$overridePayload['settingsCardOnly'];
+        $manifest['ext_mgr']['settingsCardOnly'] = ($v === '1' || strtolower($v) === 'true' || strtolower($v) === 'on');
+    }
+
+    if (isset($overridePayload['serviceName'])) {
+        $serviceName = trim((string)$overridePayload['serviceName']);
+        if ($serviceName !== '') {
+            $manifest['ext_mgr']['service']['name'] = $serviceName;
+        }
+    }
+
+    if (isset($overridePayload['dependencies'])) {
+        $deps = preg_split('/\r?\n/', (string)$overridePayload['dependencies']);
+        $manifest['ext_mgr']['service']['dependencies'] = normalizeScalarStringList($deps ?: []);
+    }
+
+    if (isset($overridePayload['aptPackages'])) {
+        $pkgs = preg_split('/\r?\n/', (string)$overridePayload['aptPackages']);
+        $manifest['ext_mgr']['install']['packages'] = normalizeScalarStringList($pkgs ?: []);
+    }
+
+    if (!writeJsonFile($manifestPath, $manifest)) {
+        $error = 'Failed to persist wizard overrides into staged manifest.';
+        return false;
+    }
+
+    return true;
+}
+
+function stageUploadForImport($registryPath, $allowOverwrite, &$error)
+{
+    $error = '';
+    if (!isset($_FILES['package']) || !is_array($_FILES['package'])) {
+        $error = 'Missing package upload field.';
+        return null;
+    }
+
+    $upload = $_FILES['package'];
+    $uploadError = (int)($upload['error'] ?? UPLOAD_ERR_NO_FILE);
+    if ($uploadError !== UPLOAD_ERR_OK) {
+        $error = 'Upload failed with code ' . $uploadError . '.';
+        return null;
+    }
+
+    $tmpFile = (string)($upload['tmp_name'] ?? '');
+    $originalName = strtolower(trim((string)($upload['name'] ?? '')));
+    if ($tmpFile === '' || !is_uploaded_file($tmpFile)) {
+        $error = 'Invalid uploaded file.';
+        return null;
+    }
+    if (substr($originalName, -4) !== '.zip') {
+        $error = 'Only .zip extension packages are supported.';
+        return null;
+    }
+
+    $workDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'extmgr_import_' . uniqid('', true);
+    $extractDir = $workDir . DIRECTORY_SEPARATOR . 'extract';
+    if (!mkdir($extractDir, 0775, true) && !is_dir($extractDir)) {
+        $error = 'Failed to prepare import workspace.';
+        return null;
+    }
+
+    $zipPath = $workDir . DIRECTORY_SEPARATOR . 'package.zip';
+    if (!move_uploaded_file($tmpFile, $zipPath)) {
+        removePathRecursive($workDir);
+        $error = 'Failed to move uploaded package.';
+        return null;
+    }
+
+    $extractError = '';
+    if (!extractZipArchiveSafely($zipPath, $extractDir, $extractError)) {
+        removePathRecursive($workDir);
+        $error = $extractError !== '' ? $extractError : 'Failed to extract ZIP package.';
+        return null;
+    }
+
+    $sourceDir = detectImportSourceDir($extractDir);
+    if (!is_string($sourceDir) || $sourceDir === '') {
+        removePathRecursive($workDir);
+        $error = 'manifest.json not found in uploaded package root.';
+        return null;
+    }
+
+    $manifestData = readJsonFile($sourceDir . DIRECTORY_SEPARATOR . 'manifest.json', []);
+    $manifestId = strtolower(trim((string)($manifestData['id'] ?? '')));
+    $explicitManifestId = (preg_match('/^[a-z0-9._-]+$/', $manifestId) === 1 && !isPlaceholderExtensionId($manifestId));
+
+    syncRegistryWithFilesystem($registryPath, true);
+
+    $importedId = $explicitManifestId ? $manifestId : generateManagedExtensionId($registryPath);
+    if ($explicitManifestId && extensionIdExists($importedId, $registryPath) && !$allowOverwrite) {
+        removePathRecursive($workDir);
+        $error = 'Extension id already exists: ' . $importedId . '. Use a placeholder id (auto-generate) or set allow_overwrite=1 for an intentional replacement.';
+        return ['conflict' => true, 'conflictId' => $importedId];
+    }
+
+    if ($manifestId === '' || $manifestId !== $importedId) {
+        $rewriteError = '';
+        $updatedManifest = updateImportedManifestWithManagedId($sourceDir, $manifestData, $importedId, $rewriteError);
+        if (!is_array($updatedManifest)) {
+            removePathRecursive($workDir);
+            $error = $rewriteError !== '' ? $rewriteError : 'Failed to prepare managed extension id.';
+            return null;
+        }
+        $manifestData = $updatedManifest;
+    }
+
+    return [
+        'workDir' => $workDir,
+        'sourceDir' => $sourceDir,
+        'importedId' => $importedId,
+        'manifest' => $manifestData,
+    ];
+}
+
 function readExtensionInstallMetadata($extId)
 {
     $extId = trim((string)$extId);
@@ -4709,6 +4953,189 @@ if ($action === 'download_extension_template') {
 
     readfile($zipPath);
     @unlink($zipPath);
+    exit;
+}
+
+if ($action === 'import_extension_scan') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        echo json_encode(['ok' => false, 'error' => 'Use POST for extension upload.']);
+        exit;
+    }
+
+    $allowOverwriteRaw = (string)($_REQUEST['allow_overwrite'] ?? '0');
+    $allowOverwrite = ($allowOverwriteRaw === '1' || strtolower($allowOverwriteRaw) === 'true' || strtolower($allowOverwriteRaw) === 'yes');
+
+    $stageError = '';
+    $staged = stageUploadForImport($registryPath, $allowOverwrite, $stageError);
+    if (!is_array($staged)) {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => $stageError !== '' ? $stageError : 'Failed to stage package for scan.']);
+        exit;
+    }
+
+    if (!empty($staged['conflict'])) {
+        http_response_code(409);
+        echo json_encode([
+            'ok' => false,
+            'error' => $stageError,
+            'data' => [
+                'conflictId' => (string)($staged['conflictId'] ?? ''),
+                'requiresConfirm' => true,
+            ],
+        ], JSON_UNESCAPED_SLASHES);
+        exit;
+    }
+
+    $sourceDir = (string)$staged['sourceDir'];
+    $review = buildImportPackageReview($sourceDir);
+    $scan = runExtHelperScan($sourceDir);
+    if (!is_array($scan)) {
+        $scan = [
+            'ext_id' => (string)$staged['importedId'],
+            'detected_type' => (string)((($staged['manifest']['ext_mgr'] ?? [])['type'] ?? 'other')),
+            'path_audit' => [],
+            'violations' => [],
+            'warnings' => [],
+            'apt_packages' => (array)($review['manifestPackages'] ?? []),
+            'pip_packages' => [],
+            'service_units' => (array)($review['serviceUnits'] ?? []),
+            'package_artifacts' => (array)($review['bundledPackageFiles'] ?? []),
+        ];
+    }
+
+    $sessionId = generateUuidV4();
+    $sessionPayload = [
+        'sessionId' => $sessionId,
+        'createdAt' => date('c'),
+        'workDir' => (string)$staged['workDir'],
+        'sourceDir' => $sourceDir,
+        'importedId' => (string)$staged['importedId'],
+        'manifest' => $staged['manifest'],
+        'review' => $review,
+        'scan' => $scan,
+    ];
+
+    if (!writeImportSession($sessionId, $sessionPayload)) {
+        removePathRecursive((string)$staged['workDir']);
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'error' => 'Failed to create staged import session.']);
+        exit;
+    }
+
+    echo json_encode([
+        'ok' => true,
+        'data' => [
+            'sessionId' => $sessionId,
+            'extensionId' => (string)$staged['importedId'],
+            'review' => $review,
+            'scan' => $scan,
+            'manifest' => $staged['manifest'],
+        ],
+    ], JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+if ($action === 'import_extension_install') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        echo json_encode(['ok' => false, 'error' => 'Use POST for staged install.']);
+        exit;
+    }
+
+    $sessionId = trim((string)($_REQUEST['session_id'] ?? ''));
+    if ($sessionId === '') {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'Missing session_id.']);
+        exit;
+    }
+
+    $session = readImportSession($sessionId);
+    if (!is_array($session)) {
+        http_response_code(404);
+        echo json_encode(['ok' => false, 'error' => 'Staged import session not found or expired.']);
+        exit;
+    }
+
+    $sourceDir = (string)($session['sourceDir'] ?? '');
+    $workDir = (string)($session['workDir'] ?? '');
+    if ($sourceDir === '' || !is_dir($sourceDir) || !is_file($sourceDir . DIRECTORY_SEPARATOR . 'manifest.json')) {
+        deleteImportSession($sessionId);
+        if ($workDir !== '') {
+            removePathRecursive($workDir);
+        }
+        http_response_code(410);
+        echo json_encode(['ok' => false, 'error' => 'Staged package is no longer available. Please upload again.']);
+        exit;
+    }
+
+    $dryRunRaw = (string)($_REQUEST['dry_run'] ?? '0');
+    $dryRun = ($dryRunRaw === '1' || strtolower($dryRunRaw) === 'true' || strtolower($dryRunRaw) === 'yes');
+
+    $overridePayload = [
+        'name' => (string)($_REQUEST['name'] ?? ''),
+        'version' => (string)($_REQUEST['version'] ?? ''),
+        'type' => (string)($_REQUEST['type'] ?? ''),
+        'stageProfile' => (string)($_REQUEST['stage_profile'] ?? ''),
+        'm' => (string)($_REQUEST['menu_m'] ?? ''),
+        'library' => (string)($_REQUEST['menu_library'] ?? ''),
+        'system' => (string)($_REQUEST['menu_system'] ?? ''),
+        'settingsCardOnly' => (string)($_REQUEST['settings_only'] ?? ''),
+        'serviceName' => (string)($_REQUEST['service_name'] ?? ''),
+        'dependencies' => (string)($_REQUEST['dependencies'] ?? ''),
+        'aptPackages' => (string)($_REQUEST['apt_packages'] ?? ''),
+    ];
+
+    $overrideError = '';
+    if (!applyWizardOverridesToManifest($sourceDir, $overridePayload, $overrideError)) {
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'error' => $overrideError !== '' ? $overrideError : 'Failed to apply wizard overrides.']);
+        exit;
+    }
+
+    $review = buildImportPackageReview($sourceDir);
+    $manifestData = readJsonFile($sourceDir . DIRECTORY_SEPARATOR . 'manifest.json', []);
+    $importedId = trim((string)($manifestData['id'] ?? ($session['importedId'] ?? '')));
+    if ($importedId === '') {
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'error' => 'Manifest id missing in staged package.']);
+        exit;
+    }
+
+    appendExtMgrLog('install', 'import_extension_install start id=' . $importedId . ' dryRun=' . ($dryRun ? 'true' : 'false'));
+    appendExtensionLog($importedId, 'install', 'staged install start dryRun=' . ($dryRun ? 'true' : 'false'));
+
+    $wizardPath = $baseDir . DIRECTORY_SEPARATOR . 'scripts' . DIRECTORY_SEPARATOR . 'ext-mgr-import-wizard.sh';
+    $execError = '';
+    $wizardOutput = '';
+    if (!runImportWizard($wizardPath, $sourceDir, $dryRun, $execError, $wizardOutput)) {
+        appendExtMgrLog('error', 'import_extension_install failed id=' . $importedId . ' error=' . $execError);
+        appendExtensionLog($importedId, 'error', 'staged install failed: ' . $execError);
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'error' => $execError]);
+        exit;
+    }
+
+    if (!$dryRun) {
+        applyImportedExtensionDefaults($registryPath, $importedId);
+        syncRegistryWithFilesystem($registryPath, false);
+        deleteImportSession($sessionId);
+        if ($workDir !== '') {
+            removePathRecursive($workDir);
+        }
+    }
+
+    $state = responseData($registryPath, $metaPath, $versionPath, $releasePath);
+    echo json_encode([
+        'ok' => true,
+        'data' => [
+            'extensionId' => $importedId,
+            'dryRun' => $dryRun,
+            'review' => $review,
+            'wizardOutput' => $wizardOutput,
+            'state' => $state,
+        ],
+    ], JSON_UNESCAPED_SLASHES);
     exit;
 }
 

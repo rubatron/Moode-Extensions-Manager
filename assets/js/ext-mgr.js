@@ -75,7 +75,22 @@
   var importExtensionFileEl = document.getElementById('import-extension-file');
   var importExtensionFileNameEl = document.getElementById('import-extension-file-name');
   var importExtensionBtn = document.getElementById('import-extension-btn');
+  var importExtensionInstallBtn = document.getElementById('import-extension-install-btn');
   var importWizardNoteEl = document.getElementById('import-wizard-note');
+  var wizardReviewJsonEl = document.getElementById('wizard-review-json');
+  var wizardScanSummaryEl = document.getElementById('wizard-scan-summary');
+  var wizardStepEls = document.querySelectorAll('#import-wizard-stepper [data-step]');
+  var wizardNameEl = document.getElementById('wizard-name');
+  var wizardVersionEl = document.getElementById('wizard-version');
+  var wizardTypeEl = document.getElementById('wizard-type');
+  var wizardStageProfileEl = document.getElementById('wizard-stage-profile');
+  var wizardMenuMEl = document.getElementById('wizard-menu-m');
+  var wizardMenuLibraryEl = document.getElementById('wizard-menu-library');
+  var wizardMenuSystemEl = document.getElementById('wizard-menu-system');
+  var wizardSettingsOnlyEl = document.getElementById('wizard-settings-only');
+  var wizardServiceNameEl = document.getElementById('wizard-service-name');
+  var wizardDependenciesEl = document.getElementById('wizard-dependencies');
+  var wizardAptPackagesEl = document.getElementById('wizard-apt-packages');
   var listFilterEl = document.getElementById('list-filter');
   var listSortEl = document.getElementById('list-sort');
   var listSearchEl = document.getElementById('list-search');
@@ -104,6 +119,13 @@
     library: true,
     m: true,
     system: true
+  };
+  var importWizardState = {
+    sessionId: '',
+    extensionId: '',
+    scan: null,
+    review: null,
+    manifest: null
   };
   var currentProviderStatus = {
     provider: 'github',
@@ -466,11 +488,10 @@
     return value.slice(0, idx + 1).trim();
   }
 
-  function apiUpload(file, dryRun) {
+  function apiUpload(file) {
     var formData = new FormData();
-    formData.append('action', 'import_extension_upload');
+    formData.append('action', 'import_extension_scan');
     formData.append('package', file);
-    formData.append('dry_run', dryRun ? '1' : '0');
 
     var deduped = [];
     apiUrls.forEach(function (candidate) {
@@ -518,6 +539,108 @@
     }
 
     return tryAt(0);
+  }
+
+  function apiInstallFromSession(payload) {
+    var params = Object.assign({ action: 'import_extension_install' }, payload || {});
+    return api(params);
+  }
+
+  function wizardSetStep(stepName) {
+    wizardStepEls.forEach(function (el) {
+      el.classList.toggle('is-active', el.getAttribute('data-step') === stepName);
+    });
+  }
+
+  function setWizardFormFromManifest(manifest, scan, review) {
+    var row = manifest || {};
+    var ext = row.ext_mgr || {};
+    var menu = ext.menuVisibility || {};
+    var service = ext.service || {};
+    var install = ext.install || {};
+
+    if (wizardNameEl) {
+      wizardNameEl.value = row.name || '';
+    }
+    if (wizardVersionEl) {
+      wizardVersionEl.value = row.version || '';
+    }
+    if (wizardTypeEl) {
+      wizardTypeEl.value = ext.type || ((scan || {}).detected_type || 'other');
+    }
+    if (wizardStageProfileEl) {
+      wizardStageProfileEl.value = ext.stageProfile || 'visible-by-default';
+    }
+    if (wizardMenuMEl) {
+      wizardMenuMEl.checked = !!menu.m;
+    }
+    if (wizardMenuLibraryEl) {
+      wizardMenuLibraryEl.checked = !!menu.library;
+    }
+    if (wizardMenuSystemEl) {
+      wizardMenuSystemEl.checked = !!menu.system;
+    }
+    if (wizardSettingsOnlyEl) {
+      wizardSettingsOnlyEl.checked = !!ext.settingsCardOnly;
+    }
+    if (wizardServiceNameEl) {
+      wizardServiceNameEl.value = service.name || '';
+    }
+    if (wizardDependenciesEl) {
+      wizardDependenciesEl.value = Array.isArray(service.dependencies) ? service.dependencies.join('\n') : '';
+    }
+    if (wizardAptPackagesEl) {
+      var manifestPkgs = Array.isArray(install.packages) ? install.packages : [];
+      var scanPkgs = Array.isArray((scan || {}).apt_packages) ? scan.apt_packages : [];
+      var reviewPkgs = Array.isArray((review || {}).manifestPackages) ? review.manifestPackages : [];
+      wizardAptPackagesEl.value = Array.from(new Set(manifestPkgs.concat(scanPkgs, reviewPkgs))).join('\n');
+    }
+  }
+
+  function getWizardInstallPayload() {
+    return {
+      session_id: importWizardState.sessionId,
+      dry_run: '0',
+      name: wizardNameEl ? wizardNameEl.value : '',
+      version: wizardVersionEl ? wizardVersionEl.value : '',
+      type: wizardTypeEl ? wizardTypeEl.value : '',
+      stage_profile: wizardStageProfileEl ? wizardStageProfileEl.value : '',
+      menu_m: wizardMenuMEl && wizardMenuMEl.checked ? '1' : '0',
+      menu_library: wizardMenuLibraryEl && wizardMenuLibraryEl.checked ? '1' : '0',
+      menu_system: wizardMenuSystemEl && wizardMenuSystemEl.checked ? '1' : '0',
+      settings_only: wizardSettingsOnlyEl && wizardSettingsOnlyEl.checked ? '1' : '0',
+      service_name: wizardServiceNameEl ? wizardServiceNameEl.value : '',
+      dependencies: wizardDependenciesEl ? wizardDependenciesEl.value : '',
+      apt_packages: wizardAptPackagesEl ? wizardAptPackagesEl.value : ''
+    };
+  }
+
+  function renderWizardReview() {
+    if (!wizardReviewJsonEl) {
+      return;
+    }
+    var reviewPayload = {
+      sessionId: importWizardState.sessionId,
+      extensionId: importWizardState.extensionId,
+      scan: importWizardState.scan || {},
+      review: importWizardState.review || {},
+      manifestPreview: {
+        name: wizardNameEl ? wizardNameEl.value : '',
+        version: wizardVersionEl ? wizardVersionEl.value : '',
+        type: wizardTypeEl ? wizardTypeEl.value : '',
+        stageProfile: wizardStageProfileEl ? wizardStageProfileEl.value : '',
+        menuVisibility: {
+          m: !!(wizardMenuMEl && wizardMenuMEl.checked),
+          library: !!(wizardMenuLibraryEl && wizardMenuLibraryEl.checked),
+          system: !!(wizardMenuSystemEl && wizardMenuSystemEl.checked)
+        },
+        settingsCardOnly: !!(wizardSettingsOnlyEl && wizardSettingsOnlyEl.checked),
+        serviceName: wizardServiceNameEl ? wizardServiceNameEl.value : '',
+        dependencies: wizardDependenciesEl ? wizardDependenciesEl.value.split(/\r?\n/).filter(Boolean) : [],
+        aptPackages: wizardAptPackagesEl ? wizardAptPackagesEl.value.split(/\r?\n/).filter(Boolean) : []
+      }
+    };
+    wizardReviewJsonEl.textContent = JSON.stringify(reviewPayload, null, 2);
   }
 
   function readPref(key, fallback) {
@@ -1953,7 +2076,6 @@
   });
   bindIfPresent(importExtensionBtn, 'click', function () {
     var files = (importExtensionFileEl && importExtensionFileEl.files) || null;
-    var dryRun = false;
     if (!files || files.length === 0) {
       setStatus('Select a .zip package first.', 'error');
       setImportWizardNote('Select a .zip package first.', 'error');
@@ -1969,24 +2091,35 @@
     }
 
     importExtensionBtn.disabled = true;
-  setStatus('Uploading and importing extension package...', null);
-  setImportWizardNote('Uploading and importing extension package...', null);
+    setStatus('Uploading package and running scan...', null);
+    setImportWizardNote('Uploading package and running scan...', null);
+    wizardSetStep('upload');
 
-    apiUpload(file, dryRun)
+    apiUpload(file)
       .then(function (data) {
-        var importedId = ((data || {}).data || {}).extensionId || 'unknown';
-        var review = ((data || {}).data || {}).review || {};
-        var reviewText = importReviewSummary(review);
-        var outcome = ((data || {}).data || {}).dryRun ? 'Dry-run validated' : 'Extension imported';
-        setStatus(outcome + ': ' + importedId, 'ok');
-        setImportWizardNote(outcome + ': ' + importedId + reviewText, 'ok');
-        if (importExtensionFileEl) {
-          importExtensionFileEl.value = '';
+        var payload = (data || {}).data || {};
+        importWizardState.sessionId = payload.sessionId || '';
+        importWizardState.extensionId = payload.extensionId || '';
+        importWizardState.review = payload.review || {};
+        importWizardState.scan = payload.scan || {};
+        importWizardState.manifest = payload.manifest || {};
+
+        setWizardFormFromManifest(importWizardState.manifest, importWizardState.scan, importWizardState.review);
+        renderWizardReview();
+
+        var violations = Array.isArray((importWizardState.scan || {}).violations) ? importWizardState.scan.violations.length : 0;
+        var warnings = Array.isArray((importWizardState.scan || {}).warnings) ? importWizardState.scan.warnings.length : 0;
+        if (wizardScanSummaryEl) {
+          wizardScanSummaryEl.textContent = 'Session: ' + importWizardState.sessionId + ' | Extension: ' + importWizardState.extensionId + ' | violations=' + violations + ' warnings=' + warnings;
         }
-        if (importExtensionFileNameEl) {
-          importExtensionFileNameEl.textContent = 'No file chosen';
+
+        if (importExtensionInstallBtn) {
+          importExtensionInstallBtn.disabled = !importWizardState.sessionId || violations > 0;
         }
-        runRefresh();
+
+        wizardSetStep('metadata');
+        setStatus('Scan complete for ' + (importWizardState.extensionId || 'unknown') + '.', 'ok');
+        setImportWizardNote('Scan complete. Review metadata and run install from Step 6.', 'ok');
       })
       .catch(function (err) {
         var fullMessage = String((err && err.message) || 'Import wizard failed.');
@@ -1995,6 +2128,55 @@
       })
       .finally(function () {
         importExtensionBtn.disabled = false;
+      });
+  });
+
+  [wizardNameEl, wizardVersionEl, wizardTypeEl, wizardStageProfileEl, wizardMenuMEl, wizardMenuLibraryEl, wizardMenuSystemEl, wizardSettingsOnlyEl, wizardServiceNameEl, wizardDependenciesEl, wizardAptPackagesEl].forEach(function (el) {
+    if (!el) {
+      return;
+    }
+    el.addEventListener('change', function () {
+      renderWizardReview();
+      wizardSetStep('review');
+    });
+    el.addEventListener('keyup', function () {
+      renderWizardReview();
+    });
+  });
+
+  bindIfPresent(importExtensionInstallBtn, 'click', function () {
+    if (!importWizardState.sessionId) {
+      setStatus('Upload + scan first to create a staged session.', 'error');
+      setImportWizardNote('Upload + scan first to create a staged session.', 'error');
+      return;
+    }
+
+    importExtensionInstallBtn.disabled = true;
+    setStatus('Installing from staged review session...', null);
+    setImportWizardNote('Installing from staged review session...', null);
+    wizardSetStep('review');
+
+    apiInstallFromSession(getWizardInstallPayload())
+      .then(function (data) {
+        var payload = (data || {}).data || {};
+        var importedId = payload.extensionId || importWizardState.extensionId || 'unknown';
+        setStatus('Extension imported: ' + importedId, 'ok');
+        setImportWizardNote('Extension imported: ' + importedId + importReviewSummary(payload.review || {}), 'ok');
+        importWizardState.sessionId = '';
+        if (importExtensionInstallBtn) {
+          importExtensionInstallBtn.disabled = true;
+        }
+        runRefresh();
+      })
+      .catch(function (err) {
+        var fullMessage = String((err && err.message) || 'Install from review failed.');
+        setStatus(firstSentence(fullMessage), 'error');
+        setImportWizardNote(fullMessage, 'error');
+      })
+      .finally(function () {
+        if (importExtensionInstallBtn && importWizardState.sessionId) {
+          importExtensionInstallBtn.disabled = false;
+        }
       });
   });
   bindIfPresent(systemUpdateBtn, 'click', function () {

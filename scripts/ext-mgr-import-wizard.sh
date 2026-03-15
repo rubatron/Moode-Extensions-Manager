@@ -333,6 +333,54 @@ file_put_contents($f, json_encode($j, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES))
   log "Extension $ext_id state set to $wanted"
 }
 
+write_install_footprint() {
+  local target="$1" ext_id="$2" main_entry="$3" canonical_main="$4"
+  local manifest="$target/manifest.json"
+  local footprint_dir="$target/data"
+  local footprint_path="$footprint_dir/install-footprint.json"
+
+  mkdir -p "$footprint_dir"
+
+  local apt_packages_json service_name dependencies_json
+  apt_packages_json="$(json_get "$manifest" "ext_mgr.install.packages")"
+  [[ -n "$apt_packages_json" ]] || apt_packages_json='[]'
+  service_name="$(json_get "$manifest" "ext_mgr.service.name")"
+  dependencies_json="$(json_get "$manifest" "ext_mgr.service.dependencies")"
+  [[ -n "$dependencies_json" ]] || dependencies_json='[]'
+
+  php -r '
+$path=$argv[1]; $target=$argv[2]; $id=$argv[3]; $main=$argv[4]; $canonical=$argv[5];
+$apt=json_decode($argv[6], true); if(!is_array($apt)){$apt=[];}
+$deps=json_decode($argv[7], true); if(!is_array($deps)){$deps=[];}
+$svc=(string)$argv[8];
+$generated=["/var/www/".$canonical];
+if ($main !== $canonical) { $generated[] = "/var/www/".$main; }
+$payload=[
+  "extId"=>$id,
+  "installedAt"=>gmdate("c"),
+  "sandboxRoot"=>$target,
+  "manifestPath"=>"$target/manifest.json",
+  "symlinks":[
+    ["source"=>"$target/$main","target"=>"/var/www/$canonical"]
+  ],
+  "appendOnly"=>[],
+  "aptPackages"=>array_values(array_unique(array_map("strval", $apt))),
+  "pipPackages"=>[],
+  "runtimeDirs"=>["$target/cache","$target/data","$target/logs"],
+  "generatedFiles"=>$generated,
+  "services"=>($svc!==""?[$svc]:[]),
+  "serviceDependencies"=>array_values(array_unique(array_map("strval", $deps)))
+];
+if ($main !== $canonical) {
+  $payload["symlinks"][]=["source"=>"$target/$main","target"=>"/var/www/$main"];
+}
+file_put_contents($path, json_encode($payload, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES));
+' "$footprint_path" "$target" "$ext_id" "$main_entry" "$canonical_main" "$apt_packages_json" "$dependencies_json" "$service_name"
+
+  chown "$SECURITY_USER:$SECURITY_GROUP" "$footprint_path" 2>/dev/null || true
+  chmod 0664 "$footprint_path" 2>/dev/null || true
+}
+
 run_import() {
   local source="$1"
 
@@ -407,6 +455,8 @@ run_import() {
     ln -sfn "$target/$main_entry" "/var/www/$main_entry"
     chown -h "$SECURITY_USER:$SECURITY_GROUP" "/var/www/$main_entry" 2>/dev/null || true
   fi
+
+  write_install_footprint "$target" "$ext_id" "$main_entry" "$canonical_main"
 
   update_registry_entry "$ext_id" "$ext_name" "/$canonical_main" "true" "$ext_version" "$version_source"
   extension_install_log "$ext_id" "import completed; canonical=/$canonical_main"

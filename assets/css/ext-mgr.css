@@ -1132,6 +1132,68 @@ body:not([data-standalone]) .extmgr-page-shell {
   padding: 0.9rem 0.95rem;
 }
 
+.extmgr-wizard-stepper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.7rem;
+}
+
+.extmgr-wizard-step {
+  border: 1px solid var(--rp-divider-soft);
+  border-radius: 999px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.78rem;
+  color: var(--rp-text-soft);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.extmgr-wizard-step.is-active {
+  border-color: color-mix(in srgb, var(--rp-accent) 50%, var(--rp-divider-soft));
+  color: var(--rp-text-strong);
+  background: color-mix(in srgb, var(--rp-accent) 12%, rgba(255, 255, 255, 0.04));
+}
+
+.extmgr-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
+  gap: 0.55rem 0.7rem;
+}
+
+.extmgr-form-grid-wide {
+  grid-column: 1 / -1;
+}
+
+.extmgr-form-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem 1rem;
+}
+
+.extmgr-form-inline label,
+.extmgr-form-grid label {
+  color: var(--rp-text-soft);
+  font-size: 0.83rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+}
+
+.extmgr-input {
+  width: 100%;
+  border: 1px solid var(--rp-divider-soft);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.24);
+  color: var(--rp-text);
+  padding: 0.45rem 0.5rem;
+}
+
+.extmgr-input:focus {
+  outline: none;
+  border-color: var(--rp-focus-ring);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--rp-accent) 20%, transparent);
+}
+
 .extmgr-review-pane {
   padding: 0.85rem 0.9rem;
   border-color: color-mix(in srgb, var(--rp-accent) 22%, var(--rp-glass-border));
