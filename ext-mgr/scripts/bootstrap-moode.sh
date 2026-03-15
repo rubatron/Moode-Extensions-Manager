@@ -45,7 +45,7 @@ main() {
 
   local extracted_dir
   extracted_dir="$(find "$TMP_ROOT" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
-  
+
   # Handle both old (root) and new (ext-mgr/) directory structures
   local install_script=""
   if [[ -f "$extracted_dir/install.sh" ]]; then
@@ -54,7 +54,7 @@ main() {
     install_script="$extracted_dir/ext-mgr/install.sh"
     extracted_dir="$extracted_dir/ext-mgr"
   fi
-  
+
   if [[ -z "$install_script" ]]; then
     echo "ERROR: Could not locate install.sh in extracted archive." >&2
     exit 1
