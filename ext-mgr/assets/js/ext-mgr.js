@@ -1954,17 +1954,22 @@
     var type = info.type || 'unknown';
     var author = info.author || 'unknown';
     var license = info.license || 'unknown';
-    var packageBits = [];
+    var bits = [
+      '<span class="list-meta-item">Version: ' + escapeHtml(version) + '</span>',
+      '<span class="list-meta-item">Type: ' + escapeHtml(type) + '</span>',
+      '<span class="list-meta-item">Author: ' + escapeHtml(author) + '</span>',
+      '<span class="list-meta-item">License: ' + escapeHtml(license) + '</span>'
+    ];
     if (counts.installedApt) {
-      packageBits.push('APT: ' + String(counts.installedApt));
+      bits.push('<span class="list-meta-item">APT: ' + escapeHtml(String(counts.installedApt)) + '</span>');
     }
     if (counts.installedBundles) {
-      packageBits.push('Bundled: ' + String(counts.installedBundles));
+      bits.push('<span class="list-meta-item">Bundled: ' + escapeHtml(String(counts.installedBundles)) + '</span>');
     }
     if (counts.servicesInstalled) {
-      packageBits.push('Services: ' + String(counts.servicesInstalled));
+      bits.push('<span class="list-meta-item">Services: ' + escapeHtml(String(counts.servicesInstalled)) + '</span>');
     }
-    return 'Version: ' + version + ' | Type: ' + type + ' | Author: ' + author + ' | License: ' + license + (packageBits.length ? ' | ' + packageBits.join(' | ') : '');
+    return bits.join('');
   }
 
   function extensionDescription(item) {
@@ -2081,7 +2086,7 @@
         '<div class="list-top"><div class="list-name">' + itemTitle + '</div><span class="badge ' + stateClass + '">' + stateLabel + '</span></div>' +
         '<div class="list-sub">' + escapeHtml(item.path || '#') + '</div>' +
         '<div class="list-sub">Placement: ' + escapeHtml(visibilityLabel('m', showInM)) + ' | ' + escapeHtml(visibilityLabel('library', showInLibrary)) + ' | ' + escapeHtml(settingsCardLabel(showSettingsCard)) + '</div>' +
-        '<div class="list-sub">' + escapeHtml(extensionInfoSummary(item)) + '</div>' +
+        '<div class="list-sub list-meta">' + extensionInfoSummary(item) + '</div>' +
         '<div class="list-sub">' + escapeHtml(extensionDescription(item)) + '</div>';
 
       if (getSettingsCardOnly(item)) {

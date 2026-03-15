@@ -39,7 +39,8 @@ body[data-standalone] {
 }
 
 body:not([data-standalone]) .extmgr-page-shell {
-  padding-top: 0.5rem;
+  padding-top: 1.2rem;
+  margin-top: 0.5rem;
 }
 
 .extmgr-page-shell {
@@ -762,7 +763,18 @@ body:not([data-standalone]) .extmgr-page-shell {
   color: #99a0a9;
   font-size: 0.84rem;
   margin-top: 0.22rem;
-  line-height: 1.35;
+  line-height: 1.45;
+}
+
+.list-sub.list-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.6rem;
+  font-size: 0.82rem;
+}
+
+.list-meta-item {
+  white-space: nowrap;
 }
 
 .extmgr-subcard {
@@ -1127,11 +1139,11 @@ body:not([data-standalone]) .extmgr-page-shell {
   --step-height: 2.2rem;
   --step-arrow: 0.7rem;
   --step-gap: 0.25rem;
-  --step-inactive-bg: #3a3a3a;
+  --step-inactive-bg: #5a5a5a;
   --step-inactive-text: #9aa0a6;
   --step-completed-bg: var(--rp-accent);
   --step-completed-text: #fff;
-  --step-active-bg: #8b4513;
+  --step-active-bg: var(--rp-accent);
   --step-active-text: #fff;
   display: flex;
   flex-wrap: nowrap;
@@ -1193,14 +1205,14 @@ body:not([data-standalone]) .extmgr-page-shell {
 }
 
 .extmgr-wizard-step:hover:not(.is-active):not(.is-completed) {
-  background: #484848;
+  background: #6a6a6a;
 }
 
 .extmgr-wizard-step.is-active {
-  background: var(--rp-accent);
+  background: var(--step-active-bg);
   color: var(--step-active-text);
-  font-weight: 600;
-  box-shadow: 0 0 12px color-mix(in srgb, var(--rp-accent) 60%, transparent);
+  font-weight: 700;
+  box-shadow: 0 0 14px color-mix(in srgb, var(--rp-accent) 55%, transparent);
 }
 
 .extmgr-wizard-step.is-completed {
