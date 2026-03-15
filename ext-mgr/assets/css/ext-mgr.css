@@ -1304,6 +1304,78 @@ body:not([data-standalone]) .extmgr-page-shell {
   filter: brightness(1.1);
 }
 
+/* Install Progress Bar */
+.extmgr-install-progress {
+  margin: 1rem 0;
+  padding: 1rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--rp-divider-soft);
+}
+
+.extmgr-progress-bar {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.extmgr-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--rp-accent), color-mix(in srgb, var(--rp-accent) 80%, #ffcc00));
+  border-radius: 4px;
+  transition: width 0.3s ease;
+  box-shadow: 0 0 10px color-mix(in srgb, var(--rp-accent) 50%, transparent);
+}
+
+.extmgr-progress-status {
+  margin-top: 0.6rem;
+  font-size: 0.85rem;
+  color: var(--rp-text-soft);
+  text-align: center;
+}
+
+/* Install Success / Congratulations */
+.extmgr-install-success {
+  margin: 1rem 0;
+  padding: 1.5rem;
+  border-radius: 10px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--rp-accent) 15%, transparent), rgba(255, 255, 255, 0.03));
+  border: 1px solid color-mix(in srgb, var(--rp-accent) 40%, transparent);
+  text-align: center;
+  animation: extmgr-success-appear 0.5s ease;
+}
+
+@keyframes extmgr-success-appear {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.extmgr-install-success i {
+  font-size: 2.5rem;
+  color: var(--rp-accent);
+  margin-bottom: 0.5rem;
+  filter: drop-shadow(0 0 12px color-mix(in srgb, var(--rp-accent) 60%, transparent));
+}
+
+.extmgr-install-success h4 {
+  margin: 0 0 0.4rem 0;
+  font-size: 1.2rem;
+  color: var(--rp-text-strong);
+}
+
+.extmgr-install-success p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--rp-text-soft);
+}
+
 /* Menu Options - Checkbox Cards */
 .extmgr-menu-options {
   display: grid;

@@ -2740,10 +2740,28 @@
         var violations = Array.isArray((importWizardState.scan || {}).violations) ? importWizardState.scan.violations.length : 0;
         var warnings = Array.isArray((importWizardState.scan || {}).warnings) ? importWizardState.scan.warnings.length : 0;
         var templateUpgrade = (importWizardState.review || {}).templateUpgrade;
+        
+        // Check moOde integration from code patterns
+        var codePatterns = ((importWizardState.scan || {}).code_patterns || {}).findings || [];
+        var usesMoodeHeader = codePatterns.some(function(f) { return f.id === 'uses_moode_header'; });
+        var usesMoodeFooter = codePatterns.some(function(f) { return f.id === 'uses_moode_footer'; });
+        var hasDynamicHeader = codePatterns.some(function(f) { return f.id === 'has_dynamic_header_control'; });
+        var needsHeaderUpgrade = codePatterns.some(function(f) { return f.id === 'hardcoded_navbar_suppress' || f.id === 'hardcoded_header_suppress'; });
+        
         if (wizardScanSummaryEl) {
           var summaryParts = ['Session: ' + importWizardState.sessionId, 'Extension: ' + importWizardState.extensionId, 'violations=' + violations, 'warnings=' + warnings];
           if (templateUpgrade && templateUpgrade.needed) {
             summaryParts.push('template-upgrade=auto');
+          }
+          // Add moOde integration status
+          if (usesMoodeHeader || usesMoodeFooter) {
+            var moodeStatus = 'moOde: ' + (usesMoodeHeader ? 'header' : '') + (usesMoodeHeader && usesMoodeFooter ? '+' : '') + (usesMoodeFooter ? 'footer' : '');
+            summaryParts.push(moodeStatus);
+          }
+          if (hasDynamicHeader) {
+            summaryParts.push('header-control=dynamic');
+          } else if (needsHeaderUpgrade) {
+            summaryParts.push('header-control=needs-upgrade');
           }
           wizardScanSummaryEl.textContent = summaryParts.join(' | ');
         }
@@ -2786,6 +2804,74 @@
     });
   });
 
+  // Progress bar elements
+  var wizardInstallProgressEl = document.getElementById('wizard-install-progress');
+  var wizardProgressFillEl = document.getElementById('wizard-progress-fill');
+  var wizardProgressStatusEl = document.getElementById('wizard-progress-status');
+  var wizardInstallSuccessEl = document.getElementById('wizard-install-success');
+  var wizardSuccessMessageEl = document.getElementById('wizard-success-message');
+
+  function showInstallProgress(show) {
+    if (wizardInstallProgressEl) {
+      wizardInstallProgressEl.style.display = show ? 'block' : 'none';
+    }
+    if (wizardInstallSuccessEl) {
+      wizardInstallSuccessEl.style.display = 'none';
+    }
+  }
+
+  function updateInstallProgress(percent, status) {
+    if (wizardProgressFillEl) {
+      wizardProgressFillEl.style.width = percent + '%';
+    }
+    if (wizardProgressStatusEl) {
+      wizardProgressStatusEl.textContent = status;
+    }
+  }
+
+  function showInstallSuccess(extensionId, message) {
+    showInstallProgress(false);
+    if (wizardInstallSuccessEl) {
+      wizardInstallSuccessEl.style.display = 'block';
+    }
+    if (wizardSuccessMessageEl) {
+      wizardSuccessMessageEl.innerHTML = message || ('Extension <strong>' + extensionId + '</strong> has been successfully installed and is ready to use.');
+    }
+  }
+
+  function animateInstallProgress(stages, onComplete) {
+    var currentStage = 0;
+    var currentPercent = 0;
+
+    function animateToTarget(target, status, callback) {
+      updateInstallProgress(currentPercent, status);
+      var step = function() {
+        if (currentPercent < target) {
+          currentPercent = Math.min(currentPercent + 2, target);
+          updateInstallProgress(currentPercent, status);
+          requestAnimationFrame(step);
+        } else if (callback) {
+          callback();
+        }
+      };
+      step();
+    }
+
+    function nextStage() {
+      if (currentStage >= stages.length) {
+        if (onComplete) onComplete();
+        return;
+      }
+      var stage = stages[currentStage];
+      currentStage++;
+      animateToTarget(stage.percent, stage.status, function() {
+        setTimeout(nextStage, stage.delay || 200);
+      });
+    }
+
+    nextStage();
+  }
+
   bindIfPresent(importExtensionInstallBtn, 'click', function () {
     if (!importWizardState.sessionId) {
       setStatus('Upload + scan first to create a staged session.', 'error');
@@ -2795,15 +2881,41 @@
 
     importExtensionInstallBtn.disabled = true;
     setStatus('Installing from staged review session...', null);
-    setImportWizardNote('Installing from staged review session...', null);
     wizardSetStep('review');
+    
+    // Show progress bar
+    showInstallProgress(true);
+    var installStages = [
+      { percent: 15, status: 'Validating package...', delay: 300 },
+      { percent: 30, status: 'Creating extension directory...', delay: 200 },
+      { percent: 50, status: 'Extracting files...', delay: 400 },
+      { percent: 70, status: 'Setting permissions...', delay: 200 },
+      { percent: 85, status: 'Running install script...', delay: 300 },
+      { percent: 95, status: 'Updating registry...', delay: 200 }
+    ];
+
+    // Start progress animation
+    animateInstallProgress(installStages, function() {
+      // Animation done, wait for API response
+    });
 
     apiInstallFromSession(getWizardInstallPayload())
       .then(function (data) {
         var payload = (data || {}).data || {};
         var importedId = payload.extensionId || importWizardState.extensionId || 'unknown';
-        setStatus('Extension imported: ' + importedId, 'ok');
-        setImportWizardNote('Extension imported: ' + importedId + importReviewSummary(payload.review || {}), 'ok');
+        
+        // Complete progress then show success
+        updateInstallProgress(100, 'Installation complete!');
+        setTimeout(function() {
+          var summaryHtml = importReviewSummary(payload.review || {});
+          showInstallSuccess(importedId, 
+            'Extension <strong>' + importedId + '</strong> has been successfully installed.' +
+            (summaryHtml ? '<br><small style="opacity:0.7">' + summaryHtml.replace(/<br>/g, ' | ') + '</small>' : '')
+          );
+          setStatus('Extension imported: ' + importedId, 'ok');
+          setImportWizardNote('Extension imported: ' + importedId + summaryHtml, 'ok');
+        }, 400);
+        
         importWizardState.sessionId = '';
         if (importExtensionInstallBtn) {
           importExtensionInstallBtn.disabled = true;
@@ -2812,6 +2924,7 @@
       })
       .catch(function (err) {
         var fullMessage = String((err && err.message) || 'Install from review failed.');
+        showInstallProgress(false);
         setStatus(firstSentence(fullMessage), 'error');
         setImportWizardNote(fullMessage, 'error');
       })

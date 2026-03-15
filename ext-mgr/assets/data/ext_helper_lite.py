@@ -72,6 +72,38 @@ CODE_PATTERNS = [
         "pattern": r"rm\s+-rf\s+\$",
         "fix": "Add variable checks before rm -rf",
     },
+    {
+        "id": "uses_moode_header",
+        "label": "Uses moOde header.php",
+        "severity": "ok",
+        "files": ["*.php"],
+        "pattern": r"include\s+['\"]?/var/www/header\.php['\"]?",
+        "fix": "moOde header integration detected",
+    },
+    {
+        "id": "uses_moode_footer",
+        "label": "Uses moOde footer",
+        "severity": "ok",
+        "files": ["*.php"],
+        "pattern": r"include\s+['\"]?/var/www/footer(\.min)?\.php['\"]?",
+        "fix": "moOde footer integration detected",
+    },
+    {
+        "id": "hardcoded_navbar_suppress",
+        "label": "Hardcoded navbar suppression",
+        "severity": "upgradeable",
+        "files": ["*.php"],
+        "pattern": r"(#navbar-settings|\.navbar-settings|\.moode-settings-nav)[^}]*display\s*:\s*none",
+        "fix": "Upgrade to dynamic header visibility via ext-mgr registry",
+    },
+    {
+        "id": "has_dynamic_header_control",
+        "label": "Has dynamic header control",
+        "severity": "ok",
+        "files": ["*.php"],
+        "pattern": r"\$extMgrHideHeader|\bheaderVisible\b|registry\.json",
+        "fix": "Extension already uses dynamic header control",
+    },
 ]
 
 
