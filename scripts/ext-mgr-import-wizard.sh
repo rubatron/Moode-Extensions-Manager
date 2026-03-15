@@ -375,6 +375,8 @@ run_import() {
   mkdir -p "$target/logs"
   if [[ $DRY_RUN -eq 0 ]]; then
     touch "$target/logs/install.log" "$target/logs/system.log" "$target/logs/error.log"
+    # Ensure helper/service hooks can write logs and runtime files before install starts.
+    set_extension_permissions "$target"
   fi
 
   extension_install_log "$ext_id" "import started"
@@ -396,8 +398,6 @@ run_import() {
     rm -rf "$target"
     return 0
   fi
-
-  set_extension_permissions "$target"
 
   local canonical_main="${ext_id}.php"
   ln -sfn "$target/$main_entry" "/var/www/$canonical_main"
