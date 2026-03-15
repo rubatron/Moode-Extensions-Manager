@@ -1,7 +1,11 @@
 {
   "chat.tools.terminal.autoApprove": {
     "git remote": true,
-    "git push": true
+    "git push": true,
+    "/^git add -A; git commit -m \"docs: update API and import wizard documentation\"$/": {
+      "approve": true,
+      "matchCommandLine": true
+    }
   },
   "php.validate.enable": false,
   "php.suggest.basic": false,

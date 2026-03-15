@@ -13,11 +13,13 @@ The import wizard provides a guided 5-step flow for installing extensions safely
 **File:** ZIP package containing extension files
 
 **Requirements:**
+
 - Valid ZIP archive
 - Contains `manifest.json` at root or in single subfolder
 - Maximum size: 50MB
 
 **Actions:**
+
 - Drag & drop or click to select file
 - Progress indicator during upload
 - Automatic extraction to staging area
@@ -71,6 +73,7 @@ The import wizard provides a guided 5-step flow for installing extensions safely
 - Required packages
 
 **Code Scanner Checks:**
+
 - Dangerous function calls (`eval`, `exec`, `shell_exec`)
 - Unsanitized input usage
 - SQL injection patterns
@@ -93,6 +96,7 @@ The import wizard provides a guided 5-step flow for installing extensions safely
 6. **Updating registry** - Add to registry.json
 
 **Success:**
+
 - Congratulations panel
 - Link to open extension
 - Option to install another
@@ -106,6 +110,7 @@ The import wizard provides a guided 5-step flow for installing extensions safely
 ### Chevron Stepper
 
 Visual progress indicator with:
+
 - Completed steps: Solid orange background
 - Active step: Orange with glow effect
 - Upcoming steps: Dark background
@@ -113,6 +118,7 @@ Visual progress indicator with:
 ### Progress Bar
 
 Animated gradient bar showing:
+
 - Current stage label
 - Percentage complete
 - Stage transitions
@@ -120,6 +126,7 @@ Animated gradient bar showing:
 ### Success Panel
 
 Green congratulations message with:
+
 - Extension name and version
 - Quick action buttons
 - Install another option

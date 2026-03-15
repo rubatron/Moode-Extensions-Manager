@@ -1,6 +1,6 @@
 # ext-mgr API Reference
 
-> Complete API documentation for ext-mgr-api.php  
+> Complete API documentation for ext-mgr-api.php
 > All endpoints use POST unless noted otherwise
 
 ## Base URL
@@ -43,6 +43,7 @@ GET /ext-mgr-api.php?action=refresh
 ```
 
 **Response:**
+
 ```json
 {
   "ok": true,
@@ -94,6 +95,7 @@ id=my-extension
 ```
 
 **Cleanup includes:**
+
 - Symlink removal
 - Service unit stop/disable/remove
 - Uninstall script execution
@@ -136,6 +138,7 @@ file=<ZIP file>
 ```
 
 **Response:**
+
 ```json
 {
   "ok": true,
@@ -162,6 +165,7 @@ session_id=abc123
 ```
 
 **Response:**
+
 ```json
 {
   "ok": true,
@@ -198,6 +202,7 @@ settings_card_only=0
 ```
 
 **Response includes progress stages:**
+
 1. Copying files
 2. Installing packages
 3. Running install script
@@ -265,6 +270,7 @@ GET /ext-mgr-api.php?action=check_update
 ```
 
 **Response:**
+
 ```json
 {
   "ok": true,
@@ -352,6 +358,7 @@ id=my-extension
 ```
 
 **Response:**
+
 ```json
 {
   "ok": true,
@@ -413,6 +420,7 @@ GET /ext-mgr-api.php?action=system_resources
 ```
 
 **Response:**
+
 ```json
 {
   "ok": true,
