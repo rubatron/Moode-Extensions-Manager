@@ -5,22 +5,23 @@ if ($action !== 'download_extension_template' && $action !== 'download_extension
     header('Content-Type: application/json; charset=utf-8');
 }
 
-$baseDir = dirname((string)(realpath(__FILE__) ?: __FILE__));
-$registryPath = $baseDir . DIRECTORY_SEPARATOR . 'registry.json';
-$metaPath = $baseDir . DIRECTORY_SEPARATOR . 'ext-mgr.meta.json';
-$versionPath = $baseDir . DIRECTORY_SEPARATOR . 'ext-mgr.version';
-$releasePath = $baseDir . DIRECTORY_SEPARATOR . 'ext-mgr.release.json';
-$symlinkHelperPath = '/usr/local/sbin/ext-mgr-repair-symlink';
+// Base directory is always /var/www/extensions/sys regardless of API file location
 $extensionsRootPath = '/var/www/extensions';
+$baseDir = $extensionsRootPath . '/sys';
+$registryPath = $baseDir . '/registry.json';
+$metaPath = $baseDir . '/ext-mgr.meta.json';
+$versionPath = $baseDir . '/ext-mgr.version';
+$releasePath = $baseDir . '/ext-mgr.release.json';
+$symlinkHelperPath = '/usr/local/sbin/ext-mgr-repair-symlink';
 $extensionsInstalledPath = $extensionsRootPath . '/installed';
 $extensionsCachePath = $extensionsRootPath . '/cache';
-$extensionsBackupPath = $baseDir . DIRECTORY_SEPARATOR . 'backup';
-$extensionsSysLogsRootPath = $extensionsRootPath . '/sys/logs';
+$extensionsBackupPath = $baseDir . '/backup';
+$extensionsSysLogsRootPath = $baseDir . '/logs';
 $extensionsLogsPath = $extensionsSysLogsRootPath . '/extensionslogs';
 $extMgrLogsPath = $extensionsSysLogsRootPath . '/ext-mgr logs';
-$extMgrRuntimeLogsPath = $extensionsRootPath . '/sys/.ext-mgr/logs';
-$extMgrVariablesPath = $extensionsRootPath . '/sys/.ext-mgr/variables.json';
-$extMgrInstallVarsPath = $baseDir . DIRECTORY_SEPARATOR . 'scripts' . DIRECTORY_SEPARATOR . 'ext-mgr-install-vars.json';
+$extMgrRuntimeLogsPath = $baseDir . '/.ext-mgr/logs';
+$extMgrVariablesPath = $baseDir . '/.ext-mgr/variables.json';
+$extMgrInstallVarsPath = $baseDir . '/scripts/ext-mgr-install-vars.json';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // VARIABLES API - Centralized configuration system for ext-mgr and extensions
