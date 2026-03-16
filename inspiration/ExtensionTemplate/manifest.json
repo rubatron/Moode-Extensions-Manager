@@ -1,0 +1,37 @@
+{
+    "id": "auto-generate",
+    "name": "Template Extension",
+    "version": "0.1.0",
+    "main": "template.php",
+    "ext_mgr": {
+        "enabled": true,
+        "state": "active",
+        "stageProfile": "visible-by-default",
+        "menuVisibility": {
+            "m": true,
+            "library": true,
+            "system": false
+        },
+        "settingsCardOnly": true,
+        "iconClass": "fa-solid fa-sharp fa-puzzle-piece",
+        "service": {
+            "name": "auto-generate.service",
+            "requiresExtMgr": true,
+            "parentService": "moode-extmgr.service",
+            "dependencies": []
+        },
+        "logging": {
+            "localDir": "logs",
+            "globalDir": "/var/www/extensions/sys/logs/extensionslogs/auto-generate",
+            "files": [
+                "install.log",
+                "system.log",
+                "error.log"
+            ]
+        },
+        "install": {
+            "packages": [],
+            "script": "scripts/install.sh"
+        }
+    }
+}

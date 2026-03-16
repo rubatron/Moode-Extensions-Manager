@@ -7,9 +7,11 @@ Guide for porting moOde Audio Player add-ons to the **ext-mgr extension format**
 ## Context
 
 moOde Audio Player runs on Raspberry Pi (Debian/Raspbian). The ext-mgr system manages extensions that live in:
+
 ```
 /var/www/extensions/installed/<ext-id>/
 ```
+
 Each extension is a sandbox. Everything outside that folder is a symlink or footprint entry — never a direct write.
 
 ---
@@ -25,12 +27,14 @@ ext-mgr runs `install.sh` as **`moode-extmgrusr`** (unprivileged). **Before** `i
 | Canonical route symlink | ext-mgr (root) | `/var/www/<ext-id>.php → template.php` |
 
 **`install.sh` can and should only:**
+
 - `pip install --target=$ROOT/packages/pylib/` (sandbox ownership)
 - Write in `$ROOT/**`
 - Create wrapper scripts in `$ROOT/packages/bin/`
 - Create `data/`, `cache/`, `logs/` dirs
 
 **`install.sh` must NEVER:**
+
 - Call `apt-get install` (ext-mgr does this)
 - Call `systemctl` (ext-mgr does this)
 - `ln -sf` to `/etc/systemd/system/` (ext-mgr does this)
@@ -107,6 +111,7 @@ ext-mgr runs `install.sh` as **`moode-extmgrusr`** (unprivileged). **Before** `i
 ```
 
 **Key points:**
+
 - `id` = ext-mgr ext-id = root folder name in zip = canonical route name
 - `service.name` = `moode-extmgr-<ext-id>.service` (required prefix)
 - `install.packages` = apt packages that ext-mgr installs as root before install.sh
@@ -191,6 +196,7 @@ if ($usingMoodeShell) {
 ```
 
 **Critical:**
+
 - Use **`#config-tabs { display:none!important }`** — NOT `#navbar-settings` or other selectors
 - `$extRouteId` always dynamic via `$_SERVER['SCRIPT_NAME']`
 - `$assetBase` always computed, also standalone

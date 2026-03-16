@@ -1,0 +1,20 @@
+{
+    "$schema": "https://json-schema.org/draft-07/schema",
+    "description": "Custom code patterns for ext-mgr import wizard. Add patterns here to extend default scanning.",
+    "patterns": [],
+    "_severity_values": [
+        "ok",
+        "info",
+        "warning",
+        "violation",
+        "upgradeable"
+    ],
+    "_notes": [
+        "Pattern is a Python regex (case-insensitive by default)",
+        "Files is a list of glob patterns to match filenames (e.g., [\"*.php\", \"install.sh\"])",
+        "Autofix: true = wizard will attempt automatic fix, false = manual review only",
+        "Severity \"upgradeable\" indicates patterns the wizard can auto-upgrade",
+        "Run: python3 tools/ext_helper.py patterns - to see built-in patterns",
+        "Run: python3 tools/ext_helper.py scan . - to scan this extension"
+    ]
+}

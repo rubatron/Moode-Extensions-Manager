@@ -1,0 +1,48 @@
+.ext-template-shell {
+  padding-bottom: 1.2rem;
+}
+
+.ext-template-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.ext-template-header i {
+  font-size: 1.2rem;
+  color: var(--accentxts, #d35400);
+}
+
+.ext-template-card {
+  margin-top: 0.8rem;
+  border: 1px solid rgba(128, 128, 128, 0.28);
+  border-radius: 6px;
+  padding: 0.7rem;
+  background: rgba(0, 0, 0, 0.14);
+}
+
+.ext-template-card-title {
+  font-size: 1rem;
+  margin: 0 0 0.45rem 0;
+}
+
+.ext-template-picker-row {
+  display: grid;
+  grid-template-columns: 110px minmax(220px, 1fr);
+  gap: 0.45rem 0.7rem;
+  align-items: center;
+}
+
+.ext-template-code {
+  margin-top: 0.55rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid rgba(128, 128, 128, 0.32);
+  border-radius: 4px;
+  font-family: monospace;
+  color: #d6dbe0;
+}
+
+/* Settings nav suppression fallback. */
+#config-tabs {
+  display: none !important;
+}
