@@ -1374,7 +1374,7 @@
       // Create toggle using innerHTML to match exact PHP structure
       var div = document.createElement('div');
       div.className = 'toggle' + (initialVisible ? '' : ' toggle-off');
-      div.innerHTML = 
+      div.innerHTML =
         '<label class="toggle-radio" for="' + id + '-off">ON</label>' +
         '<input type="radio" id="' + id + '-on" name="' + id + '" value="On"' + (initialVisible ? ' checked' : '') + '>' +
         '<label class="toggle-radio" for="' + id + '-on">OFF</label>' +
@@ -2391,7 +2391,8 @@
       row.appendChild(left);
       toggleGroup.appendChild(menuMControl);
       toggleGroup.appendChild(menuLibraryControl);
-      toggleGroup.appendChild(menuHeaderControl);
+      // TODO: Header menu toggle disabled - dynamic JS radio toggles not triggering change events
+      // toggleGroup.appendChild(menuHeaderControl);
       toggleGroup.appendChild(settingsCardControl);
       rightWrap.appendChild(toggleGroup);
       row.appendChild(rightWrap);
