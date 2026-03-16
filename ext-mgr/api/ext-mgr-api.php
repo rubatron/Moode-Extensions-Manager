@@ -4195,11 +4195,16 @@ function stageUploadForImport($registryPath, $allowOverwrite, &$error)
         $manifestData = $updatedManifest;
     }
 
+    // Read info.json for extension metadata (name, description, author, etc.)
+    $infoPath = $sourceDir . DIRECTORY_SEPARATOR . 'info.json';
+    $infoData = readJsonFile($infoPath, []);
+
     return [
         'workDir' => $workDir,
         'sourceDir' => $sourceDir,
         'importedId' => $importedId,
         'manifest' => $manifestData,
+        'info' => $infoData,
     ];
 }
 
@@ -5538,6 +5543,33 @@ if ($action === 'import_extension_scan') {
         ];
     }
 
+    // Early validation: Check for manifest.main (required for install)
+    $manifest = $staged['manifest'] ?? [];
+    $mainEntry = isset($manifest['main']) && is_string($manifest['main']) ? trim($manifest['main']) : '';
+    if ($mainEntry === '') {
+        // Add this as a violation so install is blocked until fixed
+        if (!is_array($scan['violations'])) {
+            $scan['violations'] = [];
+        }
+        $scan['violations'][] = [
+            'id' => 'manifest_main_missing',
+            'severity' => 'error',
+            'message' => 'manifest.json is missing required "main" property. Set main to your entry PHP file (e.g., "template.php").',
+            'path' => 'manifest.json',
+        ];
+    } elseif (!is_file($sourceDir . '/' . $mainEntry)) {
+        // main is set but file doesn't exist
+        if (!is_array($scan['violations'])) {
+            $scan['violations'] = [];
+        }
+        $scan['violations'][] = [
+            'id' => 'manifest_main_not_found',
+            'severity' => 'error',
+            'message' => 'manifest.json "main" points to "' . $mainEntry . '" but file does not exist in package.',
+            'path' => 'manifest.json',
+        ];
+    }
+
     $sessionId = generateUuidV4();
     $sessionPayload = [
         'sessionId' => $sessionId,
@@ -5546,6 +5578,7 @@ if ($action === 'import_extension_scan') {
         'sourceDir' => $sourceDir,
         'importedId' => (string)$staged['importedId'],
         'manifest' => $staged['manifest'],
+        'info' => $staged['info'] ?? [],
         'review' => $review,
         'scan' => $scan,
     ];
@@ -5565,6 +5598,7 @@ if ($action === 'import_extension_scan') {
             'review' => $review,
             'scan' => $scan,
             'manifest' => $staged['manifest'],
+            'info' => $staged['info'] ?? [],
         ],
     ], JSON_UNESCAPED_SLASHES);
     exit;

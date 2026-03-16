@@ -630,6 +630,23 @@
       importWizardState.scan = null;
       importWizardState.review = null;
       importWizardState.manifest = null;
+      importWizardState.info = null;
+
+      // Clear form fields to prevent cache leakage between imports
+      if (wizardNameEl) wizardNameEl.value = '';
+      if (wizardVersionEl) wizardVersionEl.value = '';
+      if (wizardTypeEl) wizardTypeEl.value = 'other';
+      if (wizardServiceNameEl) wizardServiceNameEl.value = '';
+      if (wizardDependenciesEl) wizardDependenciesEl.value = '';
+      if (wizardAptPackagesEl) wizardAptPackagesEl.value = '';
+      if (wizardMenuMEl) wizardMenuMEl.checked = false;
+      if (wizardMenuLibraryEl) wizardMenuLibraryEl.checked = false;
+      if (wizardMenuSystemEl) wizardMenuSystemEl.checked = false;
+      if (wizardSettingsOnlyEl) wizardSettingsOnlyEl.checked = false;
+
+      // Clear file input
+      if (importExtensionFileEl) importExtensionFileEl.value = '';
+      if (importExtensionFileNameEl) importExtensionFileNameEl.textContent = 'No file chosen';
 
       // Clear form fields and UI elements
       if (wizardReviewJsonEl) {
@@ -1222,18 +1239,21 @@
     }
   }
 
-  function setWizardFormFromManifest(manifest, scan, review) {
+  function setWizardFormFromManifest(manifest, scan, review, info) {
     var row = manifest || {};
     var ext = row.ext_mgr || {};
     var menu = ext.menuVisibility || {};
     var service = ext.service || {};
     var install = ext.install || {};
+    var infoData = info || {};
 
+    // Name priority: info.json name > manifest name
+    var extensionName = infoData.name || row.name || '';
     if (wizardNameEl) {
-      wizardNameEl.value = row.name || '';
+      wizardNameEl.value = extensionName;
     }
     if (wizardVersionEl) {
-      wizardVersionEl.value = row.version || '';
+      wizardVersionEl.value = infoData.version || row.version || '';
     }
     if (wizardTypeEl) {
       wizardTypeEl.value = ext.type || ((scan || {}).detected_type || 'other');
@@ -1251,12 +1271,14 @@
       wizardSettingsOnlyEl.checked = !!ext.settingsCardOnly;
     }
     if (wizardServiceNameEl) {
-      // Default service name: ext-{id}.service if service exists but no name
+      // Service name format: extmgr-{name}.service
+      // If service exists but no name, generate from extension name
       var defaultServiceName = '';
-      var extId = row.id || '';
       var scanHasService = (scan || {}).has_service || false;
-      if (extId && (service.name || scanHasService)) {
-        defaultServiceName = 'ext-' + extId + '.service';
+      if (extensionName && (service.name || scanHasService)) {
+        // Sanitize name for service: lowercase, alphanumeric and dashes only
+        var sanitizedName = extensionName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+        defaultServiceName = 'extmgr-' + sanitizedName + '.service';
       }
       wizardServiceNameEl.value = service.name || defaultServiceName;
     }
@@ -2951,8 +2973,9 @@
         importWizardState.review = payload.review || {};
         importWizardState.scan = payload.scan || {};
         importWizardState.manifest = payload.manifest || {};
+        importWizardState.info = payload.info || {};
 
-        setWizardFormFromManifest(importWizardState.manifest, importWizardState.scan, importWizardState.review);
+        setWizardFormFromManifest(importWizardState.manifest, importWizardState.scan, importWizardState.review, importWizardState.info);
         renderWizardReview();
 
         var violations = Array.isArray((importWizardState.scan || {}).violations) ? importWizardState.scan.violations.length : 0;
