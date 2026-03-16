@@ -2017,6 +2017,48 @@
     return info.description || 'No extension description available.';
   }
 
+  function extensionDetailsSummary(item) {
+    var info = (item && item.extensionInfo) || {};
+    var installMetadata = (item && item.installMetadata) || {};
+    var counts = installMetadata.counts || {};
+    var service = (item && item.service) || {};
+    var id = item.id || 'unknown';
+    var version = info.version || item.version || 'unknown';
+    var type = info.type || 'unknown';
+    var author = info.author || 'unknown';
+    var license = info.license || 'unknown';
+    var serviceName = service.name || '';
+    var settingsPage = info.settingsPage || item.entry || ('/' + id + '.php');
+    var isCertified = info.certified === true;
+
+    var bits = [
+      '<div class="list-sub list-meta">',
+      '<div class="list-meta-row"><span class="list-meta-label">Link</span><span class="list-meta-value"><a class="extmgr-item-link" href="' + escapeHtml(settingsPage) + '">' + escapeHtml(settingsPage) + '</a></span></div>',
+      '<div class="list-meta-row"><span class="list-meta-label">Extension root</span><span class="list-meta-value">/extensions/installed/' + escapeHtml(id) + '/</span></div>',
+      '<div class="list-meta-row"><span class="list-meta-label">ID</span><span class="list-meta-value">' + escapeHtml(id) + '</span></div>'
+    ];
+    if (isCertified) {
+      bits.push('<div class="list-meta-row"><span class="list-meta-label">Certified</span><span class="list-meta-value"><i class="fas fa-certificate" style="color:#c55a11"></i> Yes</span></div>');
+    }
+    bits.push(
+      '<div class="list-meta-row"><span class="list-meta-label">Version</span><span class="list-meta-value">' + escapeHtml(version) + '</span></div>',
+      '<div class="list-meta-row"><span class="list-meta-label">Type</span><span class="list-meta-value">' + escapeHtml(type) + '</span></div>',
+      '<div class="list-meta-row"><span class="list-meta-label">Author</span><span class="list-meta-value">' + escapeHtml(author) + '</span></div>',
+      '<div class="list-meta-row"><span class="list-meta-label">License</span><span class="list-meta-value">' + escapeHtml(license) + '</span></div>'
+    );
+    if (serviceName) {
+      bits.push('<div class="list-meta-row"><span class="list-meta-label">Service</span><span class="list-meta-value">' + escapeHtml(serviceName) + '</span></div>');
+    }
+    if (counts.installedApt) {
+      bits.push('<div class="list-meta-row"><span class="list-meta-label">APT Packages</span><span class="list-meta-value">' + escapeHtml(String(counts.installedApt)) + '</span></div>');
+    }
+    if (counts.installedBundles) {
+      bits.push('<div class="list-meta-row"><span class="list-meta-label">Bundled</span><span class="list-meta-value">' + escapeHtml(String(counts.installedBundles)) + '</span></div>');
+    }
+    bits.push('</div>');
+    return bits.join('');
+  }
+
   function extensionSettingsPage(item) {
     var info = (item && item.extensionInfo) || {};
     return info.settingsPage || item.entry || ('/' + (item.id || '') + '.php');
@@ -2113,13 +2155,7 @@
       var showHeader = getVisibility(item, 'header');
       var showSettingsCard = getSettingsCardOnly(item);
 
-      // Collapsible header - always visible
-      var header = document.createElement('div');
-      header.className = 'list-item-header';
-
-      var headerLeft = document.createElement('div');
-      headerLeft.className = 'list-item-header-left';
-
+      // State info
       var stateClass = item.enabled ? 'enabled' : 'disabled';
       var stateLabel = item.enabled ? 'Enabled' : 'Disabled';
       var serviceStatus = getExtensionServiceStatus(item);
@@ -2131,15 +2167,79 @@
       }
 
       var itemTitle = escapeHtml(item.name || item.id || 'Unnamed extension');
+      var description = escapeHtml(extensionDescription(item));
+      var settingsPage = extensionSettingsPage(item);
+      var info = (item && item.extensionInfo) || {};
+      var isCertified = info.certified === true;
+
+      // Collapsible header - always visible
+      var header = document.createElement('div');
+      header.className = 'list-item-header';
+
+      var headerLeft = document.createElement('div');
+      headerLeft.className = 'list-item-header-left';
+
+      var certifiedBadge = isCertified ? '<span class="badge-certified" title="Certified Extension"><i class="fas fa-certificate"></i></span>' : '';
       headerLeft.innerHTML =
-        '<span class="list-name">' + itemTitle + '</span>' +
-        '<span class="badge ' + stateClass + '"><span class="status-dot ' + statusDotClass + '"></span>' + stateLabel + '</span>';
+        '<div class="list-item-header-title">' +
+          '<span class="list-name">' + itemTitle + '</span>' + certifiedBadge +
+          '<span class="badge ' + stateClass + '"><span class="status-dot ' + statusDotClass + '"></span>' + stateLabel + '</span>' +
+        '</div>' +
+        '<div class="list-item-header-desc">' + description + '</div>';
+
+      var headerRight = document.createElement('div');
+      headerRight.className = 'list-item-header-right';
+
+      // Enable/Disable toggle in header
+      var enableToggle = createMoodeToggle('extmgr-tgl-en-' + item.id, item.enabled, function (newEnabled) {
+        if (!newEnabled) {
+          var ok = window.confirm('Disable ' + (item.name || item.id) + '? This can hide it from menu integrations.');
+          if (!ok) {
+            enableToggle.setVisible(true);
+            return;
+          }
+        }
+
+        var nextEnabled = newEnabled ? '1' : '0';
+        enableToggle.setDisabled(true);
+        api({ action: 'set_enabled', id: item.id, value: nextEnabled })
+          .then(function () {
+            item.enabled = newEnabled;
+            item.state = newEnabled ? 'active' : 'inactive';
+            if (newEnabled) {
+              setVisibility(item, 'm', true);
+              setVisibility(item, 'library', true);
+              setVisibility(item, 'system', false);
+            } else {
+              setVisibility(item, 'm', false);
+              setVisibility(item, 'library', false);
+              setVisibility(item, 'system', false);
+              item.settingsCardOnly = false;
+            }
+            setStatus('Extension state updated for ' + (item.name || item.id) + '.', 'ok');
+            runRefresh();
+          })
+          .catch(function (err) {
+            enableToggle.setVisible(!newEnabled);
+            setStatus(err.message, 'error');
+          })
+          .finally(function () {
+            enableToggle.setDisabled(false);
+          });
+      });
+
+      // Stop toggle clicks from toggling expansion
+      enableToggle.addEventListener('click', function (e) {
+        e.stopPropagation();
+      });
 
       var chevron = document.createElement('i');
       chevron.className = 'fas fa-chevron-right list-item-chevron';
 
+      headerRight.appendChild(enableToggle);
+      headerRight.appendChild(chevron);
       header.appendChild(headerLeft);
-      header.appendChild(chevron);
+      header.appendChild(headerRight);
       header.addEventListener('click', function () {
         row.classList.toggle('expanded');
       });
@@ -2151,28 +2251,11 @@
       var left = document.createElement('div');
       var statusWarning = '';
       if (item.enabled && (serviceStatus === 'failed' || serviceStatus === 'inactive')) {
-        statusWarning = '<span class="status-warning"><i class="fa-solid fa-exclamation-triangle"></i> Service not running</span>';
-      }
-      var titleLink = itemTitle;
-      var settingsPage = extensionSettingsPage(item);
-      if (settingsPage) {
-        titleLink = '<a class="extmgr-item-link" href="' + escapeHtml(settingsPage) + '">' + itemTitle + '</a>';
+        statusWarning = '<div class="list-sub"><span class="status-warning"><i class="fa-solid fa-exclamation-triangle"></i> Service not running</span></div>';
       }
 
-      left.innerHTML =
-        '<div class="list-top"><div class="list-name">' + titleLink + '</div><span class="badge ' + stateClass + '"><span class="status-dot ' + statusDotClass + '"></span>' + stateLabel + '</span>' + statusWarning + '</div>' +
-        '<div class="list-sub">' + escapeHtml(item.path || '#') + '</div>' +
-        '<div class="list-sub list-meta">' + extensionInfoSummary(item) + '</div>' +
-        '<div class="list-sub">' + escapeHtml(extensionDescription(item)) + '</div>';
-
-      if (getSettingsCardOnly(item)) {
-        left.innerHTML +=
-          '<div class="extmgr-subcard">' +
-          '<div class="extmgr-subcard-title">Configuration Tile Mode</div>' +
-          '<div class="extmgr-subcard-body">This extension is handled as a configuration-only tile in ext-mgr.</div>' +
-          '<a class="btn btn-small" href="' + escapeHtml(extensionSettingsPage(item)) + '">Open Configuration</a>' +
-          '</div>';
-      }
+      // Build extension details
+      left.innerHTML = statusWarning + extensionDetailsSummary(item);
 
       var rightWrap = document.createElement('div');
       rightWrap.className = 'item-actions';
@@ -2185,54 +2268,6 @@
 
       var actionGroup = document.createElement('div');
       actionGroup.className = 'item-action-group';
-
-      var enableBtn = document.createElement('button');
-      enableBtn.type = 'button';
-      enableBtn.className = 'btn btn-small btn-primary';
-      enableBtn.textContent = item.enabled ? 'Disable' : 'Enable';
-      applyTip(enableBtn, item.enabled ? 'extension.disable' : 'extension.enable');
-      enableBtn.addEventListener('click', function () {
-        if (item.enabled) {
-          var ok = window.confirm('Disable ' + (item.name || item.id) + '? This can hide it from menu integrations.');
-          if (!ok) {
-            return;
-          }
-        }
-
-        var nextEnabled = item.enabled ? '0' : '1';
-        enableBtn.disabled = true;
-        api({ action: 'set_enabled', id: item.id, value: nextEnabled })
-          .then(function () {
-            item.enabled = (nextEnabled === '1');
-            item.state = item.enabled ? 'active' : 'inactive';
-            if (item.enabled) {
-              setVisibility(item, 'm', true);
-              setVisibility(item, 'library', true);
-              setVisibility(item, 'system', false);
-            } else {
-              setVisibility(item, 'm', false);
-              setVisibility(item, 'library', false);
-              setVisibility(item, 'system', false);
-              item.settingsCardOnly = false;
-            }
-            enableBtn.textContent = item.enabled ? 'Disable' : 'Enable';
-            enableBtn.className = 'btn btn-small btn-primary';
-            applyTip(enableBtn, item.enabled ? 'extension.disable' : 'extension.enable');
-
-            menuMBtn.setVisible(getVisibility(item, 'm'));
-            menuLibraryBtn.setVisible(getVisibility(item, 'library'));
-            settingsCardBtn.setVisible(getSettingsCardOnly(item));
-            applyExtensionActionState(item.enabled);
-            setStatus('Extension state updated for ' + (item.name || item.id) + '.', 'ok');
-            runRefresh();
-          })
-          .catch(function (err) {
-            setStatus(err.message, 'error');
-          })
-          .finally(function () {
-            enableBtn.disabled = false;
-          });
-      });
 
         var menuMBtn = createMoodeToggle('extmgr-tgl-m-' + item.id, showInM, function (newVisible) {
           menuMBtn.setDisabled(true);
@@ -2305,7 +2340,9 @@
         var menuMControl = createInlineSwitchControl('Menu', menuMBtn);
         var menuLibraryControl = createInlineSwitchControl('Library menu', menuLibraryBtn);
         var menuHeaderControl = createInlineSwitchControl('Header menu', menuHeaderBtn);
+        // Keep settingsCardBtn logic for future use, but hide from UI
         var settingsCardControl = createInlineSwitchControl('Configuration Tile', settingsCardBtn);
+        settingsCardControl.style.display = 'none';
 
       var repairSymlinkBtn = document.createElement('button');
       repairSymlinkBtn.type = 'button';
@@ -2385,7 +2422,6 @@
         menuMControl.style.display = disabled ? 'none' : '';
         menuLibraryControl.style.display = disabled ? 'none' : '';
         menuHeaderControl.style.display = disabled ? 'none' : '';
-        settingsCardControl.style.display = disabled ? 'none' : '';
         repairSymlinkBtn.style.display = disabled ? 'none' : '';
 
         repairSymlinkBtn.classList.toggle('btn-muted', disabled);
@@ -2400,15 +2436,6 @@
 
       applyExtensionActionState(item.enabled);
 
-      if (settingsPage) {
-        var configureBtn = document.createElement('a');
-        configureBtn.className = 'btn btn-small btn-primary';
-        configureBtn.href = settingsPage;
-        configureBtn.textContent = getSettingsCardOnly(item) ? 'Open Configuration' : 'Configure';
-        infoActionGroup.appendChild(configureBtn);
-      }
-
-      infoActionGroup.appendChild(enableBtn);
       infoActionGroup.appendChild(repairSymlinkBtn);
       infoActionGroup.appendChild(uninstallBtn);
       if (extMgrLogsModule && typeof extMgrLogsModule.attachExtensionButton === 'function') {
@@ -2421,7 +2448,7 @@
       toggleGroup.appendChild(menuLibraryControl);
       // TODO: Header menu toggle disabled - dynamic JS radio toggles not triggering change events
       // toggleGroup.appendChild(menuHeaderControl);
-      toggleGroup.appendChild(settingsCardControl);
+      // settingsCardControl kept for future use, but hidden
       rightWrap.appendChild(toggleGroup);
       body.appendChild(rightWrap);
       row.appendChild(header);
