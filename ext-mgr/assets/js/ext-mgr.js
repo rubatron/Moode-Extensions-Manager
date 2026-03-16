@@ -1404,9 +1404,9 @@
         console.log('[Toggle] ON radio change event, checked:', onRadio.checked);
         if (onRadio.checked) {
           div.classList.remove('toggle-off');
-          if (typeof onChange === 'function') { 
+          if (typeof onChange === 'function') {
             console.log('[Toggle] Calling onChange(true)');
-            onChange(true); 
+            onChange(true);
           }
         }
       });
@@ -1414,9 +1414,9 @@
         console.log('[Toggle] OFF radio change event, checked:', offRadio.checked);
         if (offRadio.checked) {
           div.classList.add('toggle-off');
-          if (typeof onChange === 'function') { 
+          if (typeof onChange === 'function') {
             console.log('[Toggle] Calling onChange(false)');
-            onChange(false); 
+            onChange(false);
           }
         }
       });
