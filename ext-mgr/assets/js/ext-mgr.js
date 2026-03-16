@@ -1398,17 +1398,34 @@
       offRadio.value = 'Off';
       offRadio.checked = !initialVisible;
 
+      console.log('[Toggle] Creating toggle:', id, 'initial:', initialVisible);
+
       onRadio.addEventListener('change', function () {
+        console.log('[Toggle] ON radio change event, checked:', onRadio.checked);
         if (onRadio.checked) {
           div.classList.remove('toggle-off');
-          if (typeof onChange === 'function') { onChange(true); }
+          if (typeof onChange === 'function') { 
+            console.log('[Toggle] Calling onChange(true)');
+            onChange(true); 
+          }
         }
       });
       offRadio.addEventListener('change', function () {
+        console.log('[Toggle] OFF radio change event, checked:', offRadio.checked);
         if (offRadio.checked) {
           div.classList.add('toggle-off');
-          if (typeof onChange === 'function') { onChange(false); }
+          if (typeof onChange === 'function') { 
+            console.log('[Toggle] Calling onChange(false)');
+            onChange(false); 
+          }
         }
+      });
+
+      onLabel.addEventListener('click', function(e) {
+        console.log('[Toggle] ON label clicked, for:', onLabel.getAttribute('for'));
+      });
+      offLabel.addEventListener('click', function(e) {
+        console.log('[Toggle] OFF label clicked, for:', offLabel.getAttribute('for'));
       });
 
       div.appendChild(onLabel);
