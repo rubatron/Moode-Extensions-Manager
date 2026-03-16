@@ -77,7 +77,6 @@
   var showServicesBtn = document.getElementById('show-services-btn');
   var showApiStatusBtn = document.getElementById('show-api-status-btn');
   var showDatabaseBtn = document.getElementById('show-database-btn');
-  var fixDatabaseBtn = document.getElementById('fix-database-btn');
   var importExtensionFileEl = document.getElementById('import-extension-file');
   var importExtensionFileNameEl = document.getElementById('import-extension-file-name');
   var importExtensionBtn = document.getElementById('import-extension-btn');
@@ -2938,27 +2937,6 @@
       })
       .catch(function(err) {
         setStatus('Database test error: ' + err.message, 'error');
-      });
-  });
-
-  bindIfPresent(fixDatabaseBtn, 'click', function() {
-    setStatus('Fixing database locks (enabling WAL, restarting PHP-FPM)...', null);
-    fetch(buildApiUrl({ action: 'fix_database_locks' }), { method: 'POST' })
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        if (data.ok && data.data) {
-          showDebugModal('Fix Database Locks', data.data);
-          if (data.data.success) {
-            setStatus('Database locks fixed! WAL mode enabled.', 'ok');
-          } else {
-            setStatus('Some steps failed - see details. May need manual restart.', 'error');
-          }
-        } else {
-          setStatus('Failed to fix database: ' + (data.error || 'Unknown error'), 'error');
-        }
-      })
-      .catch(function(err) {
-        setStatus('Fix database error: ' + err.message, 'error');
       });
   });
 

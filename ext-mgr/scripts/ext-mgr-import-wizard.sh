@@ -128,18 +128,6 @@ grant_database_access() {
   log "Applying DB access policy"
 
   if [[ -f "$SQLITE_DB" ]]; then
-    # Set WAL mode for concurrent access (allows reads during writes)
-    log "Enabling WAL mode on SQLite database"
-    sqlite3 "$SQLITE_DB" "PRAGMA journal_mode=WAL;" 2>/dev/null || true
-
-    # Fix permissions on WAL helper files if they exist
-    for f in "${SQLITE_DB}-wal" "${SQLITE_DB}-shm"; do
-      if [[ -f "$f" ]]; then
-        chmod 666 "$f" 2>/dev/null || true
-        chown root:www-data "$f" 2>/dev/null || true
-      fi
-    done
-
     if command -v setfacl >/dev/null 2>&1; then
       setfacl -m "u:${SECURITY_USER}:rw" "$SQLITE_DB" || true
       setfacl -m "u:${SECURITY_USER}:rwx" "$(dirname "$SQLITE_DB")" || true
