@@ -624,6 +624,24 @@
         return;
       }
 
+      // Reset wizard state to prevent stale data
+      importWizardState.sessionId = '';
+      importWizardState.extensionId = '';
+      importWizardState.scan = null;
+      importWizardState.review = null;
+      importWizardState.manifest = null;
+
+      // Clear form fields and UI elements
+      if (wizardReviewJsonEl) {
+        wizardReviewJsonEl.textContent = '';
+      }
+      if (wizardScanSummaryEl) {
+        wizardScanSummaryEl.textContent = 'No scan data yet.';
+      }
+      if (importExtensionInstallBtn) {
+        importExtensionInstallBtn.disabled = true;
+      }
+
       // Reset all step states on init (clears any cached/stale classes)
       completedSteps = {};
       currentStepIndex = 0;
@@ -665,6 +683,11 @@
       var nextBtns = panelsEl.querySelectorAll('[data-wizard-next]');
       nextBtns.forEach(function(btn) {
         btn.addEventListener('click', function() {
+          // Require valid session to proceed past upload step
+          if (currentStepIndex === 0 && !importWizardState.sessionId) {
+            console.log('[ImportWizard] Cannot proceed: no sessionId (upload first)');
+            return;
+          }
           if (currentStepIndex < steps.length - 1) {
             markStepCompleted(steps[currentStepIndex]);
             goToStep(currentStepIndex + 1);
