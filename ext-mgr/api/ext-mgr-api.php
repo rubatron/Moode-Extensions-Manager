@@ -6560,6 +6560,66 @@ if ($action === 'debug_database') {
     exit;
 }
 
+if ($action === 'fix_database_locks') {
+    $dbPath = '/var/local/www/db/moode-sqlite3.db';
+    $result = [
+        'ok' => true,
+        'data' => [
+            'steps' => [],
+        ],
+    ];
+
+    // Step 1: Enable WAL mode using shell (runs as www-data but sqlite3 can do it)
+    $walOutput = @shell_exec('sqlite3 ' . escapeshellarg($dbPath) . ' "PRAGMA journal_mode=WAL;" 2>&1');
+    $walMode = trim($walOutput ?: '');
+    $result['data']['steps'][] = [
+        'action' => 'enable_wal_mode',
+        'ok' => stripos($walMode, 'wal') !== false,
+        'output' => $walMode,
+    ];
+
+    // Step 2: Fix permissions on WAL files
+    $walFiles = [$dbPath . '-wal', $dbPath . '-shm'];
+    foreach ($walFiles as $walFile) {
+        if (file_exists($walFile)) {
+            $chmodResult = @chmod($walFile, 0666);
+            $result['data']['steps'][] = [
+                'action' => 'chmod_' . basename($walFile),
+                'ok' => $chmodResult || is_writable($walFile),
+                'path' => $walFile,
+            ];
+        }
+    }
+
+    // Step 3: Request PHP-FPM restart via sudo helper (if available)
+    $phpVersion = PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION;
+    $restartCmd = 'sudo /usr/bin/systemctl restart php' . $phpVersion . '-fpm 2>&1';
+    $restartOutput = @shell_exec($restartCmd);
+    $restartOk = $restartOutput === null || trim($restartOutput) === '';
+    $result['data']['steps'][] = [
+        'action' => 'restart_php_fpm',
+        'ok' => $restartOk,
+        'command' => 'systemctl restart php' . $phpVersion . '-fpm',
+        'output' => $restartOutput !== null ? trim($restartOutput) : 'executed',
+        'note' => $restartOk ? 'PHP-FPM restarted - all connections will reconnect with WAL mode' : 'May need manual restart: sudo systemctl restart php' . $phpVersion . '-fpm',
+    ];
+
+    // Summary
+    $allOk = true;
+    foreach ($result['data']['steps'] as $step) {
+        if (!$step['ok']) {
+            $allOk = false;
+        }
+    }
+    $result['data']['success'] = $allOk;
+    $result['data']['message'] = $allOk 
+        ? 'Database locks fixed. WAL mode enabled and PHP-FPM restarted.'
+        : 'Some steps failed. You may need to run manually: sudo systemctl restart php' . $phpVersion . '-fpm';
+
+    echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
 if ($action === 'repair') {
     $meta = readMeta($metaPath);
     $registry = normalizeRegistry(readRegistry($registryPath));
