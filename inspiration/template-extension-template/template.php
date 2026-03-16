@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Template Extension
  *
@@ -59,32 +60,32 @@ if (file_exists('/var/www/header.php')) {
   </head>
 
   <body>
-<?php
+  <?php
 }
-?>
+  ?>
 
-<div id="container">
-  <div class="container ext-template-shell">
-    <h1 class="config-title">Template Extension</h1>
-    <p class="config-help-static">Template extension page. Customize this file.</p>
+  <div id="container">
+    <div class="container ext-template-shell">
+      <h1 class="config-title">Template Extension</h1>
+      <p class="config-help-static">Template extension page. Customize this file.</p>
+    </div>
   </div>
-</div>
 
-<script src="/extensions/installed/template-extension/assets/js/template.js"></script>
+  <script src="/extensions/installed/template-extension/assets/js/template.js"></script>
 
-<?php
-if ($usingMoodeShell) {
-  if (file_exists('/var/www/footer.min.php')) {
-    include '/var/www/footer.min.php';
-  } elseif (file_exists('/var/www/footer.php')) {
-    include '/var/www/footer.php';
+  <?php
+  if ($usingMoodeShell) {
+    if (file_exists('/var/www/footer.min.php')) {
+      include '/var/www/footer.min.php';
+    } elseif (file_exists('/var/www/footer.php')) {
+      include '/var/www/footer.php';
+    } else {
+      include '/var/www/inc/footer.php';
+    }
   } else {
-    include '/var/www/inc/footer.php';
-  }
-} else {
-?>
-</body>
+  ?>
+  </body>
 
-</html>
+  </html>
 <?php
-}
+  }

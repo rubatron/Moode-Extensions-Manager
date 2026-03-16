@@ -78,6 +78,7 @@ navigation tabs are visible on your extension page. This is controlled by
 ## Services
 
 If your extension includes a systemd service, use the naming convention:
+
 - Service name: `ext-<id>.service`
 - Example: `ext-template-extension.service`
 
