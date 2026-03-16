@@ -1376,7 +1376,6 @@
 
       var onLabel = document.createElement('label');
       onLabel.className = 'toggle-radio';
-      onLabel.setAttribute('for', id + '-on');
       onLabel.textContent = 'ON';
 
       var onRadio = document.createElement('input');
@@ -1388,7 +1387,6 @@
 
       var offLabel = document.createElement('label');
       offLabel.className = 'toggle-radio';
-      offLabel.setAttribute('for', id + '-off');
       offLabel.textContent = 'OFF';
 
       var offRadio = document.createElement('input');
@@ -1398,34 +1396,36 @@
       offRadio.value = 'Off';
       offRadio.checked = !initialVisible;
 
-      console.log('[Toggle] Creating toggle:', id, 'initial:', initialVisible);
+      function triggerOn() {
+        if (onRadio.disabled) return;
+        onRadio.checked = true;
+        offRadio.checked = false;
+        div.classList.remove('toggle-off');
+        if (typeof onChange === 'function') { onChange(true); }
+      }
 
-      onRadio.addEventListener('change', function () {
-        console.log('[Toggle] ON radio change event, checked:', onRadio.checked);
-        if (onRadio.checked) {
-          div.classList.remove('toggle-off');
-          if (typeof onChange === 'function') {
-            console.log('[Toggle] Calling onChange(true)');
-            onChange(true);
-          }
-        }
-      });
-      offRadio.addEventListener('change', function () {
-        console.log('[Toggle] OFF radio change event, checked:', offRadio.checked);
-        if (offRadio.checked) {
-          div.classList.add('toggle-off');
-          if (typeof onChange === 'function') {
-            console.log('[Toggle] Calling onChange(false)');
-            onChange(false);
-          }
-        }
-      });
+      function triggerOff() {
+        if (offRadio.disabled) return;
+        offRadio.checked = true;
+        onRadio.checked = false;
+        div.classList.add('toggle-off');
+        if (typeof onChange === 'function') { onChange(false); }
+      }
 
+      // Direct click handlers - don't rely on for attribute
       onLabel.addEventListener('click', function(e) {
-        console.log('[Toggle] ON label clicked, for:', onLabel.getAttribute('for'));
+        e.preventDefault();
+        triggerOn();
       });
       offLabel.addEventListener('click', function(e) {
-        console.log('[Toggle] OFF label clicked, for:', offLabel.getAttribute('for'));
+        e.preventDefault();
+        triggerOff();
+      });
+      onRadio.addEventListener('change', function() {
+        if (onRadio.checked) triggerOn();
+      });
+      offRadio.addEventListener('change', function() {
+        if (offRadio.checked) triggerOff();
       });
 
       div.appendChild(onLabel);
