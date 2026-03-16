@@ -1376,7 +1376,7 @@
 
       var onLabel = document.createElement('label');
       onLabel.className = 'toggle-radio';
-      onLabel.setAttribute('for', id + '-off');
+      onLabel.setAttribute('for', id + '-on');
       onLabel.textContent = 'ON';
 
       var onRadio = document.createElement('input');
@@ -1388,7 +1388,7 @@
 
       var offLabel = document.createElement('label');
       offLabel.className = 'toggle-radio';
-      offLabel.setAttribute('for', id + '-on');
+      offLabel.setAttribute('for', id + '-off');
       offLabel.textContent = 'OFF';
 
       var offRadio = document.createElement('input');

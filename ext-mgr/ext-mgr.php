@@ -265,9 +265,9 @@ if (file_exists('/var/www/header.php')) {
                                 <span class="extmgr-manager-visibility-label">Header menu</span>
                                 <div class="extmgr-manager-visibility-control">
                                     <div id="manager-visibility-header-btn" class="toggle toggle-off">
-                                        <label class="toggle-radio" for="manager-visibility-header-off">ON</label>
+                                        <label class="toggle-radio" for="manager-visibility-header-on">ON</label>
                                         <input type="radio" id="manager-visibility-header-on" name="manager-visibility-header" value="On">
-                                        <label class="toggle-radio" for="manager-visibility-header-on">OFF</label>
+                                        <label class="toggle-radio" for="manager-visibility-header-off">OFF</label>
                                         <input type="radio" id="manager-visibility-header-off" name="manager-visibility-header" value="Off" checked>
                                     </div>
                                     <span id="manager-visibility-header-state" class="extmgr-manager-visibility-state">Hidden</span>
@@ -277,9 +277,9 @@ if (file_exists('/var/www/header.php')) {
                                 <span class="extmgr-manager-visibility-label">Library menu</span>
                                 <div class="extmgr-manager-visibility-control">
                                     <div id="manager-visibility-library-btn" class="toggle toggle-off">
-                                        <label class="toggle-radio" for="manager-visibility-library-off">ON</label>
+                                        <label class="toggle-radio" for="manager-visibility-library-on">ON</label>
                                         <input type="radio" id="manager-visibility-library-on" name="manager-visibility-library" value="On">
-                                        <label class="toggle-radio" for="manager-visibility-library-on">OFF</label>
+                                        <label class="toggle-radio" for="manager-visibility-library-off">OFF</label>
                                         <input type="radio" id="manager-visibility-library-off" name="manager-visibility-library" value="Off" checked>
                                     </div>
                                     <span id="manager-visibility-library-state" class="extmgr-manager-visibility-state">Hidden</span>
@@ -289,9 +289,9 @@ if (file_exists('/var/www/header.php')) {
                                 <span class="extmgr-manager-visibility-label extmgr-manager-visibility-label-m"><span class="extmgr-mbrand-badge" aria-hidden="true">m</span><span class="extmgr-mbrand-text">Menu</span></span>
                                 <div class="extmgr-manager-visibility-control">
                                     <div id="manager-visibility-m-btn" class="toggle toggle-off">
-                                        <label class="toggle-radio" for="manager-visibility-m-off">ON</label>
+                                        <label class="toggle-radio" for="manager-visibility-m-on">ON</label>
                                         <input type="radio" id="manager-visibility-m-on" name="manager-visibility-m" value="On">
-                                        <label class="toggle-radio" for="manager-visibility-m-on">OFF</label>
+                                        <label class="toggle-radio" for="manager-visibility-m-off">OFF</label>
                                         <input type="radio" id="manager-visibility-m-off" name="manager-visibility-m" value="Off" checked>
                                     </div>
                                     <span id="manager-visibility-m-state" class="extmgr-manager-visibility-state">Hidden</span>
@@ -301,9 +301,9 @@ if (file_exists('/var/www/header.php')) {
                                 <span class="extmgr-manager-visibility-label extmgr-manager-visibility-label-m"><span class="extmgr-mbrand-badge" aria-hidden="true">m</span><span class="extmgr-mbrand-text">Configuration Tile</span></span>
                                 <div class="extmgr-manager-visibility-control">
                                     <div id="manager-visibility-system-btn" class="toggle toggle-off">
-                                        <label class="toggle-radio" for="manager-visibility-system-off">ON</label>
+                                        <label class="toggle-radio" for="manager-visibility-system-on">ON</label>
                                         <input type="radio" id="manager-visibility-system-on" name="manager-visibility-system" value="On">
-                                        <label class="toggle-radio" for="manager-visibility-system-on">OFF</label>
+                                        <label class="toggle-radio" for="manager-visibility-system-off">OFF</label>
                                         <input type="radio" id="manager-visibility-system-off" name="manager-visibility-system" value="Off" checked>
                                     </div>
                                     <span id="manager-visibility-system-state" class="extmgr-manager-visibility-state">Hidden</span>
