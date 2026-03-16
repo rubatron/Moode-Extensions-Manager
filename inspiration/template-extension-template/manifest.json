@@ -7,8 +7,16 @@
         "enabled": true,
         "state": "active",
         "menuVisibility": {
-            "m": false,
-            "library": false
+            "m": true,
+            "library": true,
+            "header": true,
+            "system": false
+        },
+        "settingsCardOnly": false,
+        "headerVisible": true,
+        "service": {
+            "name": "",
+            "dependencies": []
         }
     }
 }

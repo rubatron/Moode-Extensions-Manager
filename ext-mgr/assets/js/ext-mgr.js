@@ -1970,28 +1970,59 @@
     return !!(item && item.settingsCardOnly);
   }
 
+  // Service status cache, populated by fetchServiceStatuses()
+  var serviceStatusCache = {};
+
+  function getExtensionServiceStatus(item) {
+    if (!item || !item.id) { return null; }
+    var service = item.service || {};
+    var serviceName = service.name || '';
+    if (!serviceName) { return null; }
+    return serviceStatusCache[serviceName] || null;
+  }
+
+  function fetchServiceStatuses(callback) {
+    api({ action: 'debug_services' })
+      .then(function(data) {
+        var services = (data && data.data && data.data.services) || [];
+        serviceStatusCache = {};
+        services.forEach(function(svc) {
+          if (svc.name) {
+            serviceStatusCache[svc.name] = svc.status || 'unknown';
+          }
+        });
+        if (typeof callback === 'function') { callback(); }
+      })
+      .catch(function() {
+        // Silently fail, statuses will show as unknown
+        if (typeof callback === 'function') { callback(); }
+      });
+  }
+
   function extensionInfoSummary(item) {
     var info = (item && item.extensionInfo) || {};
     var installMetadata = (item && item.installMetadata) || {};
     var counts = installMetadata.counts || {};
+    var service = (item && item.service) || {};
     var version = info.version || item.version || 'unknown';
     var type = info.type || 'unknown';
     var author = info.author || 'unknown';
     var license = info.license || 'unknown';
+    var serviceName = service.name || '';
     var bits = [
-      '<span class="list-meta-item">Version: ' + escapeHtml(version) + '</span>',
-      '<span class="list-meta-item">Type: ' + escapeHtml(type) + '</span>',
-      '<span class="list-meta-item">Author: ' + escapeHtml(author) + '</span>',
-      '<span class="list-meta-item">License: ' + escapeHtml(license) + '</span>'
+      '<div class="list-meta-row"><span class="list-meta-label">Version</span><span class="list-meta-value">' + escapeHtml(version) + '</span></div>',
+      '<div class="list-meta-row"><span class="list-meta-label">Type</span><span class="list-meta-value">' + escapeHtml(type) + '</span></div>',
+      '<div class="list-meta-row"><span class="list-meta-label">Author</span><span class="list-meta-value">' + escapeHtml(author) + '</span></div>',
+      '<div class="list-meta-row"><span class="list-meta-label">License</span><span class="list-meta-value">' + escapeHtml(license) + '</span></div>'
     ];
+    if (serviceName) {
+      bits.push('<div class="list-meta-row"><span class="list-meta-label">Service</span><span class="list-meta-value">' + escapeHtml(serviceName) + '</span></div>');
+    }
     if (counts.installedApt) {
-      bits.push('<span class="list-meta-item">APT: ' + escapeHtml(String(counts.installedApt)) + '</span>');
+      bits.push('<div class="list-meta-row"><span class="list-meta-label">APT Packages</span><span class="list-meta-value">' + escapeHtml(String(counts.installedApt)) + '</span></div>');
     }
     if (counts.installedBundles) {
-      bits.push('<span class="list-meta-item">Bundled: ' + escapeHtml(String(counts.installedBundles)) + '</span>');
-    }
-    if (counts.servicesInstalled) {
-      bits.push('<span class="list-meta-item">Services: ' + escapeHtml(String(counts.servicesInstalled)) + '</span>');
+      bits.push('<div class="list-meta-row"><span class="list-meta-label">Bundled</span><span class="list-meta-value">' + escapeHtml(String(counts.installedBundles)) + '</span></div>');
     }
     return bits.join('');
   }
@@ -2098,8 +2129,17 @@
       var showSettingsCard = getSettingsCardOnly(item);
 
       var left = document.createElement('div');
-      var stateClass = item.enabled ? 'active' : 'inactive';
-      var stateLabel = item.enabled ? 'active' : 'inactive';
+      var serviceStatus = getExtensionServiceStatus(item);
+      var stateClass = item.enabled ? 'enabled' : 'disabled';
+      var stateLabel = item.enabled ? 'Enabled' : 'Disabled';
+      var statusDotClass = 'status-dot-green';
+      var statusWarning = '';
+      if (!item.enabled) {
+        statusDotClass = 'status-dot-red';
+      } else if (serviceStatus === 'failed' || serviceStatus === 'inactive') {
+        statusDotClass = 'status-dot-yellow';
+        statusWarning = '<span class="status-warning"><i class="fa-solid fa-exclamation-triangle"></i> Service not running</span>';
+      }
       var itemTitle = escapeHtml(item.name || item.id || 'Unnamed extension');
       var settingsPage = extensionSettingsPage(item);
       if (settingsPage) {
@@ -2107,7 +2147,7 @@
       }
 
       left.innerHTML =
-        '<div class="list-top"><div class="list-name">' + itemTitle + '</div><span class="badge ' + stateClass + '">' + stateLabel + '</span></div>' +
+        '<div class="list-top"><div class="list-name">' + itemTitle + '</div><span class="badge ' + stateClass + '"><span class="status-dot ' + statusDotClass + '"></span>' + stateLabel + '</span>' + statusWarning + '</div>' +
         '<div class="list-sub">' + escapeHtml(item.path || '#') + '</div>' +
         '<div class="list-sub list-meta">' + extensionInfoSummary(item) + '</div>' +
         '<div class="list-sub">' + escapeHtml(extensionDescription(item)) + '</div>';
@@ -2394,7 +2434,10 @@
         renderAdvancedUpdateControls(providerStatusFromPolicy(data.data.releasePolicy || {}), null, null);
         renderMaintenanceStatus(data.data.maintenance || {});
         allItems = (data.data && data.data.extensions) || [];
-        renderItems(allItems);
+        // Fetch service statuses then render items
+        fetchServiceStatuses(function() {
+          renderItems(allItems);
+        });
         runSystemResources(true);
         if (!silent) {
           setStatus('Loaded manager status and ' + allItems.length + ' extension(s).', 'ok');
@@ -2415,7 +2458,10 @@
         renderAdvancedUpdateControls(providerStatusFromPolicy(data.data.releasePolicy || {}), null, null);
         renderMaintenanceStatus(data.data.maintenance || {});
         allItems = (data.data && data.data.extensions) || [];
-        renderItems(allItems);
+        // Fetch service statuses then render items
+        fetchServiceStatuses(function() {
+          renderItems(allItems);
+        });
         runSystemResources(true);
         setStatus('Refresh complete.', 'ok');
       })

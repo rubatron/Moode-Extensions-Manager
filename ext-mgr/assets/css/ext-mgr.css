@@ -768,11 +768,29 @@ body:not([data-standalone]) .extmgr-page-shell {
 
 .list-sub.list-meta {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.15rem 0.6rem;
+  flex-direction: column;
+  gap: 0.25rem;
   font-size: 0.82rem;
+  margin-top: 0.35rem;
 }
 
+.list-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.list-meta-label {
+  font-weight: 500;
+  color: #8090a0;
+  min-width: 5.5rem;
+}
+
+.list-meta-value {
+  color: #c8d0d8;
+}
+
+/* Legacy horizontal items - keep for compatibility */
 .list-meta-item {
   white-space: nowrap;
 }
@@ -807,7 +825,9 @@ body:not([data-standalone]) .extmgr-page-shell {
 }
 
 .badge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   border-radius: 999px;
   padding: 1px 7px;
   font-size: 0.68rem;
@@ -816,6 +836,58 @@ body:not([data-standalone]) .extmgr-page-shell {
   color: #b5bdc7;
 }
 
+/* Traffic light status dots */
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-dot-green {
+  background: #28a745;
+  box-shadow: 0 0 6px rgba(40, 167, 69, 0.6);
+}
+
+.status-dot-red {
+  background: #dc3545;
+  box-shadow: 0 0 6px rgba(220, 53, 69, 0.6);
+}
+
+.status-dot-yellow {
+  background: #ffc107;
+  box-shadow: 0 0 6px rgba(255, 193, 7, 0.6);
+}
+
+.status-warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-left: 0.5rem;
+  font-size: 0.72rem;
+  color: #ffc107;
+}
+
+.status-warning i {
+  font-size: 0.8rem;
+}
+
+/* Enabled badge */
+.badge.enabled {
+  color: #d4f0d4;
+  border-color: rgba(40, 167, 69, 0.5);
+  background: rgba(40, 167, 69, 0.15);
+}
+
+/* Disabled badge */
+.badge.disabled {
+  color: #ffd2d2;
+  border-color: rgba(220, 53, 69, 0.4);
+  background: rgba(220, 53, 69, 0.15);
+}
+
+/* Legacy active/inactive - keep for compatibility */
 .badge.active {
   color: #ffebd6;
   border-color: color-mix(in srgb, var(--rp-accent) 60%, transparent);
