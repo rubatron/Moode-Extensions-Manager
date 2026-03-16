@@ -28,6 +28,7 @@ SRC_WATCHDOG_UNIT=""
 SRC_GUIDANCE_MD=""
 SRC_REQUIREMENTS_MD=""
 SRC_FAQ_MD=""
+SRC_TEMPLATE_DIR=""
 
 TARGET_EXT_DIR="/var/www/extensions"
 TARGET_SYS_DIR="$TARGET_EXT_DIR/sys"
@@ -71,6 +72,7 @@ TARGET_RUNTIME_LOGS="$TARGET_RUNTIME_ROOT/logs"
 TARGET_SYS_LOG_ROOT="$TARGET_SYS_DIR/logs"
 TARGET_SYS_EXT_LOG_ROOT="$TARGET_SYS_LOG_ROOT/extensionslogs"
 TARGET_SYS_MGR_LOG_DIR="$TARGET_SYS_LOG_ROOT/ext-mgr logs"
+TARGET_TEMPLATE_DIR="$TARGET_SYS_DIR/template"
 
 SYMLINK_HELPER="/usr/local/sbin/ext-mgr-repair-symlink"
 SYMLINK_SUDOERS="/etc/sudoers.d/ext-mgr"
@@ -170,6 +172,7 @@ set_source_root() {
     SRC_GUIDANCE_MD="$root/content/guidance.md"
     SRC_REQUIREMENTS_MD="$root/content/developer-requirements.md"
     SRC_FAQ_MD="$root/content/faq.md"
+    SRC_TEMPLATE_DIR="$root/template"
 }
 
 set_source_root "$PROJECT_ROOT"
@@ -937,7 +940,7 @@ PRIMARY_USER="$(detect_primary_user || true)"
 sync_security_user_groups "$PRIMARY_USER"
 
 echo "[1/10] Preparing target directories..."
-$SUDO mkdir -p "$TARGET_EXT_DIR" "$TARGET_SYS_DIR" "$TARGET_API_DIR" "$TARGET_ASSETS_DIR" "$TARGET_JS_DIR" "$TARGET_CSS_DIR" "$TARGET_CONTENT_DIR" "$TARGET_SCRIPT_DIR" "$TARGET_CACHE_DIR" "$TARGET_BACKUP_DIR" "$TARGET_INSTALLED_ROOT" "$TARGET_RUNTIME_CACHE" "$TARGET_RUNTIME_DATA" "$TARGET_RUNTIME_LOGS" "$TARGET_SYS_LOG_ROOT" "$TARGET_SYS_EXT_LOG_ROOT" "$TARGET_SYS_MGR_LOG_DIR"
+$SUDO mkdir -p "$TARGET_EXT_DIR" "$TARGET_SYS_DIR" "$TARGET_API_DIR" "$TARGET_ASSETS_DIR" "$TARGET_JS_DIR" "$TARGET_CSS_DIR" "$TARGET_CONTENT_DIR" "$TARGET_SCRIPT_DIR" "$TARGET_CACHE_DIR" "$TARGET_BACKUP_DIR" "$TARGET_INSTALLED_ROOT" "$TARGET_RUNTIME_CACHE" "$TARGET_RUNTIME_DATA" "$TARGET_RUNTIME_LOGS" "$TARGET_SYS_LOG_ROOT" "$TARGET_SYS_EXT_LOG_ROOT" "$TARGET_SYS_MGR_LOG_DIR" "$TARGET_TEMPLATE_DIR"
 
 echo "[2/10] Backing up existing ext-mgr files (if present)..."
 BACKUP_SNAPSHOT_DIR="$TARGET_BACKUP_DIR/install-$STAMP"
@@ -982,6 +985,19 @@ if [[ -f "$TARGET_REGISTRY" ]]; then
     echo "Existing registry detected, preserving current state at $TARGET_REGISTRY"
 else
     $SUDO install -o www-data -g www-data -m 0644 "$SRC_REGISTRY" "$TARGET_REGISTRY"
+fi
+
+echo "[3.1/10] Installing extension template kit..."
+if [[ -d "$SRC_TEMPLATE_DIR" ]]; then
+    $SUDO mkdir -p "$TARGET_TEMPLATE_DIR"
+    $SUDO cp -a "$SRC_TEMPLATE_DIR/"* "$TARGET_TEMPLATE_DIR/" 2>/dev/null || true
+    $SUDO chown -R www-data:www-data "$TARGET_TEMPLATE_DIR"
+    $SUDO find "$TARGET_TEMPLATE_DIR" -type f -exec chmod 0644 {} \;
+    $SUDO find "$TARGET_TEMPLATE_DIR" -type d -exec chmod 0755 {} \;
+    $SUDO find "$TARGET_TEMPLATE_DIR/scripts" -name "*.sh" -exec chmod 0755 {} \; 2>/dev/null || true
+    echo "Template kit installed to $TARGET_TEMPLATE_DIR"
+else
+    echo "Template kit source not found, skipping..."
 fi
 
 echo "[4/10] Creating root shortcuts..."

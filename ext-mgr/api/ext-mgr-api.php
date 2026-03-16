@@ -2313,10 +2313,80 @@ function writeTemplateZipViaCommand($zipPath, $extensionId, $files, &$error)
     return true;
 }
 
+/**
+ * Collect template files from disk (template folder in ext-mgr sys directory).
+ * Falls back to dynamically generated files if template folder doesn't exist.
+ *
+ * @param string $templateDir Path to template directory on disk
+ * @param string $error       Error message if any
+ * @return array|false        Array of relativePath => content, or false on error
+ */
+function collectTemplateFilesFromDisk($templateDir, &$error)
+{
+    $error = '';
+    $files = [];
+
+    if (!is_dir($templateDir)) {
+        $error = 'Template directory not found: ' . $templateDir;
+        return false;
+    }
+
+    $iterator = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($templateDir, RecursiveDirectoryIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::LEAVES_ONLY
+    );
+
+    foreach ($iterator as $file) {
+        if (!$file->isFile()) {
+            continue;
+        }
+
+        $fullPath = $file->getPathname();
+        $relativePath = substr($fullPath, strlen($templateDir) + 1);
+        $relativePath = str_replace('\\', '/', $relativePath);
+
+        // Skip .gitkeep files - we'll add empty dirs to ZIP separately
+        if (basename($relativePath) === '.gitkeep') {
+            continue;
+        }
+
+        $content = @file_get_contents($fullPath);
+        if ($content === false) {
+            $error = 'Failed to read template file: ' . $relativePath;
+            return false;
+        }
+
+        $files[$relativePath] = $content;
+    }
+
+    // Add empty directories with .gitkeep placeholders
+    $emptyDirs = ['cache', 'data', 'logs', 'packages', 'assets/images', 'backend', 'templates', 'tools', 'packages/services'];
+    foreach ($emptyDirs as $dir) {
+        if (!isset($files[$dir . '/.gitkeep'])) {
+            $files[$dir . '/.gitkeep'] = '';
+        }
+    }
+
+    return $files;
+}
+
 function writeTemplateZipArchive($zipPath, $extensionId, &$error)
 {
     $error = '';
-    $files = buildTemplatePackageFiles($extensionId);
+
+    // Try to read from template folder on disk first
+    $templateDir = '/var/www/extensions/sys/template';
+    $files = null;
+    $diskError = '';
+
+    if (is_dir($templateDir)) {
+        $files = collectTemplateFilesFromDisk($templateDir, $diskError);
+    }
+
+    // Fall back to dynamically generated files if disk read fails
+    if (!is_array($files) || count($files) === 0) {
+        $files = buildTemplatePackageFiles($extensionId);
+    }
 
     if (!class_exists('ZipArchive')) {
         if (writeTemplateZipViaCommand($zipPath, $extensionId, $files, $error)) {
@@ -2326,7 +2396,7 @@ function writeTemplateZipArchive($zipPath, $extensionId, &$error)
         return false;
     }
 
-    $rootDir = $extensionId . '-template';
+    $rootDir = 'ExtensionTemplate';
 
     $zip = new ZipArchive();
     $opened = $zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
@@ -5388,7 +5458,6 @@ function clearExtensionsFolderGracefully($registryPath, $backupRoot, $extensions
 }
 
 if ($action === 'download_extension_template') {
-    $templateId = sanitizeExtensionId((string)($_REQUEST['template_id'] ?? 'template-extension'));
     $tmpZip = tempnam(sys_get_temp_dir(), 'extmgr_tpl_');
     if (!is_string($tmpZip) || $tmpZip === '') {
         http_response_code(500);
@@ -5401,6 +5470,8 @@ if ($action === 'download_extension_template') {
     @unlink($tmpZip);
 
     $zipError = '';
+    // Template ID is only used for fallback dynamic generation
+    $templateId = 'template-extension';
     if (!writeTemplateZipArchive($zipPath, $templateId, $zipError)) {
         @unlink($zipPath);
         http_response_code(500);
@@ -5410,7 +5481,7 @@ if ($action === 'download_extension_template') {
     }
 
     header('Content-Type: application/zip');
-    header('Content-Disposition: attachment; filename="' . $templateId . '-template.zip"');
+    header('Content-Disposition: attachment; filename="ExtensionTemplate.zip"');
     header('Content-Length: ' . (string)filesize($zipPath));
     header('Cache-Control: no-store');
 
