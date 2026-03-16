@@ -5544,28 +5544,27 @@ if ($action === 'import_extension_scan') {
     }
 
     // Early validation: Check for manifest.main (required for install)
+    // Add as warnings so users see the issue but can still proceed if they know the structure is valid
     $manifest = $staged['manifest'] ?? [];
     $mainEntry = isset($manifest['main']) && is_string($manifest['main']) ? trim($manifest['main']) : '';
     if ($mainEntry === '') {
-        // Add this as a violation so install is blocked until fixed
-        if (!is_array($scan['violations'])) {
-            $scan['violations'] = [];
+        if (!is_array($scan['warnings'])) {
+            $scan['warnings'] = [];
         }
-        $scan['violations'][] = [
+        $scan['warnings'][] = [
             'id' => 'manifest_main_missing',
-            'severity' => 'error',
-            'message' => 'manifest.json is missing required "main" property. Set main to your entry PHP file (e.g., "template.php").',
+            'severity' => 'warning',
+            'message' => 'manifest.json has no "main" property. The installer will look for standard entry files (index.php, {id}.php).',
             'path' => 'manifest.json',
         ];
-    } elseif (!is_file($sourceDir . '/' . $mainEntry)) {
-        // main is set but file doesn't exist
-        if (!is_array($scan['violations'])) {
-            $scan['violations'] = [];
+    } elseif (!is_file($sourceDir . DIRECTORY_SEPARATOR . $mainEntry)) {
+        if (!is_array($scan['warnings'])) {
+            $scan['warnings'] = [];
         }
-        $scan['violations'][] = [
+        $scan['warnings'][] = [
             'id' => 'manifest_main_not_found',
-            'severity' => 'error',
-            'message' => 'manifest.json "main" points to "' . $mainEntry . '" but file does not exist in package.',
+            'severity' => 'warning',
+            'message' => 'manifest.json "main" points to "' . $mainEntry . '" - verify this file exists in the package.',
             'path' => 'manifest.json',
         ];
     }
