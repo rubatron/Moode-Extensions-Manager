@@ -1371,72 +1371,33 @@
     }
 
     function createMoodeToggle(id, initialVisible, onChange) {
+      // Create toggle using innerHTML to match exact PHP structure
       var div = document.createElement('div');
       div.className = 'toggle' + (initialVisible ? '' : ' toggle-off');
+      div.innerHTML = 
+        '<label class="toggle-radio" for="' + id + '-off">ON</label>' +
+        '<input type="radio" id="' + id + '-on" name="' + id + '" value="On"' + (initialVisible ? ' checked' : '') + '>' +
+        '<label class="toggle-radio" for="' + id + '-on">OFF</label>' +
+        '<input type="radio" id="' + id + '-off" name="' + id + '" value="Off"' + (!initialVisible ? ' checked' : '') + '>';
 
-      var onLabel = document.createElement('label');
-      onLabel.className = 'toggle-radio';
-      onLabel.textContent = 'ON';
-
-      var onRadio = document.createElement('input');
-      onRadio.type = 'radio';
-      onRadio.name = id;
-      onRadio.id = id + '-on';
-      onRadio.value = 'On';
-      onRadio.checked = !!initialVisible;
-
-      var offLabel = document.createElement('label');
-      offLabel.className = 'toggle-radio';
-      offLabel.textContent = 'OFF';
-
-      var offRadio = document.createElement('input');
-      offRadio.type = 'radio';
-      offRadio.name = id;
-      offRadio.id = id + '-off';
-      offRadio.value = 'Off';
-      offRadio.checked = !initialVisible;
-
-      // Click ON label -> activate ON state
-      onLabel.addEventListener('click', function (e) {
-        e.preventDefault();
-        if (onRadio.disabled) return;
-        onRadio.checked = true;
-        offRadio.checked = false;
-        div.classList.remove('toggle-off');
-        if (typeof onChange === 'function') { onChange(true); }
+      // Attach change listeners to radios - same approach as Extension Manager visibility
+      div.querySelectorAll('input[type="radio"]').forEach(function (radio) {
+        radio.addEventListener('change', function () {
+          if (radio.checked) {
+            var isOn = (radio.value === 'On');
+            if (isOn) {
+              div.classList.remove('toggle-off');
+            } else {
+              div.classList.add('toggle-off');
+            }
+            if (typeof onChange === 'function') { onChange(isOn); }
+          }
+        });
       });
-      // Click OFF label -> activate OFF state
-      offLabel.addEventListener('click', function (e) {
-        e.preventDefault();
-        if (offRadio.disabled) return;
-        offRadio.checked = true;
-        onRadio.checked = false;
-        div.classList.add('toggle-off');
-        if (typeof onChange === 'function') { onChange(false); }
-      });
-
-      onRadio.addEventListener('change', function () {
-        if (onRadio.checked) {
-          div.classList.remove('toggle-off');
-          if (typeof onChange === 'function') { onChange(true); }
-        }
-      });
-      offRadio.addEventListener('change', function () {
-        if (offRadio.checked) {
-          div.classList.add('toggle-off');
-          if (typeof onChange === 'function') { onChange(false); }
-        }
-      });
-
-      div.appendChild(onLabel);
-      div.appendChild(onRadio);
-      div.appendChild(offLabel);
-      div.appendChild(offRadio);
 
       div.setVisible = function (v) { applyMoodeToggleState(div, v); };
       div.setDisabled = function (d) {
-        onRadio.disabled = d;
-        offRadio.disabled = d;
+        div.querySelectorAll('input[type="radio"]').forEach(function (r) { r.disabled = d; });
         div.style.opacity = d ? '0.55' : '';
         div.style.pointerEvents = d ? 'none' : '';
       };
