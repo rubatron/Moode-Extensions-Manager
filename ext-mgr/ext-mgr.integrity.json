@@ -9,7 +9,7 @@
     "content/developer-requirements.md": "96b802f36dbebf2176ffc3c83e77a3fd5a803c992ac5ab4c8904efc8759f66b9",
     "content/faq.md": "1884c4e010ec33d0d3c9d7ab4e8e3e2a994ef9b861da7be6c09f4100b5832545",
     "content/guidance.md": "f4de442e617fa194a36b7f58f0824e27c1ffb846c9b2ba9807236dd58e470b03",
-    "ext-mgr-api.php": "0765f4e22a1a1625281e5eb138de8a1c7e979c2b956a0f46505aa2db1c0a0645",
+    "api/ext-mgr-api.php": "0765f4e22a1a1625281e5eb138de8a1c7e979c2b956a0f46505aa2db1c0a0645",
     "ext-mgr.meta.json": "700688652a94af1a22ff71e04499623f85a53912957add3a540e878bf70208bc",
     "ext-mgr-shell-bridge.php": "79c34d49e1201a7c8f9994eb5fa166952b0314f2fda33cd7a7f0fff55c204de8",
     "ext-mgr.php": "4c8e6f82eaa7594b7319c0a6e9992785eb203eb29a36d413b867c6a308017d69",

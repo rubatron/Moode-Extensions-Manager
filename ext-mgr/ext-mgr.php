@@ -3,7 +3,7 @@ header('Content-Type: text/html; charset=utf-8');
 
 $init = [
     'apiUrl' => '/ext-mgr-api.php',
-    'apiUrls' => ['/ext-mgr-api.php', '/extensions/sys/ext-mgr-api.php'],
+    'apiUrls' => ['/ext-mgr-api.php', '/extensions/api/ext-mgr-api.php'],
     'tooltipUrl' => '/extensions/sys/content/tooltips.md',
 ];
 

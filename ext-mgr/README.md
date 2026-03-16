@@ -41,7 +41,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for complete system documentation includi
 | Endpoint | Purpose |
 |----------|---------|
 | `/ext-mgr.php` | Main UI |
-| `/ext-mgr-api.php` | API (all actions) |
+| `/ext-mgr-api.php` | API (symlink to /extensions/api/) |
 
 ## Import Workflow
 
@@ -97,7 +97,7 @@ Per-extension uninstall uses install metadata for clean removal:
 ## Development
 
 - Frontend: `assets/js/ext-mgr.js` + `assets/css/ext-mgr.css`
-- Backend: `ext-mgr-api.php` (~7000 lines, 35+ actions)
+- Backend: `api/ext-mgr-api.php` (~7000 lines, 35+ actions)
 - Scanner: `backend/ext_helper.py` (code pattern detection)
 
 ## License

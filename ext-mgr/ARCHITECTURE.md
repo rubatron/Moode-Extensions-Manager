@@ -71,7 +71,7 @@ ext-mgr is the extension management system for moOde audio player (Raspberry Pi)
 | File | Purpose |
 |------|---------|
 | `ext-mgr.php` | Main UI view, renders extension cards and wizard |
-| `ext-mgr-api.php` | All API endpoints (~35 actions) |
+| `api/ext-mgr-api.php` | All API endpoints (~35 actions) |
 | `ext-mgr.js` | Frontend logic, wizard stepper, progress UI |
 | `ext-mgr.css` | Complete styling including moOde palette |
 | `registry.json` | Extension state (enabled, menu visibility) |
@@ -245,8 +245,9 @@ ext-mgr/
 │   ├── install.sh           # Installer
 │   ├── bootstrap-moode.sh   # Remote bootstrap
 │   └── ext-mgr-*.sh         # Various helpers
+├── api/
+│   └── ext-mgr-api.php      # API (~7000 lines)
 ├── ext-mgr.php              # Main view
-├── ext-mgr-api.php          # API (~7000 lines)
 ├── registry.json            # Extension state
 └── manifest.json            # ext-mgr manifest
 ```

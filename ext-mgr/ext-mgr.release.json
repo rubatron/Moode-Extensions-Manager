@@ -19,7 +19,7 @@
   "prereleaseStrategy": "prefer-stable",
   "managedFiles": [
     "ext-mgr.php",
-    "ext-mgr-api.php",
+    "api/ext-mgr-api.php",
     "ext-mgr-shell-bridge.php",
     "ext-mgr.meta.json",
     "ext-mgr.release.json",

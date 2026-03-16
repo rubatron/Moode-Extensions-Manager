@@ -31,12 +31,13 @@ SRC_FAQ_MD=""
 
 TARGET_EXT_DIR="/var/www/extensions"
 TARGET_SYS_DIR="$TARGET_EXT_DIR/sys"
+TARGET_API_DIR="$TARGET_EXT_DIR/api"
 TARGET_ASSETS_DIR="$TARGET_SYS_DIR/assets"
 TARGET_JS_DIR="$TARGET_ASSETS_DIR/js"
 TARGET_CSS_DIR="$TARGET_ASSETS_DIR/css"
 TARGET_CONTENT_DIR="$TARGET_SYS_DIR/content"
 TARGET_PAGE="$TARGET_SYS_DIR/ext-mgr.php"
-TARGET_API="$TARGET_SYS_DIR/ext-mgr-api.php"
+TARGET_API="$TARGET_API_DIR/ext-mgr-api.php"
 TARGET_META="$TARGET_SYS_DIR/ext-mgr.meta.json"
 TARGET_REGISTRY="$TARGET_SYS_DIR/registry.json"
 TARGET_RELEASE="$TARGET_SYS_DIR/ext-mgr.release.json"
@@ -146,7 +147,7 @@ fi
 set_source_root() {
     local root="$1"
     SRC_PAGE="$root/ext-mgr.php"
-    SRC_API="$root/ext-mgr-api.php"
+    SRC_API="$root/api/ext-mgr-api.php"
     SRC_META="$root/ext-mgr.meta.json"
     SRC_REGISTRY="$root/registry.json"
     SRC_RELEASE="$root/ext-mgr.release.json"
@@ -203,6 +204,7 @@ ensure_extmgr_structure_permissions() {
     local dirs=(
         "$TARGET_EXT_DIR"
         "$TARGET_SYS_DIR"
+        "$TARGET_API_DIR"
         "$TARGET_ASSETS_DIR"
         "$TARGET_JS_DIR"
         "$TARGET_CSS_DIR"
@@ -226,6 +228,17 @@ ensure_extmgr_structure_permissions() {
         $SUDO chown root:"$SECURITY_GROUP" "$d"
         $SUDO chmod 2775 "$d"
     done
+
+    # API folder gets stricter permissions - read/execute only for www-data
+    if [[ -d "$TARGET_API_DIR" ]]; then
+        $SUDO chown root:root "$TARGET_API_DIR"
+        $SUDO chmod 0755 "$TARGET_API_DIR"
+        # API file owned by root, readable by www-data
+        if [[ -f "$TARGET_API" ]]; then
+            $SUDO chown root:root "$TARGET_API"
+            $SUDO chmod 0644 "$TARGET_API"
+        fi
+    fi
 
     if [[ -f "$TARGET_REGISTRY" ]]; then
         $SUDO chown "$SECURITY_USER":"$SECURITY_GROUP" "$TARGET_REGISTRY"
@@ -516,7 +529,7 @@ fetch_from_main_branch() {
 
     local required=(
         "ext-mgr.php"
-        "ext-mgr-api.php"
+        "api/ext-mgr-api.php"
         "ext-mgr.meta.json"
         "registry.json"
         "ext-mgr.release.json"
@@ -924,7 +937,7 @@ PRIMARY_USER="$(detect_primary_user || true)"
 sync_security_user_groups "$PRIMARY_USER"
 
 echo "[1/10] Preparing target directories..."
-$SUDO mkdir -p "$TARGET_EXT_DIR" "$TARGET_SYS_DIR" "$TARGET_ASSETS_DIR" "$TARGET_JS_DIR" "$TARGET_CSS_DIR" "$TARGET_CONTENT_DIR" "$TARGET_SCRIPT_DIR" "$TARGET_CACHE_DIR" "$TARGET_BACKUP_DIR" "$TARGET_INSTALLED_ROOT" "$TARGET_RUNTIME_CACHE" "$TARGET_RUNTIME_DATA" "$TARGET_RUNTIME_LOGS" "$TARGET_SYS_LOG_ROOT" "$TARGET_SYS_EXT_LOG_ROOT" "$TARGET_SYS_MGR_LOG_DIR"
+$SUDO mkdir -p "$TARGET_EXT_DIR" "$TARGET_SYS_DIR" "$TARGET_API_DIR" "$TARGET_ASSETS_DIR" "$TARGET_JS_DIR" "$TARGET_CSS_DIR" "$TARGET_CONTENT_DIR" "$TARGET_SCRIPT_DIR" "$TARGET_CACHE_DIR" "$TARGET_BACKUP_DIR" "$TARGET_INSTALLED_ROOT" "$TARGET_RUNTIME_CACHE" "$TARGET_RUNTIME_DATA" "$TARGET_RUNTIME_LOGS" "$TARGET_SYS_LOG_ROOT" "$TARGET_SYS_EXT_LOG_ROOT" "$TARGET_SYS_MGR_LOG_DIR"
 
 echo "[2/10] Backing up existing ext-mgr files (if present)..."
 BACKUP_SNAPSHOT_DIR="$TARGET_BACKUP_DIR/install-$STAMP"
@@ -973,7 +986,7 @@ fi
 
 echo "[4/10] Creating root shortcuts..."
 $SUDO ln -sfn /var/www/extensions/sys/ext-mgr.php /var/www/ext-mgr.php
-$SUDO ln -sfn /var/www/extensions/sys/ext-mgr-api.php /var/www/ext-mgr-api.php
+$SUDO ln -sfn /var/www/extensions/api/ext-mgr-api.php /var/www/ext-mgr-api.php
 $SUDO ln -sfn /var/www/ext-mgr.php /var/www/extensions-manager.php
 
 echo "[5/10] Installing privileged symlink repair helper..."
