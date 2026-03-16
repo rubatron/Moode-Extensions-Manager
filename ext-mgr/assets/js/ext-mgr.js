@@ -1376,7 +1376,6 @@
 
       var onLabel = document.createElement('label');
       onLabel.className = 'toggle-radio';
-      onLabel.setAttribute('for', id + '-off');
       onLabel.textContent = 'ON';
 
       var onRadio = document.createElement('input');
@@ -1388,7 +1387,6 @@
 
       var offLabel = document.createElement('label');
       offLabel.className = 'toggle-radio';
-      offLabel.setAttribute('for', id + '-on');
       offLabel.textContent = 'OFF';
 
       var offRadio = document.createElement('input');
@@ -1397,6 +1395,25 @@
       offRadio.id = id + '-off';
       offRadio.value = 'Off';
       offRadio.checked = !initialVisible;
+
+      // Click ON label -> activate ON state
+      onLabel.addEventListener('click', function (e) {
+        e.preventDefault();
+        if (onRadio.disabled) return;
+        onRadio.checked = true;
+        offRadio.checked = false;
+        div.classList.remove('toggle-off');
+        if (typeof onChange === 'function') { onChange(true); }
+      });
+      // Click OFF label -> activate OFF state
+      offLabel.addEventListener('click', function (e) {
+        e.preventDefault();
+        if (offRadio.disabled) return;
+        offRadio.checked = true;
+        onRadio.checked = false;
+        div.classList.add('toggle-off');
+        if (typeof onChange === 'function') { onChange(false); }
+      });
 
       onRadio.addEventListener('change', function () {
         if (onRadio.checked) {
