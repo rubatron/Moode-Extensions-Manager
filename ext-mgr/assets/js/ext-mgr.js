@@ -3134,54 +3134,94 @@
 
       // Show progress bar
       showInstallProgress(true);
+
+      // Phase 1: Dry-run validation
+      var dryRunStages = [
+        { percent: 10, status: 'Running dry-run validation...', delay: 300 },
+        { percent: 25, status: 'Checking package structure...', delay: 200 },
+        { percent: 40, status: 'Validating dependencies...', delay: 300 }
+      ];
+
+      // Phase 2: Real install (after dry-run succeeds)
       var installStages = [
-        { percent: 15, status: 'Validating package...', delay: 300 },
-        { percent: 30, status: 'Creating extension directory...', delay: 200 },
-        { percent: 50, status: 'Extracting files...', delay: 400 },
-        { percent: 70, status: 'Setting permissions...', delay: 200 },
-        { percent: 85, status: 'Running install script...', delay: 300 },
+        { percent: 50, status: 'Dry-run passed! Installing...', delay: 300 },
+        { percent: 60, status: 'Creating extension directory...', delay: 200 },
+        { percent: 70, status: 'Extracting files...', delay: 400 },
+        { percent: 80, status: 'Setting permissions...', delay: 200 },
+        { percent: 90, status: 'Running install script...', delay: 300 },
         { percent: 95, status: 'Updating registry...', delay: 200 }
       ];
 
-      // Start progress animation
-      animateInstallProgress(installStages, function() {
-        // Animation done, wait for API response
+      // Start dry-run progress animation
+      animateInstallProgress(dryRunStages, function() {
+        // Animation done, wait for dry-run API response
       });
 
       var installPayload = getWizardInstallPayload();
-      console.log('[ImportWizard] calling apiInstallFromSession with payload:', JSON.stringify(installPayload));
-      apiInstallFromSession(installPayload)
-        .then(function (data) {
-          console.log('[ImportWizard] install success:', JSON.stringify(data));
-          var payload = (data || {}).data || {};
-          var importedId = payload.extensionId || importWizardState.extensionId || 'unknown';
 
-          // Complete progress then show success
-          updateInstallProgress(100, 'Installation complete!');
+      // Step 1: Run dry-run first
+      var dryRunPayload = Object.assign({}, installPayload, { dry_run: '1' });
+      console.log('[ImportWizard] calling dry-run with payload:', JSON.stringify(dryRunPayload));
+
+      apiInstallFromSession(dryRunPayload)
+        .then(function (dryRunData) {
+          console.log('[ImportWizard] dry-run success:', JSON.stringify(dryRunData));
+
+          // Dry-run passed, now run real install
+          updateInstallProgress(45, 'Dry-run validation passed!');
+
+          // Animate through install stages
           setTimeout(function() {
-            var summaryHtml = importReviewSummary(payload.review || {});
-            showInstallSuccess(importedId,
-              'Extension <strong>' + importedId + '</strong> has been successfully installed.' +
-              (summaryHtml ? '<br><small style="opacity:0.7">' + summaryHtml.replace(/<br>/g, ' | ') + '</small>' : '')
-            );
-            setStatus('Extension imported: ' + importedId, 'ok');
-            setImportWizardNote('Extension imported: ' + importedId + summaryHtml, 'ok');
-          }, 400);
+            animateInstallProgress(installStages, function() {
+              // Animation done, wait for real install API response
+            });
 
-          importWizardState.sessionId = '';
-          if (importExtensionInstallBtn) {
-            importExtensionInstallBtn.disabled = true;
-          }
-          runRefresh();
+            // Step 2: Run real install
+            var realPayload = Object.assign({}, installPayload, { dry_run: '0' });
+            console.log('[ImportWizard] calling real install with payload:', JSON.stringify(realPayload));
+
+            apiInstallFromSession(realPayload)
+              .then(function (data) {
+                console.log('[ImportWizard] install success:', JSON.stringify(data));
+                var payload = (data || {}).data || {};
+                var importedId = payload.extensionId || importWizardState.extensionId || 'unknown';
+
+                // Complete progress then show success
+                updateInstallProgress(100, 'Installation complete!');
+                setTimeout(function() {
+                  var summaryHtml = importReviewSummary(payload.review || {});
+                  showInstallSuccess(importedId,
+                    'Extension <strong>' + importedId + '</strong> has been successfully installed.' +
+                    (summaryHtml ? '<br><small style="opacity:0.7">' + summaryHtml.replace(/<br>/g, ' | ') + '</small>' : '')
+                  );
+                  setStatus('Extension imported: ' + importedId, 'ok');
+                  setImportWizardNote('Extension imported: ' + importedId + summaryHtml, 'ok');
+                }, 400);
+
+                importWizardState.sessionId = '';
+                if (importExtensionInstallBtn) {
+                  importExtensionInstallBtn.disabled = true;
+                }
+                runRefresh();
+              })
+              .catch(function (err) {
+                console.error('[ImportWizard] real install failed:', err);
+                var fullMessage = String((err && err.message) || 'Install failed after dry-run.');
+                showInstallProgress(false);
+                setStatus(firstSentence(fullMessage), 'error');
+                setImportWizardNote(fullMessage, 'error');
+                if (importExtensionInstallBtn && importWizardState.sessionId) {
+                  importExtensionInstallBtn.disabled = false;
+                }
+              });
+          }, 500);
         })
         .catch(function (err) {
-          console.error('[ImportWizard] install failed:', err);
-          var fullMessage = String((err && err.message) || 'Install from review failed.');
+          console.error('[ImportWizard] dry-run failed:', err);
+          var fullMessage = String((err && err.message) || 'Dry-run validation failed.');
           showInstallProgress(false);
-          setStatus(firstSentence(fullMessage), 'error');
-          setImportWizardNote(fullMessage, 'error');
-        })
-        .finally(function () {
+          setStatus('Dry-run failed: ' + firstSentence(fullMessage), 'error');
+          setImportWizardNote('Dry-run validation failed: ' + fullMessage, 'error');
           if (importExtensionInstallBtn && importWizardState.sessionId) {
             importExtensionInstallBtn.disabled = false;
           }
