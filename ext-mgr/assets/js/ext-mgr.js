@@ -1376,6 +1376,7 @@
 
       var onLabel = document.createElement('label');
       onLabel.className = 'toggle-radio';
+      onLabel.setAttribute('for', id + '-off');
       onLabel.textContent = 'ON';
 
       var onRadio = document.createElement('input');
@@ -1387,6 +1388,7 @@
 
       var offLabel = document.createElement('label');
       offLabel.className = 'toggle-radio';
+      offLabel.setAttribute('for', id + '-on');
       offLabel.textContent = 'OFF';
 
       var offRadio = document.createElement('input');
@@ -1396,36 +1398,17 @@
       offRadio.value = 'Off';
       offRadio.checked = !initialVisible;
 
-      function triggerOn() {
-        if (onRadio.disabled) return;
-        onRadio.checked = true;
-        offRadio.checked = false;
-        div.classList.remove('toggle-off');
-        if (typeof onChange === 'function') { onChange(true); }
-      }
-
-      function triggerOff() {
-        if (offRadio.disabled) return;
-        offRadio.checked = true;
-        onRadio.checked = false;
-        div.classList.add('toggle-off');
-        if (typeof onChange === 'function') { onChange(false); }
-      }
-
-      // Direct click handlers - don't rely on for attribute
-      onLabel.addEventListener('click', function(e) {
-        e.preventDefault();
-        triggerOn();
+      onRadio.addEventListener('change', function () {
+        if (onRadio.checked) {
+          div.classList.remove('toggle-off');
+          if (typeof onChange === 'function') { onChange(true); }
+        }
       });
-      offLabel.addEventListener('click', function(e) {
-        e.preventDefault();
-        triggerOff();
-      });
-      onRadio.addEventListener('change', function() {
-        if (onRadio.checked) triggerOn();
-      });
-      offRadio.addEventListener('change', function() {
-        if (offRadio.checked) triggerOff();
+      offRadio.addEventListener('change', function () {
+        if (offRadio.checked) {
+          div.classList.add('toggle-off');
+          if (typeof onChange === 'function') { onChange(false); }
+        }
       });
 
       div.appendChild(onLabel);
