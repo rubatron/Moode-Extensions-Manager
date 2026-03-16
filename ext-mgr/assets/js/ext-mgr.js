@@ -2192,14 +2192,6 @@
 
       // Enable/Disable toggle in header
       var enableToggle = createMoodeToggle('extmgr-tgl-en-' + item.id, item.enabled, function (newEnabled) {
-        if (!newEnabled) {
-          var ok = window.confirm('Disable ' + (item.name || item.id) + '? This can hide it from menu integrations.');
-          if (!ok) {
-            enableToggle.setVisible(true);
-            return;
-          }
-        }
-
         var nextEnabled = newEnabled ? '1' : '0';
         enableToggle.setDisabled(true);
         api({ action: 'set_enabled', id: item.id, value: nextEnabled })
