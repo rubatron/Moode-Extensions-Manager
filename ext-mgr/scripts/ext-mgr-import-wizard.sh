@@ -406,6 +406,7 @@ run_import() {
   # Fallback to standard entry files if manifest.main is missing
   if [[ -z "$main_entry" ]]; then
     log "manifest.main not set - searching for entry file"
+    # Try standard names first
     for candidate in "$ext_id.php" "index.php" "template.php"; do
       if [[ -f "$source/$candidate" ]]; then
         main_entry="$candidate"
@@ -413,7 +414,16 @@ run_import() {
         break
       fi
     done
-    [[ -n "$main_entry" ]] || { err "No entry file found (tried ${ext_id}.php, index.php, template.php)"; exit 1; }
+    # If still not found, try any PHP file in root (excluding known non-entry files)
+    if [[ -z "$main_entry" ]]; then
+      local php_files
+      php_files=($(find "$source" -maxdepth 1 -name '*.php' -type f -printf '%f\n' 2>/dev/null | grep -vE '^(api|backend|helper|config)\.' | head -1))
+      if [[ ${#php_files[@]} -gt 0 && -n "${php_files[0]}" ]]; then
+        main_entry="${php_files[0]}"
+        log "Found PHP entry file: $main_entry"
+      fi
+    fi
+    [[ -n "$main_entry" ]] || { err "No entry file found in $source"; exit 1; }
   fi
 
   local target dry_run_label
