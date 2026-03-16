@@ -1228,7 +1228,14 @@
       wizardSettingsOnlyEl.checked = !!ext.settingsCardOnly;
     }
     if (wizardServiceNameEl) {
-      wizardServiceNameEl.value = service.name || '';
+      // Default service name: ext-{id}.service if service exists but no name
+      var defaultServiceName = '';
+      var extId = row.id || '';
+      var scanHasService = (scan || {}).has_service || false;
+      if (extId && (service.name || scanHasService)) {
+        defaultServiceName = 'ext-' + extId + '.service';
+      }
+      wizardServiceNameEl.value = service.name || defaultServiceName;
     }
     if (wizardDependenciesEl) {
       wizardDependenciesEl.value = Array.isArray(service.dependencies) ? service.dependencies.join('\n') : '';
@@ -3056,72 +3063,87 @@
   if (importExtensionInstallBtn) {
     console.log('[ImportWizard] button id:', importExtensionInstallBtn.id, 'disabled:', importExtensionInstallBtn.disabled);
   }
-  bindIfPresent(importExtensionInstallBtn, 'click', function () {
-    console.log('[ImportWizard] install button clicked, sessionId=' + importWizardState.sessionId);
-    if (!importWizardState.sessionId) {
-      setStatus('Upload + scan first to create a staged session.', 'error');
-      setImportWizardNote('Upload + scan first to create a staged session.', 'error');
-      return;
-    }
 
-    importExtensionInstallBtn.disabled = true;
-    setStatus('Installing from staged review session...', null);
-    wizardSetStep('review');
+  // Use direct addEventListener as fallback in case bindIfPresent has issues
+  if (importExtensionInstallBtn) {
+    importExtensionInstallBtn.addEventListener('click', function (e) {
+      console.log('[ImportWizard] install button clicked (direct), sessionId=' + importWizardState.sessionId);
+      e.preventDefault();
+      e.stopPropagation();
+      
+      if (!importWizardState.sessionId) {
+        setStatus('Upload + scan first to create a staged session.', 'error');
+        setImportWizardNote('Upload + scan first to create a staged session.', 'error');
+        return;
+      }
 
-    // Show progress bar
-    showInstallProgress(true);
-    var installStages = [
-      { percent: 15, status: 'Validating package...', delay: 300 },
-      { percent: 30, status: 'Creating extension directory...', delay: 200 },
-      { percent: 50, status: 'Extracting files...', delay: 400 },
-      { percent: 70, status: 'Setting permissions...', delay: 200 },
-      { percent: 85, status: 'Running install script...', delay: 300 },
-      { percent: 95, status: 'Updating registry...', delay: 200 }
-    ];
+      importExtensionInstallBtn.disabled = true;
+      setStatus('Installing from staged review session...', null);
+      wizardSetStep('review');
 
-    // Start progress animation
-    animateInstallProgress(installStages, function() {
-      // Animation done, wait for API response
-    });
+      // Show progress bar
+      showInstallProgress(true);
+      var installStages = [
+        { percent: 15, status: 'Validating package...', delay: 300 },
+        { percent: 30, status: 'Creating extension directory...', delay: 200 },
+        { percent: 50, status: 'Extracting files...', delay: 400 },
+        { percent: 70, status: 'Setting permissions...', delay: 200 },
+        { percent: 85, status: 'Running install script...', delay: 300 },
+        { percent: 95, status: 'Updating registry...', delay: 200 }
+      ];
 
-    var installPayload = getWizardInstallPayload();
-    console.log('[ImportWizard] calling apiInstallFromSession with payload:', JSON.stringify(installPayload));
-    apiInstallFromSession(installPayload)
-      .then(function (data) {
-        console.log('[ImportWizard] install success:', JSON.stringify(data));
-        var payload = (data || {}).data || {};
-        var importedId = payload.extensionId || importWizardState.extensionId || 'unknown';
-
-        // Complete progress then show success
-        updateInstallProgress(100, 'Installation complete!');
-        setTimeout(function() {
-          var summaryHtml = importReviewSummary(payload.review || {});
-          showInstallSuccess(importedId,
-            'Extension <strong>' + importedId + '</strong> has been successfully installed.' +
-            (summaryHtml ? '<br><small style="opacity:0.7">' + summaryHtml.replace(/<br>/g, ' | ') + '</small>' : '')
-          );
-          setStatus('Extension imported: ' + importedId, 'ok');
-          setImportWizardNote('Extension imported: ' + importedId + summaryHtml, 'ok');
-        }, 400);
-
-        importWizardState.sessionId = '';
-        if (importExtensionInstallBtn) {
-          importExtensionInstallBtn.disabled = true;
-        }
-        runRefresh();
-      })
-      .catch(function (err) {
-        console.error('[ImportWizard] install failed:', err);
-        var fullMessage = String((err && err.message) || 'Install from review failed.');
-        showInstallProgress(false);
-        setStatus(firstSentence(fullMessage), 'error');
-        setImportWizardNote(fullMessage, 'error');
-      })
-      .finally(function () {
-        if (importExtensionInstallBtn && importWizardState.sessionId) {
-          importExtensionInstallBtn.disabled = false;
-        }
+      // Start progress animation
+      animateInstallProgress(installStages, function() {
+        // Animation done, wait for API response
       });
+
+      var installPayload = getWizardInstallPayload();
+      console.log('[ImportWizard] calling apiInstallFromSession with payload:', JSON.stringify(installPayload));
+      apiInstallFromSession(installPayload)
+        .then(function (data) {
+          console.log('[ImportWizard] install success:', JSON.stringify(data));
+          var payload = (data || {}).data || {};
+          var importedId = payload.extensionId || importWizardState.extensionId || 'unknown';
+
+          // Complete progress then show success
+          updateInstallProgress(100, 'Installation complete!');
+          setTimeout(function() {
+            var summaryHtml = importReviewSummary(payload.review || {});
+            showInstallSuccess(importedId,
+              'Extension <strong>' + importedId + '</strong> has been successfully installed.' +
+              (summaryHtml ? '<br><small style="opacity:0.7">' + summaryHtml.replace(/<br>/g, ' | ') + '</small>' : '')
+            );
+            setStatus('Extension imported: ' + importedId, 'ok');
+            setImportWizardNote('Extension imported: ' + importedId + summaryHtml, 'ok');
+          }, 400);
+
+          importWizardState.sessionId = '';
+          if (importExtensionInstallBtn) {
+            importExtensionInstallBtn.disabled = true;
+          }
+          runRefresh();
+        })
+        .catch(function (err) {
+          console.error('[ImportWizard] install failed:', err);
+          var fullMessage = String((err && err.message) || 'Install from review failed.');
+          showInstallProgress(false);
+          setStatus(firstSentence(fullMessage), 'error');
+          setImportWizardNote(fullMessage, 'error');
+        })
+        .finally(function () {
+          if (importExtensionInstallBtn && importWizardState.sessionId) {
+            importExtensionInstallBtn.disabled = false;
+          }
+        });
+    });
+  } else {
+    console.error('[ImportWizard] install button element NOT FOUND!');
+  }
+
+  // Keep bindIfPresent as backup
+  bindIfPresent(importExtensionInstallBtn, 'click', function () {
+    console.log('[ImportWizard] install button clicked (bindIfPresent), sessionId=' + importWizardState.sessionId);
+    // Handler already attached above, this is just for logging
   });
 
   // Wizard close/done button handler
