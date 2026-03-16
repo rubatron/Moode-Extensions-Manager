@@ -2113,26 +2113,54 @@
       var showHeader = getVisibility(item, 'header');
       var showSettingsCard = getSettingsCardOnly(item);
 
-      var left = document.createElement('div');
-      var serviceStatus = getExtensionServiceStatus(item);
+      // Collapsible header - always visible
+      var header = document.createElement('div');
+      header.className = 'list-item-header';
+
+      var headerLeft = document.createElement('div');
+      headerLeft.className = 'list-item-header-left';
+
       var stateClass = item.enabled ? 'enabled' : 'disabled';
       var stateLabel = item.enabled ? 'Enabled' : 'Disabled';
+      var serviceStatus = getExtensionServiceStatus(item);
       var statusDotClass = 'status-dot-green';
-      var statusWarning = '';
       if (!item.enabled) {
         statusDotClass = 'status-dot-red';
       } else if (serviceStatus === 'failed' || serviceStatus === 'inactive') {
         statusDotClass = 'status-dot-yellow';
+      }
+
+      var itemTitle = escapeHtml(item.name || item.id || 'Unnamed extension');
+      headerLeft.innerHTML =
+        '<span class="list-name">' + itemTitle + '</span>' +
+        '<span class="badge ' + stateClass + '"><span class="status-dot ' + statusDotClass + '"></span>' + stateLabel + '</span>';
+
+      var chevron = document.createElement('i');
+      chevron.className = 'fas fa-chevron-right list-item-chevron';
+
+      header.appendChild(headerLeft);
+      header.appendChild(chevron);
+      header.addEventListener('click', function () {
+        row.classList.toggle('expanded');
+      });
+
+      // Collapsible body - hidden by default
+      var body = document.createElement('div');
+      body.className = 'list-item-body';
+
+      var left = document.createElement('div');
+      var statusWarning = '';
+      if (item.enabled && (serviceStatus === 'failed' || serviceStatus === 'inactive')) {
         statusWarning = '<span class="status-warning"><i class="fa-solid fa-exclamation-triangle"></i> Service not running</span>';
       }
-      var itemTitle = escapeHtml(item.name || item.id || 'Unnamed extension');
+      var titleLink = itemTitle;
       var settingsPage = extensionSettingsPage(item);
       if (settingsPage) {
-        itemTitle = '<a class="extmgr-item-link" href="' + escapeHtml(settingsPage) + '">' + itemTitle + '</a>';
+        titleLink = '<a class="extmgr-item-link" href="' + escapeHtml(settingsPage) + '">' + itemTitle + '</a>';
       }
 
       left.innerHTML =
-        '<div class="list-top"><div class="list-name">' + itemTitle + '</div><span class="badge ' + stateClass + '"><span class="status-dot ' + statusDotClass + '"></span>' + stateLabel + '</span>' + statusWarning + '</div>' +
+        '<div class="list-top"><div class="list-name">' + titleLink + '</div><span class="badge ' + stateClass + '"><span class="status-dot ' + statusDotClass + '"></span>' + stateLabel + '</span>' + statusWarning + '</div>' +
         '<div class="list-sub">' + escapeHtml(item.path || '#') + '</div>' +
         '<div class="list-sub list-meta">' + extensionInfoSummary(item) + '</div>' +
         '<div class="list-sub">' + escapeHtml(extensionDescription(item)) + '</div>';
@@ -2388,14 +2416,16 @@
       }
       left.appendChild(infoActionGroup);
 
-      row.appendChild(left);
+      body.appendChild(left);
       toggleGroup.appendChild(menuMControl);
       toggleGroup.appendChild(menuLibraryControl);
       // TODO: Header menu toggle disabled - dynamic JS radio toggles not triggering change events
       // toggleGroup.appendChild(menuHeaderControl);
       toggleGroup.appendChild(settingsCardControl);
       rightWrap.appendChild(toggleGroup);
-      row.appendChild(rightWrap);
+      body.appendChild(rightWrap);
+      row.appendChild(header);
+      row.appendChild(body);
       listEl.appendChild(row);
     });
   }

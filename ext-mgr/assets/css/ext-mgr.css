@@ -725,17 +725,60 @@ body:not([data-standalone]) .extmgr-page-shell {
 }
 
 .list-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 0.8rem;
   border-top: 1px solid rgba(128, 128, 128, 0.28);
-  padding: 0.66rem 0;
+  padding: 0.5rem 0;
 }
 
 .list-item:first-child {
   border-top: 0;
   padding-top: 0;
+}
+
+/* Collapsible card header - always visible */
+.list-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  padding: 0.25rem 0.4rem;
+  margin: -0.25rem -0.4rem;
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
+}
+
+.list-item-header:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.list-item-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.list-item-chevron {
+  color: #888;
+  font-size: 0.85rem;
+  transition: transform 0.2s ease;
+  padding: 0.25rem;
+}
+
+.list-item.expanded .list-item-chevron {
+  transform: rotate(90deg);
+}
+
+/* Collapsible card body - hidden by default */
+.list-item-body {
+  display: none;
+  padding-top: 0.5rem;
+}
+
+.list-item.expanded .list-item-body {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.8rem;
 }
 
 .list-top {
