@@ -3052,6 +3052,10 @@
     nextStage();
   }
 
+  console.log('[ImportWizard] binding install button, element found:', !!importExtensionInstallBtn);
+  if (importExtensionInstallBtn) {
+    console.log('[ImportWizard] button id:', importExtensionInstallBtn.id, 'disabled:', importExtensionInstallBtn.disabled);
+  }
   bindIfPresent(importExtensionInstallBtn, 'click', function () {
     console.log('[ImportWizard] install button clicked, sessionId=' + importWizardState.sessionId);
     if (!importWizardState.sessionId) {
