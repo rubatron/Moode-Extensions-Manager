@@ -2966,7 +2966,7 @@
     }
     el.addEventListener('change', function () {
       renderWizardReview();
-      wizardSetStep('review');
+      // Don't jump to review - let user navigate manually
     });
     el.addEventListener('keyup', function () {
       renderWizardReview();
@@ -3070,7 +3070,7 @@
       console.log('[ImportWizard] install button clicked (direct), sessionId=' + importWizardState.sessionId);
       e.preventDefault();
       e.stopPropagation();
-      
+
       if (!importWizardState.sessionId) {
         setStatus('Upload + scan first to create a staged session.', 'error');
         setImportWizardNote('Upload + scan first to create a staged session.', 'error');
