@@ -6504,7 +6504,18 @@ if ($action === 'debug_database') {
         if (file_exists($dbPath)) {
             $db = new PDO('sqlite:' . $dbPath);
             $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            // Set busy timeout to wait up to 5 seconds for locks
+            $db->exec('PRAGMA busy_timeout = 5000');
             $result['data']['tests']['sqlite_connect'] = ['ok' => true, 'message' => 'Connected'];
+
+            // Check journal mode
+            try {
+                $stmt = $db->query('PRAGMA journal_mode');
+                $mode = $stmt->fetchColumn();
+                $result['data']['journal_mode'] = $mode ?: 'unknown';
+            } catch (Exception $e) {
+                $result['data']['journal_mode'] = 'error: ' . $e->getMessage();
+            }
 
             // Test read from cfg_radio
             try {
