@@ -1,6 +1,0 @@
-{
-    "profile": "visible-by-default",
-    "description": "moode-ydl visibility preset.",
-    "menuVisibility": { "m": true, "library": true, "system": false },
-    "settingsCardOnly": false
-}

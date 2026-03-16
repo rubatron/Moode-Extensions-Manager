@@ -1,9 +1,0 @@
-.ext-template-shell {
-  padding-bottom: 1.2rem;
-}
-
-/* Settings nav suppression fallback.
-   Primary suppression is inline in template.php for guaranteed priority. */
-#config-tabs {
-  display: none !important;
-}
