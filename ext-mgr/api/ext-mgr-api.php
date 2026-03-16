@@ -6471,6 +6471,84 @@ if ($action === 'debug_api') {
     exit;
 }
 
+if ($action === 'debug_database') {
+    $dbPath = '/var/local/www/db/moode-sqlite3.db';
+    $result = [
+        'ok' => true,
+        'data' => [
+            'tests' => [],
+            'user' => posix_getpwuid(posix_geteuid())['name'] ?? 'unknown',
+            'groups' => [],
+            'dbPath' => $dbPath,
+            'dbExists' => file_exists($dbPath),
+            'dbReadable' => is_readable($dbPath),
+            'dbWritable' => is_writable($dbPath),
+            'dbDirWritable' => is_writable(dirname($dbPath)),
+        ],
+    ];
+
+    // Get groups for current user
+    $groups = [];
+    if (function_exists('posix_getgroups')) {
+        foreach (posix_getgroups() as $gid) {
+            $info = posix_getgrgid($gid);
+            if ($info) {
+                $groups[] = $info['name'];
+            }
+        }
+    }
+    $result['data']['groups'] = $groups;
+
+    // Test SQLite connection
+    try {
+        if (file_exists($dbPath)) {
+            $db = new PDO('sqlite:' . $dbPath);
+            $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            $result['data']['tests']['sqlite_connect'] = ['ok' => true, 'message' => 'Connected'];
+
+            // Test read from cfg_radio
+            try {
+                $stmt = $db->query('SELECT COUNT(*) as cnt FROM cfg_radio');
+                $row = $stmt->fetch(PDO::FETCH_ASSOC);
+                $result['data']['tests']['sqlite_read'] = ['ok' => true, 'message' => 'Read OK, cfg_radio has ' . ($row['cnt'] ?? 0) . ' rows'];
+            } catch (Exception $e) {
+                $result['data']['tests']['sqlite_read'] = ['ok' => false, 'message' => $e->getMessage()];
+            }
+
+            // Test write (create temp table, insert, drop)
+            try {
+                $db->exec('CREATE TABLE IF NOT EXISTS extmgr_test (id INTEGER PRIMARY KEY, ts TEXT)');
+                $db->exec("INSERT INTO extmgr_test (ts) VALUES ('" . date('c') . "')");
+                $db->exec('DROP TABLE extmgr_test');
+                $result['data']['tests']['sqlite_write'] = ['ok' => true, 'message' => 'Write OK'];
+            } catch (Exception $e) {
+                $result['data']['tests']['sqlite_write'] = ['ok' => false, 'message' => $e->getMessage()];
+            }
+
+            $db = null;
+        } else {
+            $result['data']['tests']['sqlite_connect'] = ['ok' => false, 'message' => 'Database file not found'];
+        }
+    } catch (Exception $e) {
+        $result['data']['tests']['sqlite_connect'] = ['ok' => false, 'message' => $e->getMessage()];
+    }
+
+    // File ACLs if available
+    if (file_exists($dbPath)) {
+        $aclOutput = @shell_exec('getfacl ' . escapeshellarg($dbPath) . ' 2>/dev/null');
+        if ($aclOutput) {
+            $result['data']['acl'] = trim($aclOutput);
+        }
+        $lsOutput = @shell_exec('ls -la ' . escapeshellarg($dbPath) . ' 2>/dev/null');
+        if ($lsOutput) {
+            $result['data']['permissions'] = trim($lsOutput);
+        }
+    }
+
+    echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
 if ($action === 'repair') {
     $meta = readMeta($metaPath);
     $registry = normalizeRegistry(readRegistry($registryPath));

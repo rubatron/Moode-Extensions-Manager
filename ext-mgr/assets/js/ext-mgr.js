@@ -76,6 +76,7 @@
   var showVariablesBtn = document.getElementById('show-variables-btn');
   var showServicesBtn = document.getElementById('show-services-btn');
   var showApiStatusBtn = document.getElementById('show-api-status-btn');
+  var showDatabaseBtn = document.getElementById('show-database-btn');
   var importExtensionFileEl = document.getElementById('import-extension-file');
   var importExtensionFileNameEl = document.getElementById('import-extension-file-name');
   var importExtensionBtn = document.getElementById('import-extension-btn');
@@ -2920,6 +2921,22 @@
       })
       .catch(function(err) {
         setStatus('API status fetch error: ' + err.message, 'error');
+      });
+  });
+
+  bindIfPresent(showDatabaseBtn, 'click', function() {
+    setStatus('Testing database permissions...', null);
+    fetch(buildApiUrl({ action: 'debug_database' }))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.ok) {
+          showDebugModal('Database Test', data.data);
+        } else {
+          setStatus('Failed to test database: ' + (data.error || 'Unknown error'), 'error');
+        }
+      })
+      .catch(function(err) {
+        setStatus('Database test error: ' + err.message, 'error');
       });
   });
 
