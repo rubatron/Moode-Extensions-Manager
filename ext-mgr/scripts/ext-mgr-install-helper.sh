@@ -202,7 +202,10 @@ install_additional_packages() {
 
   export DEBIAN_FRONTEND=noninteractive
   apt-get update -y >/dev/null 2>&1 || true
-  apt-get install -y --no-install-recommends "${packages[@]}"
+  if ! apt-get install -y --no-install-recommends "${packages[@]}" >/dev/null 2>&1; then
+    err "Failed to install packages: ${packages[*]}. Check dpkg state."
+    return 1
+  fi
   INSTALLED_APT_PACKAGES=("${packages[@]}")
 }
 
