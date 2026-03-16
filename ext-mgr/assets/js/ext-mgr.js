@@ -2927,6 +2927,7 @@
         }
 
         if (importExtensionInstallBtn) {
+          console.log('[ImportWizard] enabling install button: sessionId=' + importWizardState.sessionId + ' violations=' + violations);
           importExtensionInstallBtn.disabled = !importWizardState.sessionId || violations > 0;
         }
 
@@ -3052,6 +3053,7 @@
   }
 
   bindIfPresent(importExtensionInstallBtn, 'click', function () {
+    console.log('[ImportWizard] install button clicked, sessionId=' + importWizardState.sessionId);
     if (!importWizardState.sessionId) {
       setStatus('Upload + scan first to create a staged session.', 'error');
       setImportWizardNote('Upload + scan first to create a staged session.', 'error');
@@ -3078,8 +3080,11 @@
       // Animation done, wait for API response
     });
 
-    apiInstallFromSession(getWizardInstallPayload())
+    var installPayload = getWizardInstallPayload();
+    console.log('[ImportWizard] calling apiInstallFromSession with payload:', JSON.stringify(installPayload));
+    apiInstallFromSession(installPayload)
       .then(function (data) {
+        console.log('[ImportWizard] install success:', JSON.stringify(data));
         var payload = (data || {}).data || {};
         var importedId = payload.extensionId || importWizardState.extensionId || 'unknown';
 
@@ -3102,6 +3107,7 @@
         runRefresh();
       })
       .catch(function (err) {
+        console.error('[ImportWizard] install failed:', err);
         var fullMessage = String((err && err.message) || 'Install from review failed.');
         showInstallProgress(false);
         setStatus(firstSentence(fullMessage), 'error');
