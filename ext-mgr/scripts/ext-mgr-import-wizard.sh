@@ -402,7 +402,19 @@ run_import() {
   main_entry="$(json_get "$source/manifest.json" "main")"
 
   [[ -n "$ext_id" ]] || { err "manifest id missing"; exit 1; }
-  [[ -n "$main_entry" ]] || { err "manifest main missing"; exit 1; }
+
+  # Fallback to standard entry files if manifest.main is missing
+  if [[ -z "$main_entry" ]]; then
+    log "manifest.main not set - searching for entry file"
+    for candidate in "$ext_id.php" "index.php" "template.php"; do
+      if [[ -f "$source/$candidate" ]]; then
+        main_entry="$candidate"
+        log "Found entry file: $main_entry"
+        break
+      fi
+    done
+    [[ -n "$main_entry" ]] || { err "No entry file found (tried ${ext_id}.php, index.php, template.php)"; exit 1; }
+  fi
 
   local target dry_run_label
   if [[ $DRY_RUN -eq 1 ]]; then
