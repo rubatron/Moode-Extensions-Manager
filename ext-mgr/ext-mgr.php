@@ -524,6 +524,7 @@ if (file_exists('/var/www/header.php')) {
                                 <button id="show-services-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-server"></i> Show Services</button>
                                 <button id="show-api-status-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-plug"></i> Show API Status</button>
                                 <button id="show-database-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-hard-drive"></i> Test Database</button>
+                                <button id="show-moode-api-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-music"></i> Test moOde API</button>
                             </div>
                             <div id="maintenance-log" class="extmgr-log">No maintenance actions executed.</div>
                         </div>

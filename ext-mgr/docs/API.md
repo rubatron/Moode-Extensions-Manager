@@ -510,6 +510,209 @@ key=my_var
 
 ---
 
+## moOde Broker API
+
+These endpoints provide safe wrappers for moOde operations. Extensions should use these instead of direct database/API access to avoid conflicts (database locks, session issues).
+
+All broker endpoints use the `MoodeHelper` library which handles:
+- WAL mode and busy_timeout for SQLite
+- Retry logic with exponential backoff
+- Proper moOde REST API calls
+
+### moode_get_state
+
+Get current playback state (current song + volume).
+
+```
+GET /ext-mgr-api.php?action=moode_get_state
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": {
+    "currentSong": { "file": "...", "artist": "...", "title": "..." },
+    "volume": { "vol": 50, "muted": false }
+  }
+}
+```
+
+### moode_playback
+
+Control playback.
+
+```
+GET /ext-mgr-api.php?action=moode_playback&cmd=<command>
+
+cmd: play | pause | stop | toggle | next | prev | clear | play_item
+item: required for play_item (path or URL)
+```
+
+**Examples:**
+```
+action=moode_playback&cmd=play
+action=moode_playback&cmd=play_item&item=RADIO/Radio Paradise.pls
+```
+
+### moode_volume
+
+Get or set volume.
+
+```
+GET /ext-mgr-api.php?action=moode_volume&cmd=get
+GET /ext-mgr-api.php?action=moode_volume&cmd=set&value=50
+```
+
+### moode_radio
+
+Manage radio stations.
+
+```
+GET /ext-mgr-api.php?action=moode_radio&cmd=<command>
+
+cmd: list | get | add | update | delete | play
+```
+
+| Command | Parameters |
+|---------|------------|
+| `list` | - |
+| `get` | `name` |
+| `add` | `name`, `url`, `type`, `genre`, `broadcaster`, `language`, `country`, `region`, `bitrate`, `format`, `logo`, `geo_fenced`, `home_page`, `monitor` |
+| `update` | `id` + same as add |
+| `delete` | `name` |
+| `play` | `name` |
+
+**Example - Add station:**
+```
+action=moode_radio&cmd=add&name=My Station&url=https://stream.example.com/128&genre=Jazz
+```
+
+### moode_favorites
+
+Manage favorites.
+
+```
+GET /ext-mgr-api.php?action=moode_favorites&cmd=<command>
+
+cmd: list | get_name | set_name | add | mark_radio | unmark_radio
+```
+
+| Command | Parameters | Description |
+|---------|------------|-------------|
+| `list` | - | Get favorite radio stations |
+| `get_name` | - | Get favorites playlist name |
+| `set_name` | `name` | Set favorites playlist name |
+| `add` | `item` | Add item to favorites playlist |
+| `mark_radio` | `url` | Mark station as favorite (type='f') |
+| `unmark_radio` | `url` | Unmark station as favorite |
+
+### moode_playlist
+
+Manage playlists.
+
+```
+GET /ext-mgr-api.php?action=moode_playlist&cmd=<command>
+
+cmd: list | get | create | add_items | delete | save_queue | play
+```
+
+| Command | Parameters |
+|---------|------------|
+| `list` | - |
+| `get` | `name` |
+| `create` | `name`, `genre` (optional) |
+| `add_items` | `name`, `items` (JSON array) |
+| `delete` | `name` |
+| `save_queue` | `name` |
+| `play` | `name` |
+
+### moode_queue
+
+Manage play queue.
+
+```
+GET /ext-mgr-api.php?action=moode_queue&cmd=<command>
+
+cmd: get | clear | add | add_next | clear_play | delete | move
+```
+
+| Command | Parameters |
+|---------|------------|
+| `get` | - |
+| `clear` | - |
+| `add` | `path` |
+| `add_next` | `path` |
+| `clear_play` | `path` |
+| `delete` | `range` |
+| `move` | `range`, `newpos` |
+
+### moode_library
+
+Library operations.
+
+```
+GET /ext-mgr-api.php?action=moode_library&cmd=<command>
+
+cmd: status | update | ls | search
+```
+
+| Command | Parameters |
+|---------|------------|
+| `status` | - (get library update status) |
+| `update` | - (trigger library update) |
+| `ls` | `path` (list directory contents) |
+| `search` | `tagname`, `query` |
+
+### moode_system
+
+System configuration and control.
+
+```
+GET /ext-mgr-api.php?action=moode_system&cmd=<command>
+
+cmd: config | config_tables | get_value | reboot | poweroff
+```
+
+| Command | Parameters |
+|---------|------------|
+| `config` | - (get cfg_system) |
+| `config_tables` | `include_radio` (0/1) |
+| `get_value` | `param` |
+| `reboot` | - |
+| `poweroff` | - |
+
+### moode_renderer
+
+Control renderers (Bluetooth, AirPlay, Spotify, etc.).
+
+```
+GET /ext-mgr-api.php?action=moode_renderer&cmd=<command>&renderer=<name>
+
+cmd: restart | on | off | receiver_status | receiver_on | receiver_off
+renderer: bluetooth | airplay | spotify | pleezer | squeezelite | roonbridge
+```
+
+### moode_cdsp
+
+CamillaDSP control.
+
+```
+GET /ext-mgr-api.php?action=moode_cdsp&cmd=get
+GET /ext-mgr-api.php?action=moode_cdsp&cmd=set&config=<config_name>
+```
+
+### moode_audioinfo
+
+Get audio info for tracks/stations.
+
+```
+GET /ext-mgr-api.php?action=moode_audioinfo&cmd=station&path=<url>
+GET /ext-mgr-api.php?action=moode_audioinfo&cmd=track&path=<file_path>
+```
+
+---
+
 ## Error Codes
 
 | Code | Meaning |

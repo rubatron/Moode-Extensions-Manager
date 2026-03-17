@@ -77,6 +77,7 @@
   var showServicesBtn = document.getElementById('show-services-btn');
   var showApiStatusBtn = document.getElementById('show-api-status-btn');
   var showDatabaseBtn = document.getElementById('show-database-btn');
+  var showMoodeApiBtn = document.getElementById('show-moode-api-btn');
   var importExtensionFileEl = document.getElementById('import-extension-file');
   var importExtensionFileNameEl = document.getElementById('import-extension-file-name');
   var importExtensionBtn = document.getElementById('import-extension-btn');
@@ -2937,6 +2938,22 @@
       })
       .catch(function(err) {
         setStatus('Database test error: ' + err.message, 'error');
+      });
+  });
+
+  bindIfPresent(showMoodeApiBtn, 'click', function() {
+    setStatus('Testing moOde API connectivity...', null);
+    fetch(buildApiUrl({ action: 'debug_moode_api' }))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.ok) {
+          showDebugModal('moOde API Test', data.data);
+        } else {
+          setStatus('Failed to test moOde API: ' + (data.error || 'Unknown error'), 'error');
+        }
+      })
+      .catch(function(err) {
+        setStatus('moOde API test error: ' + err.message, 'error');
       });
   });
 

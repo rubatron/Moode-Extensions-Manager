@@ -6560,6 +6560,772 @@ if ($action === 'debug_database') {
     exit;
 }
 
+// Debug: Test moOde API connectivity and MoodeHelper
+if ($action === 'debug_moode_api') {
+    // Include the MoodeHelper
+    $helperPath = __DIR__ . '/lib/MoodeHelper.php';
+    $result = [
+        'ok' => true,
+        'data' => [
+            'helperPath' => $helperPath,
+            'helperExists' => file_exists($helperPath),
+            'tests' => [],
+            'meta' => ['generatedAt' => date('c')],
+        ],
+    ];
+
+    if (file_exists($helperPath)) {
+        require_once $helperPath;
+        $moode = new MoodeHelper();
+
+        // Test moOde REST API
+        try {
+            $currentSong = $moode->getCurrentSong();
+            $result['data']['tests']['api_currentsong'] = [
+                'ok' => $currentSong !== null,
+                'data' => $currentSong,
+            ];
+        } catch (Exception $e) {
+            $result['data']['tests']['api_currentsong'] = ['ok' => false, 'error' => $e->getMessage()];
+        }
+
+        // Test volume endpoint
+        try {
+            $volume = $moode->getVolume();
+            $result['data']['tests']['api_volume'] = [
+                'ok' => $volume !== null,
+                'data' => $volume,
+            ];
+        } catch (Exception $e) {
+            $result['data']['tests']['api_volume'] = ['ok' => false, 'error' => $e->getMessage()];
+        }
+
+        // Test radio stations API
+        try {
+            $stations = $moode->getRadioStations();
+            $stationCount = is_array($stations) ? count($stations) : 0;
+            $result['data']['tests']['api_radio_stations'] = [
+                'ok' => $stations !== null,
+                'count' => $stationCount,
+                'sample' => $stationCount > 0 ? array_slice($stations, 0, 3) : [],
+            ];
+        } catch (Exception $e) {
+            $result['data']['tests']['api_radio_stations'] = ['ok' => false, 'error' => $e->getMessage()];
+        }
+
+        // Test MoodeDb connection
+        try {
+            $db = $moode->db();
+            $conn = $db->getConnection();
+            $result['data']['tests']['db_connect'] = ['ok' => $conn !== null];
+
+            if ($conn !== null) {
+                // Test query with retry
+                $timezone = $db->getSystemValue('timezone');
+                $result['data']['tests']['db_read'] = [
+                    'ok' => true,
+                    'sample' => ['timezone' => $timezone],
+                ];
+
+                // Test radio stations via db
+                $dbStations = $db->getRadioStations();
+                $result['data']['tests']['db_radio_stations'] = [
+                    'ok' => is_array($dbStations),
+                    'count' => count($dbStations),
+                ];
+            }
+        } catch (Exception $e) {
+            $result['data']['tests']['db_connect'] = ['ok' => false, 'error' => $e->getMessage()];
+        }
+    } else {
+        $result['data']['tests']['helper'] = ['ok' => false, 'error' => 'MoodeHelper.php not found'];
+    }
+
+    echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MOODE BROKER API - Safe wrappers for moOde operations
+// Extensions should use these endpoints instead of direct database/API access
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Get MoodeHelper instance (lazy-loaded)
+ */
+function getMoodeHelper(): ?MoodeHelper
+{
+    static $moode = null;
+    if ($moode === null) {
+        $helperPath = __DIR__ . '/lib/MoodeHelper.php';
+        if (!file_exists($helperPath)) {
+            return null;
+        }
+        require_once $helperPath;
+        $moode = new MoodeHelper();
+    }
+    return $moode;
+}
+
+/**
+ * Return broker error response
+ */
+function brokerError(string $message, int $code = 400): void
+{
+    http_response_code($code);
+    echo json_encode(['ok' => false, 'error' => $message], JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Playback State
+// ─────────────────────────────────────────────────────────────────────────────
+
+if ($action === 'moode_get_state') {
+    $moode = getMoodeHelper();
+    if (!$moode) {
+        brokerError('MoodeHelper not available', 500);
+    }
+
+    $result = [
+        'ok' => true,
+        'data' => [
+            'currentSong' => $moode->getCurrentSong(),
+            'volume' => $moode->getVolume(),
+        ],
+    ];
+
+    echo json_encode($result, JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Playback Control
+// ─────────────────────────────────────────────────────────────────────────────
+
+if ($action === 'moode_playback') {
+    $moode = getMoodeHelper();
+    if (!$moode) {
+        brokerError('MoodeHelper not available', 500);
+    }
+
+    $cmd = trim((string)($_REQUEST['cmd'] ?? ''));
+    $item = trim((string)($_REQUEST['item'] ?? ''));
+
+    $validCmds = ['play', 'pause', 'stop', 'toggle', 'next', 'prev', 'play_item', 'clear'];
+    if (!in_array($cmd, $validCmds)) {
+        brokerError('Invalid cmd. Valid: ' . implode(', ', $validCmds));
+    }
+
+    $response = null;
+    switch ($cmd) {
+        case 'play':
+            $response = $moode->mpd('play');
+            break;
+        case 'pause':
+            $response = $moode->mpd('pause');
+            break;
+        case 'stop':
+            $response = $moode->mpd('stop');
+            break;
+        case 'toggle':
+            $response = $moode->togglePlayPause();
+            break;
+        case 'next':
+            $response = $moode->mpd('next');
+            break;
+        case 'prev':
+            $response = $moode->mpd('previous');
+            break;
+        case 'play_item':
+            if ($item === '') {
+                brokerError('Missing item parameter for play_item');
+            }
+            $response = $moode->playItem($item);
+            break;
+        case 'clear':
+            $response = $moode->clearQueue();
+            break;
+    }
+
+    echo json_encode(['ok' => true, 'data' => $response], JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Volume Control
+// ─────────────────────────────────────────────────────────────────────────────
+
+if ($action === 'moode_volume') {
+    $moode = getMoodeHelper();
+    if (!$moode) {
+        brokerError('MoodeHelper not available', 500);
+    }
+
+    $cmd = trim((string)($_REQUEST['cmd'] ?? 'get'));
+    $value = (int)($_REQUEST['value'] ?? 0);
+
+    if ($cmd === 'get') {
+        $volume = $moode->getVolume();
+        echo json_encode(['ok' => true, 'data' => $volume], JSON_UNESCAPED_SLASHES);
+        exit;
+    }
+
+    if ($cmd === 'set') {
+        $response = $moode->setVolume($value);
+        echo json_encode(['ok' => true, 'data' => $response], JSON_UNESCAPED_SLASHES);
+        exit;
+    }
+
+    brokerError('Invalid cmd. Valid: get, set');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Radio Stations
+// ─────────────────────────────────────────────────────────────────────────────
+
+if ($action === 'moode_radio') {
+    $moode = getMoodeHelper();
+    if (!$moode) {
+        brokerError('MoodeHelper not available', 500);
+    }
+
+    $cmd = trim((string)($_REQUEST['cmd'] ?? 'list'));
+
+    switch ($cmd) {
+        case 'list':
+            $stations = $moode->getRadioStations();
+            echo json_encode(['ok' => true, 'data' => ['stations' => $stations]], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        case 'get':
+            $name = trim((string)($_REQUEST['name'] ?? ''));
+            if ($name === '') {
+                brokerError('Missing name parameter');
+            }
+            $contents = $moode->getStationContents($name);
+            echo json_encode(['ok' => true, 'data' => $contents], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        case 'add':
+            $station = [
+                'name' => trim((string)($_REQUEST['name'] ?? '')),
+                'url' => trim((string)($_REQUEST['url'] ?? '')),
+                'type' => trim((string)($_REQUEST['type'] ?? 's')),
+                'genre' => trim((string)($_REQUEST['genre'] ?? '')),
+                'broadcaster' => trim((string)($_REQUEST['broadcaster'] ?? '')),
+                'language' => trim((string)($_REQUEST['language'] ?? '')),
+                'country' => trim((string)($_REQUEST['country'] ?? '')),
+                'region' => trim((string)($_REQUEST['region'] ?? '')),
+                'bitrate' => trim((string)($_REQUEST['bitrate'] ?? '')),
+                'format' => trim((string)($_REQUEST['format'] ?? '')),
+                'logo' => trim((string)($_REQUEST['logo'] ?? 'local')),
+                'geo_fenced' => trim((string)($_REQUEST['geo_fenced'] ?? 'No')),
+                'home_page' => trim((string)($_REQUEST['home_page'] ?? '')),
+                'monitor' => trim((string)($_REQUEST['monitor'] ?? 'No')),
+            ];
+            if ($station['name'] === '' || $station['url'] === '') {
+                brokerError('Missing required: name, url');
+            }
+            $result = $moode->addRadioStation($station);
+            $ok = ($result === 'OK' || $result === 'ok');
+            echo json_encode(['ok' => $ok, 'data' => ['result' => $result]], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        case 'update':
+            $id = (int)($_REQUEST['id'] ?? 0);
+            if ($id <= 0) {
+                brokerError('Missing or invalid id parameter');
+            }
+            $station = [
+                'name' => trim((string)($_REQUEST['name'] ?? '')),
+                'url' => trim((string)($_REQUEST['url'] ?? '')),
+                'type' => trim((string)($_REQUEST['type'] ?? 's')),
+                'genre' => trim((string)($_REQUEST['genre'] ?? '')),
+                'broadcaster' => trim((string)($_REQUEST['broadcaster'] ?? '')),
+                'language' => trim((string)($_REQUEST['language'] ?? '')),
+                'country' => trim((string)($_REQUEST['country'] ?? '')),
+                'region' => trim((string)($_REQUEST['region'] ?? '')),
+                'bitrate' => trim((string)($_REQUEST['bitrate'] ?? '')),
+                'format' => trim((string)($_REQUEST['format'] ?? '')),
+                'logo' => trim((string)($_REQUEST['logo'] ?? 'local')),
+                'geo_fenced' => trim((string)($_REQUEST['geo_fenced'] ?? 'No')),
+                'home_page' => trim((string)($_REQUEST['home_page'] ?? '')),
+                'monitor' => trim((string)($_REQUEST['monitor'] ?? 'No')),
+            ];
+            $result = $moode->updateRadioStation($id, $station);
+            $ok = ($result === 'OK' || $result === 'ok');
+            echo json_encode(['ok' => $ok, 'data' => ['result' => $result]], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        case 'delete':
+            $name = trim((string)($_REQUEST['name'] ?? ''));
+            if ($name === '') {
+                brokerError('Missing name parameter');
+            }
+            $ok = $moode->deleteRadioStation($name);
+            echo json_encode(['ok' => $ok], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        case 'play':
+            $name = trim((string)($_REQUEST['name'] ?? ''));
+            if ($name === '') {
+                brokerError('Missing name parameter');
+            }
+            $response = $moode->playItem('RADIO/' . $name . '.pls');
+            echo json_encode(['ok' => true, 'data' => $response], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        default:
+            brokerError('Invalid cmd. Valid: list, get, add, update, delete, play');
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Favorites
+// ─────────────────────────────────────────────────────────────────────────────
+
+if ($action === 'moode_favorites') {
+    $moode = getMoodeHelper();
+    if (!$moode) {
+        brokerError('MoodeHelper not available', 500);
+    }
+
+    $cmd = trim((string)($_REQUEST['cmd'] ?? 'list'));
+
+    switch ($cmd) {
+        case 'list':
+            // Get favorite radio stations
+            $stations = $moode->getFavoriteRadioStations();
+            echo json_encode(['ok' => true, 'data' => ['stations' => $stations]], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        case 'get_name':
+            // Get favorites playlist name
+            $name = $moode->getFavoritesName();
+            echo json_encode(['ok' => true, 'data' => ['name' => $name]], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        case 'set_name':
+            // Set favorites playlist name
+            $name = trim((string)($_REQUEST['name'] ?? ''));
+            if ($name === '') {
+                brokerError('Missing name parameter');
+            }
+            $result = $moode->setFavoritesName($name);
+            echo json_encode(['ok' => true, 'data' => $result], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        case 'add':
+            // Add item to favorites playlist
+            $item = trim((string)($_REQUEST['item'] ?? ''));
+            if ($item === '') {
+                brokerError('Missing item parameter');
+            }
+            $result = $moode->addToFavorites($item);
+            echo json_encode(['ok' => true, 'data' => $result], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        case 'mark_radio':
+            // Mark radio station as favorite (sets type='f' in cfg_radio)
+            $url = trim((string)($_REQUEST['url'] ?? ''));
+            if ($url === '') {
+                brokerError('Missing url parameter');
+            }
+            $ok = $moode->markRadioAsFavorite($url);
+            echo json_encode(['ok' => $ok], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        case 'unmark_radio':
+            // Unmark radio station as favorite
+            $url = trim((string)($_REQUEST['url'] ?? ''));
+            if ($url === '') {
+                brokerError('Missing url parameter');
+            }
+            $ok = $moode->unmarkRadioAsFavorite($url);
+            echo json_encode(['ok' => $ok], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        default:
+            brokerError('Invalid cmd. Valid: list, get_name, set_name, add, mark_radio, unmark_radio');
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Playlists
+// ─────────────────────────────────────────────────────────────────────────────
+
+if ($action === 'moode_playlist') {
+    $moode = getMoodeHelper();
+    if (!$moode) {
+        brokerError('MoodeHelper not available', 500);
+    }
+
+    $cmd = trim((string)($_REQUEST['cmd'] ?? 'list'));
+
+    switch ($cmd) {
+        case 'list':
+            $playlists = $moode->getPlaylists();
+            echo json_encode(['ok' => true, 'data' => ['playlists' => $playlists]], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        case 'get':
+            $name = trim((string)($_REQUEST['name'] ?? ''));
+            if ($name === '') {
+                brokerError('Missing name parameter');
+            }
+            $contents = $moode->getPlaylistContents($name);
+            echo json_encode(['ok' => true, 'data' => $contents], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        case 'create':
+            $name = trim((string)($_REQUEST['name'] ?? ''));
+            $genre = trim((string)($_REQUEST['genre'] ?? ''));
+            if ($name === '') {
+                brokerError('Missing name parameter');
+            }
+            $result = $moode->createPlaylist($name, $genre);
+            echo json_encode(['ok' => true, 'data' => $result], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        case 'add_items':
+            $name = trim((string)($_REQUEST['name'] ?? ''));
+            $items = $_REQUEST['items'] ?? [];
+            if ($name === '') {
+                brokerError('Missing name parameter');
+            }
+            if (is_string($items)) {
+                $items = json_decode($items, true) ?: [$items];
+            }
+            if (empty($items)) {
+                brokerError('Missing or empty items parameter');
+            }
+            $result = $moode->addToPlaylist($name, $items);
+            echo json_encode(['ok' => true, 'data' => $result], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        case 'delete':
+            $name = trim((string)($_REQUEST['name'] ?? ''));
+            if ($name === '') {
+                brokerError('Missing name parameter');
+            }
+            $result = $moode->deletePlaylist($name);
+            echo json_encode(['ok' => true, 'data' => $result], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        case 'save_queue':
+            $name = trim((string)($_REQUEST['name'] ?? ''));
+            if ($name === '') {
+                brokerError('Missing name parameter');
+            }
+            $result = $moode->saveQueueToPlaylist($name);
+            echo json_encode(['ok' => true, 'data' => $result], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        case 'play':
+            $name = trim((string)($_REQUEST['name'] ?? ''));
+            if ($name === '') {
+                brokerError('Missing name parameter');
+            }
+            $response = $moode->playItem($name);
+            echo json_encode(['ok' => true, 'data' => $response], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        default:
+            brokerError('Invalid cmd. Valid: list, get, create, add_items, delete, save_queue, play');
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Queue
+// ─────────────────────────────────────────────────────────────────────────────
+
+if ($action === 'moode_queue') {
+    $moode = getMoodeHelper();
+    if (!$moode) {
+        brokerError('MoodeHelper not available', 500);
+    }
+
+    $cmd = trim((string)($_REQUEST['cmd'] ?? 'get'));
+
+    switch ($cmd) {
+        case 'get':
+            $queue = $moode->getPlayQueue();
+            echo json_encode(['ok' => true, 'data' => ['queue' => $queue]], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        case 'clear':
+            $result = $moode->clearPlayQueue();
+            echo json_encode(['ok' => true, 'data' => $result], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        case 'add':
+            $path = trim((string)($_REQUEST['path'] ?? ''));
+            if ($path === '') {
+                brokerError('Missing path parameter');
+            }
+            $result = $moode->addItemToQueue($path);
+            echo json_encode(['ok' => true, 'data' => $result], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        case 'add_next':
+            $path = trim((string)($_REQUEST['path'] ?? ''));
+            if ($path === '') {
+                brokerError('Missing path parameter');
+            }
+            $result = $moode->addItemToQueueNext($path);
+            echo json_encode(['ok' => true, 'data' => $result], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        case 'clear_play':
+            $path = trim((string)($_REQUEST['path'] ?? ''));
+            if ($path === '') {
+                brokerError('Missing path parameter');
+            }
+            $result = $moode->clearAndPlayItem($path);
+            echo json_encode(['ok' => true, 'data' => $result], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        case 'delete':
+            $range = trim((string)($_REQUEST['range'] ?? ''));
+            if ($range === '') {
+                brokerError('Missing range parameter');
+            }
+            $result = $moode->deleteQueueItem($range);
+            echo json_encode(['ok' => true, 'data' => $result], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        case 'move':
+            $range = trim((string)($_REQUEST['range'] ?? ''));
+            $newpos = trim((string)($_REQUEST['newpos'] ?? ''));
+            if ($range === '' || $newpos === '') {
+                brokerError('Missing range or newpos parameter');
+            }
+            $result = $moode->moveQueueItem($range, $newpos);
+            echo json_encode(['ok' => true, 'data' => $result], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        default:
+            brokerError('Invalid cmd. Valid: get, clear, add, add_next, clear_play, delete, move');
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Library
+// ─────────────────────────────────────────────────────────────────────────────
+
+if ($action === 'moode_library') {
+    $moode = getMoodeHelper();
+    if (!$moode) {
+        brokerError('MoodeHelper not available', 500);
+    }
+
+    $cmd = trim((string)($_REQUEST['cmd'] ?? 'status'));
+
+    switch ($cmd) {
+        case 'status':
+            $status = $moode->getLibraryUpdateStatus();
+            echo json_encode(['ok' => true, 'data' => $status], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        case 'update':
+            $result = $moode->updateLibrary();
+            echo json_encode(['ok' => true, 'data' => $result], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        case 'ls':
+            $path = trim((string)($_REQUEST['path'] ?? ''));
+            $contents = $moode->lsInfo($path);
+            echo json_encode(['ok' => true, 'data' => ['contents' => $contents]], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        case 'search':
+            $tagname = trim((string)($_REQUEST['tagname'] ?? 'any'));
+            $query = trim((string)($_REQUEST['query'] ?? ''));
+            if ($query === '') {
+                brokerError('Missing query parameter');
+            }
+            $results = $moode->search($tagname, $query);
+            echo json_encode(['ok' => true, 'data' => ['results' => $results]], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        default:
+            brokerError('Invalid cmd. Valid: status, update, ls, search');
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// System / Config
+// ─────────────────────────────────────────────────────────────────────────────
+
+if ($action === 'moode_system') {
+    $moode = getMoodeHelper();
+    if (!$moode) {
+        brokerError('MoodeHelper not available', 500);
+    }
+
+    $cmd = trim((string)($_REQUEST['cmd'] ?? 'config'));
+
+    switch ($cmd) {
+        case 'config':
+            $config = $moode->getSystemConfig();
+            echo json_encode(['ok' => true, 'data' => ['config' => $config]], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        case 'config_tables':
+            $includeRadio = ($_REQUEST['include_radio'] ?? '1') === '1';
+            $tables = $moode->getConfigTables($includeRadio);
+            echo json_encode(['ok' => true, 'data' => ['tables' => $tables]], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        case 'get_value':
+            $param = trim((string)($_REQUEST['param'] ?? ''));
+            if ($param === '') {
+                brokerError('Missing param parameter');
+            }
+            $value = $moode->getSystemConfigValue($param);
+            echo json_encode(['ok' => true, 'data' => ['param' => $param, 'value' => $value]], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        case 'reboot':
+            $result = $moode->systemReboot();
+            echo json_encode(['ok' => true, 'data' => $result], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        case 'poweroff':
+            $result = $moode->systemPoweroff();
+            echo json_encode(['ok' => true, 'data' => $result], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        default:
+            brokerError('Invalid cmd. Valid: config, config_tables, get_value, reboot, poweroff');
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Renderers (Bluetooth, AirPlay, Spotify, etc.)
+// ─────────────────────────────────────────────────────────────────────────────
+
+if ($action === 'moode_renderer') {
+    $moode = getMoodeHelper();
+    if (!$moode) {
+        brokerError('MoodeHelper not available', 500);
+    }
+
+    $cmd = trim((string)($_REQUEST['cmd'] ?? ''));
+    $renderer = trim((string)($_REQUEST['renderer'] ?? ''));
+    $validRenderers = ['bluetooth', 'airplay', 'spotify', 'pleezer', 'squeezelite', 'roonbridge'];
+
+    switch ($cmd) {
+        case 'restart':
+            if (!in_array($renderer, $validRenderers)) {
+                brokerError('Invalid renderer. Valid: ' . implode(', ', $validRenderers));
+            }
+            $result = $moode->restartRenderer($renderer);
+            echo json_encode(['ok' => true, 'data' => $result], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        case 'on':
+            if (!in_array($renderer, $validRenderers)) {
+                brokerError('Invalid renderer. Valid: ' . implode(', ', $validRenderers));
+            }
+            $result = $moode->setRendererOnOff($renderer, true);
+            echo json_encode(['ok' => true, 'data' => $result], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        case 'off':
+            if (!in_array($renderer, $validRenderers)) {
+                brokerError('Invalid renderer. Valid: ' . implode(', ', $validRenderers));
+            }
+            $result = $moode->setRendererOnOff($renderer, false);
+            echo json_encode(['ok' => true, 'data' => $result], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        case 'receiver_status':
+            $result = $moode->getReceiverStatus();
+            echo json_encode(['ok' => true, 'data' => $result], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        case 'receiver_on':
+            $result = $moode->setReceiverOnOff(true);
+            echo json_encode(['ok' => true, 'data' => $result], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        case 'receiver_off':
+            $result = $moode->setReceiverOnOff(false);
+            echo json_encode(['ok' => true, 'data' => $result], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        default:
+            brokerError('Invalid cmd. Valid: restart, on, off, receiver_status, receiver_on, receiver_off');
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CamillaDSP
+// ─────────────────────────────────────────────────────────────────────────────
+
+if ($action === 'moode_cdsp') {
+    $moode = getMoodeHelper();
+    if (!$moode) {
+        brokerError('MoodeHelper not available', 500);
+    }
+
+    $cmd = trim((string)($_REQUEST['cmd'] ?? 'get'));
+
+    switch ($cmd) {
+        case 'get':
+            $config = $moode->getCDSPConfig();
+            echo json_encode(['ok' => true, 'data' => ['config' => $config]], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        case 'set':
+            $configName = trim((string)($_REQUEST['config'] ?? ''));
+            if ($configName === '') {
+                brokerError('Missing config parameter');
+            }
+            $result = $moode->setCDSPConfig($configName);
+            echo json_encode(['ok' => true, 'data' => $result], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        default:
+            brokerError('Invalid cmd. Valid: get, set');
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Audio Info
+// ─────────────────────────────────────────────────────────────────────────────
+
+if ($action === 'moode_audioinfo') {
+    $moode = getMoodeHelper();
+    if (!$moode) {
+        brokerError('MoodeHelper not available', 500);
+    }
+
+    $cmd = trim((string)($_REQUEST['cmd'] ?? ''));
+    $path = trim((string)($_REQUEST['path'] ?? ''));
+
+    if ($path === '') {
+        brokerError('Missing path parameter');
+    }
+
+    switch ($cmd) {
+        case 'station':
+            $info = $moode->getStationInfo($path);
+            echo json_encode(['ok' => true, 'data' => $info], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        case 'track':
+            $info = $moode->getTrackInfo($path);
+            echo json_encode(['ok' => true, 'data' => $info], JSON_UNESCAPED_SLASHES);
+            exit;
+
+        default:
+            brokerError('Invalid cmd. Valid: station, track');
+    }
+}
+
 if ($action === 'repair') {
     $meta = readMeta($metaPath);
     $registry = normalizeRegistry(readRegistry($registryPath));
