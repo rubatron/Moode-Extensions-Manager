@@ -174,7 +174,10 @@
           variablesPath: '/var/www/extensions/sys/.ext-mgr/variables.json',
           moodeRoot: '/var/www',
           moodeInclude: '/var/www/inc',
-          sqliteDb: '/var/local/www/db/moode-sqlite3.db'
+          sqliteDb: '/var/local/www/db/moode-sqlite3.db',
+          bootConfigHelper: '/var/www/extensions/api/ext-mgr-boot-config.sh',
+          bootConfigFragmentsDir: '/boot/firmware/extensions.d',
+          bootConfigTarget: '/boot/firmware/config.txt'
         },
         uris: {
           apiEndpoint: '/ext-mgr-api.php',
@@ -194,6 +197,13 @@
           stageProfile: 'visible-by-default',
           menuVisibility: { m: true, library: true, system: false },
           settingsCardOnly: false
+        },
+        features: {
+          bootConfig: {
+            enabled: true,
+            requiresReboot: true,
+            marker: '# --- ext-mgr managed block ---'
+          }
         }
       },
       extensions: {}
@@ -223,6 +233,16 @@
               Object.assign(data.system.uris, response.data.system.uris || {});
               Object.assign(data.system.security || {}, response.data.system.security || {});
               Object.assign(data.system.defaults || {}, response.data.system.defaults || {});
+              // Merge features (boot_config, etc.)
+              if (response.data.system.features) {
+                data.system.features = data.system.features || {};
+                Object.keys(response.data.system.features).forEach(function(featureKey) {
+                  data.system.features[featureKey] = Object.assign(
+                    data.system.features[featureKey] || {},
+                    response.data.system.features[featureKey]
+                  );
+                });
+              }
             }
             if (response.data.extensions) {
               data.extensions = response.data.extensions;

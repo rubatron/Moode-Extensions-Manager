@@ -22,6 +22,7 @@ python3 ext_helper.py policy
 ### Output
 
 The scan command outputs JSON with:
+
 - `path_audit`: File system paths used by install.sh
 - `violations`: Paths that violate ext-mgr security policy
 - `warnings`: Paths that need review
