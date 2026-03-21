@@ -1559,7 +1559,7 @@
     }
     // Boot config from manifest ext_mgr.boot_config array
     if (wizardBootConfigEl) {
-      var bootConfigLines = Array.isArray(extMgr.boot_config) ? extMgr.boot_config : [];
+      var bootConfigLines = Array.isArray(ext.boot_config) ? ext.boot_config : [];
       wizardBootConfigEl.value = bootConfigLines.join('\n');
       // Show/hide reboot warning
       if (wizardBootConfigWarningEl) {
