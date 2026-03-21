@@ -1965,6 +1965,7 @@ function buildTemplatePackageFiles($extensionId)
                 'packages' => [],
                 'script' => 'scripts/install.sh',
             ],
+            'boot_config' => [],
         ],
     ];
 
