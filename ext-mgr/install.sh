@@ -29,6 +29,7 @@ SRC_GUIDANCE_MD=""
 SRC_REQUIREMENTS_MD=""
 SRC_FAQ_MD=""
 SRC_TEMPLATE_DIR=""
+SRC_BOOT_CONFIG=""
 
 TARGET_EXT_DIR="/var/www/extensions"
 TARGET_SYS_DIR="$TARGET_EXT_DIR/sys"
@@ -73,6 +74,7 @@ TARGET_SYS_LOG_ROOT="$TARGET_SYS_DIR/logs"
 TARGET_SYS_EXT_LOG_ROOT="$TARGET_SYS_LOG_ROOT/extensionslogs"
 TARGET_SYS_MGR_LOG_DIR="$TARGET_SYS_LOG_ROOT/ext-mgr logs"
 TARGET_TEMPLATE_DIR="$TARGET_SYS_DIR/template"
+TARGET_BOOT_CONFIG="$TARGET_API_DIR/ext-mgr-boot-config.sh"
 
 SYMLINK_HELPER="/usr/local/sbin/ext-mgr-repair-symlink"
 SYMLINK_SUDOERS="/etc/sudoers.d/ext-mgr"
@@ -173,6 +175,7 @@ set_source_root() {
     SRC_REQUIREMENTS_MD="$root/content/developer-requirements.md"
     SRC_FAQ_MD="$root/content/faq.md"
     SRC_TEMPLATE_DIR="$root/template"
+    SRC_BOOT_CONFIG="$root/api/ext-mgr-boot-config.sh"
 }
 
 set_source_root "$PROJECT_ROOT"
@@ -709,7 +712,7 @@ run_uninstall() {
     fi
 
     echo "[uninstall] Removing ext-mgr files/symlinks/helpers..."
-    $SUDO rm -f "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_RELEASE" "$TARGET_VERSION" "$TARGET_INTEGRITY" "$TARGET_JS" "$TARGET_LOGS_JS" "$TARGET_MODAL_FIX_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_SHELL_BRIDGE" "$TARGET_REGISTRY" "$TARGET_REGISTRY_SYNC_SCRIPT" "$TARGET_IMPORT_WIZARD_SCRIPT"
+    $SUDO rm -f "$TARGET_PAGE" "$TARGET_API" "$TARGET_BOOT_CONFIG" "$TARGET_META" "$TARGET_RELEASE" "$TARGET_VERSION" "$TARGET_INTEGRITY" "$TARGET_JS" "$TARGET_LOGS_JS" "$TARGET_MODAL_FIX_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_SHELL_BRIDGE" "$TARGET_REGISTRY" "$TARGET_REGISTRY_SYNC_SCRIPT" "$TARGET_IMPORT_WIZARD_SCRIPT"
     $SUDO rm -f /var/www/extensions/ext-mgr.php /var/www/extensions/ext-mgr-api.php /var/www/extensions/ext-mgr.meta.json /var/www/extensions/ext-mgr.release.json /var/www/extensions/ext-mgr.version /var/www/extensions/ext-mgr.integrity.json /var/www/extensions/registry.json /var/www/extensions/ext-mgr-hover-menu.js /var/www/extensions/ext-mgr-shell-bridge.php
     $SUDO rm -f /var/www/extensions/assets/js/ext-mgr.js /var/www/extensions/assets/js/ext-mgr-logs.js /var/www/extensions/assets/css/ext-mgr.css
     $SUDO rm -f /var/www/ext-mgr.php /var/www/ext-mgr-api.php /var/www/extensions-manager.php
@@ -945,7 +948,7 @@ $SUDO mkdir -p "$TARGET_EXT_DIR" "$TARGET_SYS_DIR" "$TARGET_API_DIR" "$TARGET_AS
 echo "[2/10] Backing up existing ext-mgr files (if present)..."
 BACKUP_SNAPSHOT_DIR="$TARGET_BACKUP_DIR/install-$STAMP"
 $SUDO mkdir -p "$BACKUP_SNAPSHOT_DIR"
-for f in "$TARGET_PAGE" "$TARGET_API" "$TARGET_META" "$TARGET_REGISTRY" "$TARGET_RELEASE" "$TARGET_VERSION" "$TARGET_INTEGRITY" "$TARGET_JS" "$TARGET_LOGS_JS" "$TARGET_MODAL_FIX_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_SHELL_BRIDGE" "$TARGET_REGISTRY_SYNC_SCRIPT" "$TARGET_IMPORT_WIZARD_SCRIPT" "$TARGET_GUIDANCE_MD" "$TARGET_REQUIREMENTS_MD" "$TARGET_FAQ_MD" "$TARGET_INSTALL_HELPER_SCRIPT" "$TARGET_INSTALL_VARS_FILE" "$TARGET_SERVICE_RUNNER_SCRIPT" "$TARGET_SERVICE_UNIT" "$TARGET_WATCHDOG_SCRIPT" "$TARGET_WATCHDOG_UNIT"; do
+for f in "$TARGET_PAGE" "$TARGET_API" "$TARGET_BOOT_CONFIG" "$TARGET_META" "$TARGET_REGISTRY" "$TARGET_RELEASE" "$TARGET_VERSION" "$TARGET_INTEGRITY" "$TARGET_JS" "$TARGET_LOGS_JS" "$TARGET_MODAL_FIX_JS" "$TARGET_CSS" "$TARGET_HOVER_MENU_JS" "$TARGET_SHELL_BRIDGE" "$TARGET_REGISTRY_SYNC_SCRIPT" "$TARGET_IMPORT_WIZARD_SCRIPT" "$TARGET_GUIDANCE_MD" "$TARGET_REQUIREMENTS_MD" "$TARGET_FAQ_MD" "$TARGET_INSTALL_HELPER_SCRIPT" "$TARGET_INSTALL_VARS_FILE" "$TARGET_SERVICE_RUNNER_SCRIPT" "$TARGET_SERVICE_UNIT" "$TARGET_WATCHDOG_SCRIPT" "$TARGET_WATCHDOG_UNIT"; do
     if [[ -f "$f" ]]; then
         rel="${f#/var/www/extensions/sys/}"
         if [[ "$rel" == "$f" ]]; then
@@ -959,6 +962,7 @@ done
 echo "[3/10] Installing ext-mgr page/api/metadata/assets..."
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_PAGE" "$TARGET_PAGE"
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_API" "$TARGET_API"
+$SUDO install -o root -g root -m 0755 "$SRC_BOOT_CONFIG" "$TARGET_BOOT_CONFIG"
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_META" "$TARGET_META"
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_RELEASE" "$TARGET_RELEASE"
 $SUDO install -o www-data -g www-data -m 0644 "$SRC_VERSION" "$TARGET_VERSION"
@@ -1075,6 +1079,7 @@ $SUDO chmod 0750 "$SYMLINK_HELPER"
 
 cat <<EOF | $SUDO tee "$SYMLINK_SUDOERS" > /dev/null
 %$SECURITY_GROUP ALL=(root) NOPASSWD: $SYMLINK_HELPER *
+$WEB_USER ALL=(root) NOPASSWD: $TARGET_BOOT_CONFIG *
 EOF
 $SUDO chown root:root "$SYMLINK_SUDOERS"
 $SUDO chmod 0440 "$SYMLINK_SUDOERS"
