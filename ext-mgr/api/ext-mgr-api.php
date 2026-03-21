@@ -5704,7 +5704,7 @@ if ($action === 'import_extension_scan') {
 if ($action === 'import_extension_install') {
     // Extend execution time limit for install operations (apt-get can be slow)
     @set_time_limit(600);
-    
+
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         http_response_code(405);
         echo json_encode(['ok' => false, 'error' => 'Use POST for staged install.']);
