@@ -335,165 +335,232 @@
   })();
 
   // ═══════════════════════════════════════════════════════════════════════════════
-  // VARIABLES MANAGER UI MODULE
+  // VARIABLES MANAGER UI MODULE - Tab-based variable viewer/editor
   // ═══════════════════════════════════════════════════════════════════════════════
   var VariablesManager = (function() {
     var containerEl = null;
-    var currentScope = 'system';
+    var currentTab = 'extmgr';
     var currentExtId = '';
-    var wizardStep = 'scope';
+    var editScope = 'extmgr';
+    var editExtId = '';
 
     function init() {
       containerEl = document.getElementById('variables-manager-container');
       if (!containerEl) return;
 
       bindEvents();
-      renderWizard();
+      renderTab('extmgr');
     }
 
     function bindEvents() {
-      var scopeBtns = document.querySelectorAll('[data-var-scope]');
-      scopeBtns.forEach(function(btn) {
+      // Tab navigation
+      var tabBtns = containerEl.querySelectorAll('[data-var-tab]');
+      tabBtns.forEach(function(btn) {
         btn.addEventListener('click', function() {
-          currentScope = btn.getAttribute('data-var-scope') || 'system';
-          currentExtId = '';
-          wizardStep = currentScope === 'extension' ? 'select-extension' : 'edit';
-          renderWizard();
+          var tab = btn.getAttribute('data-var-tab');
+          switchTab(tab);
         });
       });
 
+      // Extension dropdown on Extensions tab
+      var extDropdown = document.getElementById('var-ext-dropdown');
+      if (extDropdown) {
+        extDropdown.addEventListener('change', function() {
+          currentExtId = extDropdown.value;
+          renderExtensionVariables();
+        });
+      }
+
+      // Editor scope selector
+      var editScopeSelect = document.getElementById('var-edit-scope');
+      if (editScopeSelect) {
+        editScopeSelect.addEventListener('change', function() {
+          editScope = editScopeSelect.value;
+          var extDrop = document.getElementById('var-edit-ext-dropdown');
+          if (extDrop) {
+            extDrop.style.display = editScope === 'extension' ? '' : 'none';
+          }
+          renderEditorVariables();
+        });
+      }
+
+      // Editor extension dropdown
+      var editExtDropdown = document.getElementById('var-edit-ext-dropdown');
+      if (editExtDropdown) {
+        editExtDropdown.addEventListener('change', function() {
+          editExtId = editExtDropdown.value;
+          renderEditorVariables();
+        });
+      }
+
+      // Add variable button
       var addVarBtn = document.getElementById('var-add-btn');
       if (addVarBtn) {
         addVarBtn.addEventListener('click', handleAddVariable);
       }
-
-      var saveVarBtn = document.getElementById('var-save-btn');
-      if (saveVarBtn) {
-        saveVarBtn.addEventListener('click', handleSaveVariable);
-      }
     }
 
-    function renderWizard() {
-      if (!containerEl) return;
+    function switchTab(tab) {
+      currentTab = tab;
 
-      // Update step indicators
-      var stepEls = document.querySelectorAll('#variables-wizard-stepper [data-step]');
-      stepEls.forEach(function(el) {
-        var step = el.getAttribute('data-step');
-        el.classList.toggle('is-active', step === wizardStep);
-        el.classList.toggle('is-completed', getStepOrder(step) < getStepOrder(wizardStep));
+      // Update tab buttons
+      var tabBtns = containerEl.querySelectorAll('[data-var-tab]');
+      tabBtns.forEach(function(btn) {
+        var t = btn.getAttribute('data-var-tab');
+        btn.classList.toggle('is-active', t === tab);
+        btn.setAttribute('aria-selected', t === tab ? 'true' : 'false');
       });
 
-      // Show/hide panels
+      // Update panels
       var panels = containerEl.querySelectorAll('[data-var-panel]');
       panels.forEach(function(panel) {
-        var panelStep = panel.getAttribute('data-var-panel');
-        panel.style.display = panelStep === wizardStep ? '' : 'none';
+        var p = panel.getAttribute('data-var-panel');
+        panel.classList.toggle('is-active', p === tab);
       });
 
-      if (wizardStep === 'select-extension') {
-        renderExtensionSelector();
-      } else if (wizardStep === 'edit') {
-        renderVariablesEditor();
+      renderTab(tab);
+    }
+
+    function renderTab(tab) {
+      switch (tab) {
+        case 'extmgr':
+          renderExtMgrVariables();
+          break;
+        case 'moode':
+          renderMoodeVariables();
+          break;
+        case 'extensions':
+          populateExtensionDropdowns();
+          renderExtensionVariables();
+          break;
+        case 'editor':
+          populateExtensionDropdowns();
+          renderEditorVariables();
+          break;
       }
     }
 
-    function getStepOrder(step) {
-      var order = { 'scope': 0, 'select-extension': 1, 'edit': 2 };
-      return order[step] !== undefined ? order[step] : 99;
-    }
-
-    function renderExtensionSelector() {
-      var listEl = document.getElementById('var-extension-list');
-      if (!listEl) return;
-
-      var extensions = Config.getAllExtensions();
+    function populateExtensionDropdowns() {
+      var extensions = Config.getAllExtensions() || {};
       var extIds = Object.keys(extensions);
 
-      if (extIds.length === 0) {
-        listEl.innerHTML = '<p class="extmgr-note">No extensions with variables found.</p>';
+      var dropdowns = [
+        document.getElementById('var-ext-dropdown'),
+        document.getElementById('var-edit-ext-dropdown')
+      ];
+
+      dropdowns.forEach(function(dropdown) {
+        if (!dropdown) return;
+        var currentVal = dropdown.value;
+        dropdown.innerHTML = '<option value="">-- Select extension --</option>';
+        extIds.forEach(function(extId) {
+          var opt = document.createElement('option');
+          opt.value = extId;
+          opt.textContent = extId;
+          dropdown.appendChild(opt);
+        });
+        if (currentVal && extIds.indexOf(currentVal) >= 0) {
+          dropdown.value = currentVal;
+        }
+      });
+    }
+
+    function renderExtMgrVariables() {
+      var contentEl = document.getElementById('var-extmgr-content');
+      if (!contentEl) return;
+
+      var systemVars = Config.get('system') || {};
+      var html = '<div class="extmgr-var-editor-grid">';
+      html += renderVariableTree(systemVars, '', false);
+      html += '</div>';
+      contentEl.innerHTML = html;
+    }
+
+    function renderMoodeVariables() {
+      var contentEl = document.getElementById('var-moode-content');
+      if (!contentEl) return;
+
+      // moOde variables are typically readonly system info
+      // We fetch them via the variables API with scope=moode
+      contentEl.innerHTML = '<p class="extmgr-note">Loading moOde variables...</p>';
+
+      api({ action: 'variables', scope: 'moode' })
+        .then(function(response) {
+          if (response && response.ok && response.variables) {
+            var html = '<div class="extmgr-var-editor-grid">';
+            html += renderVariableTree(response.variables, '', true);
+            html += '</div>';
+            contentEl.innerHTML = html;
+          } else {
+            contentEl.innerHTML = '<p class="extmgr-note">No moOde variables available or not supported.</p>';
+          }
+        })
+        .catch(function() {
+          contentEl.innerHTML = '<p class="extmgr-note">Failed to load moOde variables.</p>';
+        });
+    }
+
+    function renderExtensionVariables() {
+      var contentEl = document.getElementById('var-extensions-content');
+      if (!contentEl) return;
+
+      if (!currentExtId) {
+        contentEl.innerHTML = '<p class="extmgr-note">Select an extension to view its variables.</p>';
         return;
       }
 
-      var html = '<div class="extmgr-var-ext-grid">';
-      extIds.forEach(function(extId) {
-        html += '<button type="button" class="btn btn-primary btn-small extmgr-var-ext-btn" data-select-ext="' + escapeHtml(extId) + '">' +
-                '<i class="fa-solid fa-puzzle-piece"></i> ' + escapeHtml(extId) +
-                '</button>';
-      });
-      html += '<button type="button" class="btn btn-small extmgr-var-ext-btn" data-select-ext="__new__">' +
-              '<i class="fa-solid fa-plus"></i> Create New' +
-              '</button>';
-      html += '</div>';
-
-      listEl.innerHTML = html;
-
-      listEl.querySelectorAll('[data-select-ext]').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-          var extId = btn.getAttribute('data-select-ext');
-          if (extId === '__new__') {
-            var newId = prompt('Enter extension ID:');
-            if (!newId || !/^[a-zA-Z0-9._-]+$/.test(newId)) {
-              setStatus('Invalid extension ID format', 'error');
-              return;
-            }
-            currentExtId = newId;
-          } else {
-            currentExtId = extId;
-          }
-          wizardStep = 'edit';
-          renderWizard();
-        });
-      });
-    }
-
-    function renderVariablesEditor() {
-      var editorEl = document.getElementById('var-editor');
-      var titleEl = document.getElementById('var-editor-title');
-      if (!editorEl) return;
-
-      var vars = currentScope === 'extension' && currentExtId
-        ? Config.getExtension(currentExtId) || {}
-        : Config.get('system') || {};
-
-      var title = currentScope === 'extension'
-        ? 'Extension: ' + currentExtId
-        : 'System Variables';
-
-      if (titleEl) titleEl.textContent = title;
+      var extVars = Config.getExtension(currentExtId);
+      if (!extVars || Object.keys(extVars).length === 0) {
+        contentEl.innerHTML = '<p class="extmgr-note">No variables configured for <strong>' + escapeHtml(currentExtId) + '</strong>.</p>';
+        return;
+      }
 
       var html = '<div class="extmgr-var-editor-grid">';
-      html += renderVariableTree(vars, '');
+      html += renderVariableTree(extVars, '', true);
       html += '</div>';
-
-      html += '<div class="extmgr-var-add-form">' +
-              '<input type="text" id="var-new-key" class="extmgr-input" placeholder="Key (e.g., custom.myValue)">' +
-              '<input type="text" id="var-new-value" class="extmgr-input" placeholder="Value">' +
-              '<select id="var-new-type" class="extmgr-input">' +
-              '<option value="string">String</option>' +
-              '<option value="boolean">Boolean</option>' +
-              '<option value="integer">Integer</option>' +
-              '<option value="json">JSON</option>' +
-              '</select>' +
-              '<button type="button" id="var-add-btn" class="btn btn-primary btn-small"><i class="fa-solid fa-plus"></i> Add</button>' +
-              '</div>';
-
-      editorEl.innerHTML = html;
-
-      // Rebind add button
-      var addBtn = document.getElementById('var-add-btn');
-      if (addBtn) addBtn.addEventListener('click', handleAddVariable);
-
-      // Bind delete buttons
-      editorEl.querySelectorAll('[data-var-delete]').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-          var key = btn.getAttribute('data-var-delete');
-          handleDeleteVariable(key);
-        });
-      });
+      contentEl.innerHTML = html;
     }
 
-    function renderVariableTree(obj, prefix) {
+    function renderEditorVariables() {
+      var contentEl = document.getElementById('var-editor-content');
+      if (!contentEl) return;
+
+      var vars = {};
+      var scope = 'system';
+
+      if (editScope === 'extmgr') {
+        // Edit ext-mgr features (features.* keys)
+        var systemVars = Config.get('system') || {};
+        vars = systemVars.features || {};
+        scope = 'system';
+      } else if (editScope === 'extension') {
+        if (!editExtId) {
+          contentEl.innerHTML = '<p class="extmgr-note">Select an extension to edit its variables.</p>';
+          return;
+        }
+        vars = Config.getExtension(editExtId) || {};
+        scope = 'extension';
+      }
+
+      if (Object.keys(vars).length === 0) {
+        contentEl.innerHTML = '<p class="extmgr-note">No editable variables found. Use the form below to add new variables.</p>';
+      } else {
+        var html = '<div class="extmgr-var-editor-grid">';
+        html += renderVariableTree(vars, editScope === 'extmgr' ? 'features' : '', false, true);
+        html += '</div>';
+        contentEl.innerHTML = html;
+
+        // Bind delete buttons
+        contentEl.querySelectorAll('[data-var-delete]').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var key = btn.getAttribute('data-var-delete');
+            handleDeleteVariable(key, scope);
+          });
+        });
+      }
+    }
+
+    function renderVariableTree(obj, prefix, isReadOnly, showDelete) {
       var html = '';
       if (!obj || typeof obj !== 'object') return html;
 
@@ -503,22 +570,22 @@
 
         if (value && typeof value === 'object' && !Array.isArray(value)) {
           html += '<div class="extmgr-var-group">' +
-                  '<span class="extmgr-var-group-label">' + escapeHtml(key) + '</span>' +
+                  '<span class="extmgr-var-group-label">' + escapeHtml(key.toUpperCase()) + '</span>' +
                   '<div class="extmgr-var-group-content">' +
-                  renderVariableTree(value, fullKey) +
+                  renderVariableTree(value, fullKey, isReadOnly, showDelete) +
                   '</div></div>';
         } else {
           var displayValue = Array.isArray(value) || typeof value === 'object'
             ? JSON.stringify(value)
             : String(value);
-          var isProtected = fullKey.indexOf('paths.') === 0 ||
+          var isProtected = isReadOnly || fullKey.indexOf('paths.') === 0 ||
                            fullKey.indexOf('security.') === 0 ||
                            fullKey.indexOf('uris.') === 0;
 
           html += '<div class="extmgr-var-row' + (isProtected ? ' is-protected' : '') + '">' +
                   '<span class="extmgr-var-key" title="' + escapeHtml(fullKey) + '">' + escapeHtml(key) + '</span>' +
                   '<span class="extmgr-var-value" title="' + escapeHtml(displayValue) + '">' + escapeHtml(displayValue) + '</span>';
-          if (!isProtected) {
+          if (showDelete && !isProtected) {
             html += '<button type="button" class="extmgr-var-delete btn btn-small" data-var-delete="' + escapeHtml(fullKey) + '" title="Delete"><i class="fa-solid fa-trash"></i></button>';
           }
           html += '</div>';
@@ -544,16 +611,18 @@
         return;
       }
 
+      // Determine scope and extension_id based on editor settings
+      var scope = editScope === 'extension' ? 'extension' : 'system';
       var params = {
         action: 'set_variable',
-        scope: currentScope,
-        key: key,
+        scope: scope,
+        key: editScope === 'extmgr' ? 'features.' + key : key,
         value: rawValue,
         type: valueType
       };
 
-      if (currentScope === 'extension' && currentExtId) {
-        params.extension_id = currentExtId;
+      if (scope === 'extension' && editExtId) {
+        params.extension_id = editExtId;
       }
 
       setStatus('Saving variable...', null);
@@ -565,7 +634,7 @@
             valueEl.value = '';
             // Reload config and re-render
             Config.load(function() {
-              renderVariablesEditor();
+              renderEditorVariables();
             });
           } else {
             setStatus(response.error || 'Failed to save variable', 'error');
@@ -576,17 +645,17 @@
         });
     }
 
-    function handleDeleteVariable(key) {
+    function handleDeleteVariable(key, scope) {
       if (!confirm('Delete variable: ' + key + '?')) return;
 
       var params = {
         action: 'delete_variable',
-        scope: currentScope,
+        scope: scope,
         key: key
       };
 
-      if (currentScope === 'extension' && currentExtId) {
-        params.extension_id = currentExtId;
+      if (scope === 'extension' && editExtId) {
+        params.extension_id = editExtId;
       }
 
       setStatus('Deleting variable...', null);
@@ -595,7 +664,7 @@
           if (response && response.ok) {
             setStatus('Variable deleted: ' + key, 'ok');
             Config.load(function() {
-              renderVariablesEditor();
+              renderEditorVariables();
             });
           } else {
             setStatus(response.error || 'Failed to delete variable', 'error');
@@ -606,28 +675,10 @@
         });
     }
 
-    function handleSaveVariable() {
-      // Placeholder for bulk save if needed
-    }
-
-    function setScope(scope, extId) {
-      currentScope = scope;
-      currentExtId = extId || '';
-      wizardStep = scope === 'extension' && !extId ? 'select-extension' : 'edit';
-      renderWizard();
-    }
-
-    function backToScope() {
-      wizardStep = 'scope';
-      currentExtId = '';
-      renderWizard();
-    }
-
     return {
       init: init,
-      setScope: setScope,
-      backToScope: backToScope,
-      renderWizard: renderWizard
+      switchTab: switchTab,
+      refresh: function() { renderTab(currentTab); }
     };
   })();
 

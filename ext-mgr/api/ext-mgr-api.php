@@ -8270,6 +8270,51 @@ if ($action === 'variables') {
         exit;
     }
 
+    if ($scope === 'moode') {
+        // Return read-only moOde player configuration
+        $moodeVars = [];
+        
+        // Try to get moOde version
+        $moodeVersion = '';
+        if (file_exists('/var/www/inc/moodeutl')) {
+            $moodeVersion = trim(@shell_exec('/var/www/inc/moodeutl -v 2>/dev/null') ?: '');
+        }
+        if (empty($moodeVersion) && file_exists('/var/www/moode_release')) {
+            $moodeVersion = trim(@file_get_contents('/var/www/moode_release') ?: '');
+        }
+        
+        // Try to get hostname
+        $hostname = trim(@shell_exec('hostname 2>/dev/null') ?: 'moode');
+        
+        // Check for common moOde paths
+        $moodeVars = [
+            'info' => [
+                'version' => $moodeVersion ?: 'Unknown',
+                'hostname' => $hostname,
+                'phpVersion' => phpversion(),
+                'webRoot' => '/var/www',
+            ],
+            'paths' => [
+                'library' => '/var/lib/mpd/music',
+                'playlists' => '/var/lib/mpd/playlists',
+                'covers' => '/var/local/www/imagesw/thmcache',
+                'logs' => '/var/log',
+            ],
+            'services' => [
+                'mpd' => file_exists('/etc/systemd/system/mpd.service') || file_exists('/lib/systemd/system/mpd.service'),
+                'php' => true,
+                'nginx' => file_exists('/etc/nginx/nginx.conf'),
+            ],
+        ];
+        
+        echo json_encode([
+            'ok' => true,
+            'variables' => $moodeVars,
+            'meta' => ['generatedAt' => date('c'), 'readonly' => true],
+        ], JSON_UNESCAPED_SLASHES);
+        exit;
+    }
+
     if ($scope === 'extension' && $extId !== '') {
         if (!isValidExtensionId($extId)) {
             http_response_code(400);

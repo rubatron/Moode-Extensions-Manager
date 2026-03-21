@@ -477,50 +477,78 @@ if (file_exists('/var/www/header.php')) {
                         </button>
                         <div class="extmgr-submenu-body">
                             <div id="variables-manager-container" class="extmgr-variables-manager">
-                                <!-- Wizard Stepper -->
-                                <div id="variables-wizard-stepper" class="extmgr-wizard-stepper">
-                                    <span class="extmgr-wizard-step is-active" data-step="scope">1. Scope</span>
-                                    <span class="extmgr-wizard-step" data-step="select-extension">2. Extension</span>
-                                    <span class="extmgr-wizard-step" data-step="edit">3. Edit</span>
+                                <!-- Tab Navigation -->
+                                <div class="extmgr-var-tabs" role="tablist">
+                                    <button type="button" class="extmgr-var-tab is-active" data-var-tab="extmgr" role="tab" aria-selected="true">
+                                        <i class="fa-solid fa-gears"></i> ext-mgr
+                                    </button>
+                                    <button type="button" class="extmgr-var-tab" data-var-tab="moode" role="tab" aria-selected="false">
+                                        <i class="fa-solid fa-music"></i> moOde
+                                    </button>
+                                    <button type="button" class="extmgr-var-tab" data-var-tab="extensions" role="tab" aria-selected="false">
+                                        <i class="fa-solid fa-puzzle-piece"></i> Extensions
+                                    </button>
+                                    <button type="button" class="extmgr-var-tab" data-var-tab="editor" role="tab" aria-selected="false">
+                                        <i class="fa-solid fa-pen-to-square"></i> Editor
+                                    </button>
                                 </div>
 
-                                <!-- Step 1: Scope Selection -->
-                                <div class="extmgr-var-panel" data-var-panel="scope">
-                                    <p class="extmgr-var-help">Choose which scope to manage:</p>
-                                    <div class="extmgr-var-scope-btns">
-                                        <button type="button" class="btn btn-primary" data-var-scope="system">
-                                            <i class="fa-solid fa-server"></i> System Variables
-                                        </button>
-                                        <button type="button" class="btn btn-primary" data-var-scope="extension">
-                                            <i class="fa-solid fa-puzzle-piece"></i> Extension Variables
-                                        </button>
-                                    </div>
-                                    <p class="extmgr-note">System variables apply globally. Extension variables are per-extension config.</p>
-                                </div>
-
-                                <!-- Step 2: Extension Selection (only for extension scope) -->
-                                <div class="extmgr-var-panel" data-var-panel="select-extension" style="display:none;">
-                                    <p class="extmgr-var-help">Select an extension:</p>
-                                    <div id="var-extension-list" class="extmgr-var-ext-list">
-                                        <p class="extmgr-note">Loading extensions...</p>
-                                    </div>
-                                    <div class="extmgr-var-nav">
-                                        <button type="button" class="btn btn-small" onclick="ExtMgrVariables.backToScope()">
-                                            <i class="fa-solid fa-arrow-left"></i> Back
-                                        </button>
+                                <!-- Tab Panel: ext-mgr Variables -->
+                                <div class="extmgr-var-panel is-active" data-var-panel="extmgr" role="tabpanel">
+                                    <p class="extmgr-var-help">ext-mgr system paths and feature configuration.</p>
+                                    <div id="var-extmgr-content" class="extmgr-var-editor">
+                                        <p class="extmgr-note">Loading ext-mgr variables...</p>
                                     </div>
                                 </div>
 
-                                <!-- Step 3: Variables Editor -->
-                                <div class="extmgr-var-panel" data-var-panel="edit" style="display:none;">
-                                    <h4 id="var-editor-title" class="extmgr-var-editor-title">Variables</h4>
-                                    <div id="var-editor" class="extmgr-var-editor">
-                                        <p class="extmgr-note">Loading variables...</p>
+                                <!-- Tab Panel: moOde Variables (Read-Only) -->
+                                <div class="extmgr-var-panel" data-var-panel="moode" role="tabpanel">
+                                    <p class="extmgr-var-help">moOde player configuration (read-only).</p>
+                                    <div id="var-moode-content" class="extmgr-var-editor">
+                                        <p class="extmgr-note">Loading moOde variables...</p>
                                     </div>
-                                    <div class="extmgr-var-nav">
-                                        <button type="button" class="btn btn-small" onclick="ExtMgrVariables.backToScope()">
-                                            <i class="fa-solid fa-arrow-left"></i> Back to Scope
-                                        </button>
+                                </div>
+
+                                <!-- Tab Panel: Extension Variables -->
+                                <div class="extmgr-var-panel" data-var-panel="extensions" role="tabpanel">
+                                    <p class="extmgr-var-help">Per-extension configuration variables.</p>
+                                    <div class="extmgr-var-ext-selector">
+                                        <label for="var-ext-dropdown">Extension:</label>
+                                        <select id="var-ext-dropdown" class="extmgr-input">
+                                            <option value="">-- Select extension --</option>
+                                        </select>
+                                    </div>
+                                    <div id="var-extensions-content" class="extmgr-var-editor">
+                                        <p class="extmgr-note">Select an extension to view its variables.</p>
+                                    </div>
+                                </div>
+
+                                <!-- Tab Panel: Editor -->
+                                <div class="extmgr-var-panel" data-var-panel="editor" role="tabpanel">
+                                    <p class="extmgr-var-help">Edit ext-mgr features & extension variables.</p>
+                                    <div class="extmgr-var-edit-scope">
+                                        <label for="var-edit-scope">Scope:</label>
+                                        <select id="var-edit-scope" class="extmgr-input">
+                                            <option value="extmgr">ext-mgr features</option>
+                                            <option value="extension">Extension variables</option>
+                                        </select>
+                                        <select id="var-edit-ext-dropdown" class="extmgr-input" style="display:none;">
+                                            <option value="">-- Select extension --</option>
+                                        </select>
+                                    </div>
+                                    <div id="var-editor-content" class="extmgr-var-editor">
+                                        <p class="extmgr-note">Select a scope to edit variables.</p>
+                                    </div>
+                                    <div class="extmgr-var-add-form">
+                                        <input type="text" id="var-new-key" class="extmgr-input" placeholder="Key (e.g., custom.myValue)">
+                                        <input type="text" id="var-new-value" class="extmgr-input" placeholder="Value">
+                                        <select id="var-new-type" class="extmgr-input">
+                                            <option value="string">String</option>
+                                            <option value="boolean">Boolean</option>
+                                            <option value="integer">Integer</option>
+                                            <option value="json">JSON</option>
+                                        </select>
+                                        <button type="button" id="var-add-btn" class="btn btn-primary btn-small"><i class="fa-solid fa-plus"></i> Add</button>
                                     </div>
                                 </div>
                             </div>

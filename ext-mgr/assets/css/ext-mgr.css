@@ -1760,83 +1760,82 @@ body:not([data-standalone]) .extmgr-page-shell {
   gap: 1rem;
 }
 
-/* Variables Manager Stepper (scoped) - simple tab style */
-.extmgr-variables-manager .extmgr-wizard-stepper {
+/* Variables Manager Tab Navigation */
+.extmgr-var-tabs {
   display: flex;
-  gap: 0.5rem;
-  padding: 0.5rem 0;
-  border-bottom: 1px solid var(--btn-bg, #3a3f4b);
-  margin-bottom: 0.5rem;
+  gap: 0.25rem;
+  padding: 0;
+  border-bottom: 2px solid var(--btn-bg, #3a3f4b);
+  margin-bottom: 0.75rem;
 }
 
-.extmgr-variables-manager .extmgr-wizard-step {
-  padding: 0.4rem 0.8rem;
+.extmgr-var-tab {
+  padding: 0.5rem 0.9rem;
   font-size: 0.85rem;
   color: var(--item-text-secondary, #888);
   background: transparent;
-  border-radius: 4px;
-  transition: all 0.2s ease;
   border: none;
-  cursor: default;
-  clip-path: none;
-  margin-left: 0;
-  height: auto;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
 }
 
-.extmgr-variables-manager .extmgr-wizard-step.is-active {
+.extmgr-var-tab:hover {
+  color: var(--item-text, #fff);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.extmgr-var-tab.is-active {
   color: var(--rp-accent, #d35400);
-  background: color-mix(in srgb, var(--rp-accent) 12%, transparent);
+  border-bottom-color: var(--rp-accent, #d35400);
   font-weight: 600;
 }
 
-.extmgr-variables-manager .extmgr-wizard-step.is-completed {
-  color: var(--rp-accent, #d35400);
+.extmgr-var-tab i {
+  font-size: 0.8rem;
 }
 
-.extmgr-variables-manager .extmgr-wizard-step.is-completed::before {
-  content: "✓ ";
-}
-
-/* Var Panels */
+/* Var Panels - hide by default, show when active */
 .extmgr-var-panel {
+  display: none;
   padding: 0.5rem 0;
+}
+
+.extmgr-var-panel.is-active {
+  display: block;
+}
+
+/* Extension Selector Dropdown */
+.extmgr-var-ext-selector,
+.extmgr-var-edit-scope {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.extmgr-var-ext-selector label,
+.extmgr-var-edit-scope label {
+  font-size: 0.9rem;
+  color: var(--item-text-secondary, #888);
+  white-space: nowrap;
+}
+
+.extmgr-var-ext-selector .extmgr-input,
+.extmgr-var-edit-scope .extmgr-input {
+  min-width: 160px;
+  max-width: 260px;
 }
 
 .extmgr-var-help {
   margin: 0 0 0.75rem;
   color: var(--item-text-secondary, #888);
   font-size: 0.9rem;
-}
-
-.extmgr-var-scope-btns {
-  display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
-.extmgr-var-scope-btns .btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex: 1;
-  min-width: 140px;
-  justify-content: center;
-}
-
-/* Extension List Grid */
-.extmgr-var-ext-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
-}
-
-.extmgr-var-ext-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  justify-content: center;
-  font-size: 0.85rem;
 }
 
 /* Variables Editor */
@@ -1941,7 +1940,7 @@ body:not([data-standalone]) .extmgr-page-shell {
   flex: 0 0 90px;
 }
 
-/* Var Navigation */
+/* Var Navigation - no longer used but kept for backward compat */
 .extmgr-var-nav {
   margin-top: 0.75rem;
   padding-top: 0.75rem;
@@ -1950,17 +1949,31 @@ body:not([data-standalone]) .extmgr-page-shell {
 
 /* Mobile Responsive - Variables Manager */
 @media (max-width: 600px) {
-  .extmgr-variables-manager .extmgr-wizard-stepper {
+  .extmgr-var-tabs {
     flex-wrap: wrap;
+    gap: 0.15rem;
   }
 
-  .extmgr-variables-manager .extmgr-wizard-step {
+  .extmgr-var-tab {
     font-size: 0.75rem;
-    padding: 0.3rem 0.5rem;
+    padding: 0.4rem 0.6rem;
+    flex: 1 1 45%;
+    justify-content: center;
   }
 
-  .extmgr-var-scope-btns {
+  .extmgr-var-tab i {
+    display: none;
+  }
+
+  .extmgr-var-ext-selector,
+  .extmgr-var-edit-scope {
     flex-direction: column;
+    align-items: stretch;
+  }
+
+  .extmgr-var-ext-selector .extmgr-input,
+  .extmgr-var-edit-scope .extmgr-input {
+    max-width: none;
   }
 
   .extmgr-var-add-form {
