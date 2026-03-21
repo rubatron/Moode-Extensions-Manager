@@ -177,6 +177,125 @@ CODE_PATTERNS = [
         "autofix": False,
         "fix_description": "moOde session integration detected - good",
     },
+    # ─────────────────────────────────────────────────────────────────────────
+    # CSS/Bootstrap conflict patterns (learned from radio-browser debugging)
+    # ─────────────────────────────────────────────────────────────────────────
+    {
+        "id": "css_generic_hide",
+        "label": "Generic .hide CSS selector",
+        "description": "CSS .hide selector conflicts with Bootstrap modal visibility",
+        "severity": "warning",
+        "files": ["*.css"],
+        "pattern": r"^\s*\.hide\s*[,{]",
+        "autofix": False,
+        "fix_description": "Use prefixed selectors like #myext-element.hide instead of generic .hide",
+    },
+    {
+        "id": "css_generic_modal",
+        "label": "Generic .modal CSS selector",
+        "description": "CSS .modal selector overrides Bootstrap modal styles",
+        "severity": "warning",
+        "files": ["*.css"],
+        "pattern": r"^\s*\.modal\s*[,{]",
+        "autofix": False,
+        "fix_description": "Use prefixed modal selectors like #myext-modal",
+    },
+    {
+        "id": "css_high_zindex",
+        "label": "High z-index value",
+        "description": "z-index >= 1000 may conflict with moOde modals (z-index: 1050)",
+        "severity": "info",
+        "files": ["*.css"],
+        "pattern": r"z-index\s*:\s*(\d{4,})",
+        "autofix": False,
+        "fix_description": "Keep z-index below 1000 for extension elements",
+    },
+    {
+        "id": "css_generic_btn",
+        "label": "Generic .btn CSS selector",
+        "description": "CSS .btn selector may override Bootstrap button styles",
+        "severity": "info",
+        "files": ["*.css"],
+        "pattern": r"^\s*\.btn\s*[,{]",
+        "autofix": False,
+        "fix_description": "Use scoped selectors like .myext-container .btn",
+    },
+    {
+        "id": "css_body_selector",
+        "label": "Body element CSS styling",
+        "description": "Styling body element directly will affect entire moOde UI",
+        "severity": "warning",
+        "files": ["*.css"],
+        "pattern": r"^\s*body\s*{",
+        "autofix": False,
+        "fix_description": "Scope all styles to your extension's container element",
+    },
+    # ─────────────────────────────────────────────────────────────────────────
+    # JavaScript/AJAX patterns (learned from radio-browser debugging)
+    # ─────────────────────────────────────────────────────────────────────────
+    {
+        "id": "js_json_stringify_post",
+        "label": "JSON.stringify for POST data",
+        "description": "JSON POST body may not be received by PHP (moOde uses form-encoded)",
+        "severity": "warning",
+        "files": ["*.js"],
+        "pattern": r"data\s*:\s*JSON\.stringify\s*\(",
+        "autofix": False,
+        "fix_description": "Use data: { key: value } instead of JSON.stringify()",
+    },
+    {
+        "id": "js_content_type_json",
+        "label": "application/json contentType",
+        "description": "application/json contentType breaks PHP $_POST handling",
+        "severity": "warning",
+        "files": ["*.js"],
+        "pattern": r"contentType\s*:\s*['\"]application/json['\"]",
+        "autofix": False,
+        "fix_description": "Remove contentType line, use default form-encoded",
+    },
+    {
+        "id": "js_global_variable",
+        "label": "Global variable assignment",
+        "description": "window.* assignment may pollute global namespace",
+        "severity": "info",
+        "files": ["*.js"],
+        "pattern": r"window\.[a-zA-Z_]+\s*=",
+        "autofix": False,
+        "fix_description": "Use namespaced globals like window.EXT_NAME = {}",
+    },
+    {
+        "id": "js_document_write",
+        "label": "document.write usage",
+        "description": "document.write() can corrupt page if called after load",
+        "severity": "warning",
+        "files": ["*.js"],
+        "pattern": r"document\.write\s*\(",
+        "autofix": False,
+        "fix_description": "Use DOM manipulation (appendChild, innerHTML) instead",
+    },
+    # ─────────────────────────────────────────────────────────────────────────
+    # PHP API patterns
+    # ─────────────────────────────────────────────────────────────────────────
+    {
+        "id": "php_input_no_fallback",
+        "label": "php://input without POST fallback",
+        "description": "php://input may be empty if called after initial read",
+        "severity": "info",
+        "files": ["*.php"],
+        "pattern": r"file_get_contents\s*\(\s*['\"]php://input['\"]",
+        "autofix": False,
+        "fix_description": "Add $_POST fallback: if (!$data) { $data = $_POST; }",
+    },
+    {
+        "id": "php_exit_in_template",
+        "label": "exit/die in template",
+        "description": "exit/die prevents footer.min.php from loading",
+        "severity": "info",
+        "files": ["template.php", "*.php"],
+        "pattern": r"\bexit\s*\(|\bdie\s*\(",
+        "autofix": False,
+        "fix_description": "Use return or proper control flow, avoid exit in UI pages",
+    },
 ]
 
 
@@ -216,7 +335,7 @@ def _scan_code_patterns(root: Path, custom_patterns: list[dict] | None = None) -
 
     # Collect all files to scan
     files_to_scan: list[Path] = []
-    for pattern in ["*.php", "*.sh", "*.py", "*.js"]:
+    for pattern in ["*.php", "*.sh", "*.py", "*.js", "*.css"]:
         files_to_scan.extend(root.rglob(pattern))
 
     for file_path in files_to_scan:
@@ -425,6 +544,12 @@ def cmd_scan(args: argparse.Namespace) -> int:
     violations = [r for r in path_audit if r["severity"] == "violation"]
     warnings = [r for r in path_audit if r["severity"] == "warning"]
 
+    # Extract boot_config from manifest
+    ext_mgr_config = manifest.get("ext_mgr", {})
+    boot_config = ext_mgr_config.get("boot_config", [])
+    if not isinstance(boot_config, list):
+        boot_config = []
+
     # Scan for code patterns
     custom_patterns = _load_custom_patterns(root)
     code_patterns = _scan_code_patterns(root, custom_patterns)
@@ -437,6 +562,8 @@ def cmd_scan(args: argparse.Namespace) -> int:
         "warnings": warnings,
         "apt_packages": apt,
         "pip_packages": pip,
+        "boot_config": boot_config,
+        "requires_reboot": len(boot_config) > 0,
         "service_units": _service_units(root),
         "package_artifacts": [],
         "icon_candidates": [

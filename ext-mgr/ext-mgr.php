@@ -126,8 +126,12 @@ if (file_exists('/var/www/header.php')) {
                                     <span class="extmgr-step-num">5</span>
                                     <span class="extmgr-step-label">Packages</span>
                                 </button>
-                                <button type="button" class="extmgr-wizard-step" data-step="review" data-step-num="6">
+                                <button type="button" class="extmgr-wizard-step" data-step="bootconfig" data-step-num="6">
                                     <span class="extmgr-step-num">6</span>
+                                    <span class="extmgr-step-label">Boot</span>
+                                </button>
+                                <button type="button" class="extmgr-wizard-step" data-step="review" data-step-num="7">
+                                    <span class="extmgr-step-num">7</span>
                                     <span class="extmgr-step-label">Review</span>
                                 </button>
                             </div>
@@ -213,6 +217,25 @@ if (file_exists('/var/www/header.php')) {
                                     <label>APT packages (one per line)
                                         <textarea id="wizard-apt-packages" class="extmgr-input" rows="4" placeholder="curl&#10;ffmpeg"></textarea>
                                     </label>
+                                    <div class="extmgr-wizard-nav">
+                                        <button type="button" class="btn btn-small extmgr-wizard-prev" data-wizard-prev><i class="fa-solid fa-arrow-left"></i> Back</button>
+                                        <button type="button" class="btn btn-primary btn-small extmgr-wizard-next" data-wizard-next><i class="fa-solid fa-arrow-right"></i> Next: Boot Config</button>
+                                    </div>
+                                </section>
+
+                                <section class="extmgr-wizard-panel" data-panel="bootconfig">
+                                    <h3 class="extmgr-panel-title"><i class="fa-solid fa-microchip"></i> Boot Configuration</h3>
+                                    <p class="extmgr-panel-desc">Hardware configuration for /boot/config.txt (SPI, I2C, GPIO, overlays).</p>
+                                    <div id="wizard-bootconfig-warning" class="extmgr-note extmgr-note-warning" style="display:none;">
+                                        <i class="fa-solid fa-triangle-exclamation"></i>
+                                        <span>Boot config detected - <strong>reboot required</strong> after installation.</span>
+                                    </div>
+                                    <label>Boot config lines (one per line)
+                                        <textarea id="wizard-boot-config" class="extmgr-input" rows="5" placeholder="dtparam=spi=on&#10;dtparam=i2c_arm=on&#10;dtoverlay=hifiberry-dac"></textarea>
+                                    </label>
+                                    <p class="config-help-static extmgr-help" style="margin-top:0.5rem;">
+                                        Common entries: <code>dtparam=spi=on</code>, <code>dtparam=i2c_arm=on</code>, <code>dtoverlay=...</code>, <code>gpio=...</code>
+                                    </p>
                                     <div class="extmgr-wizard-nav">
                                         <button type="button" class="btn btn-small extmgr-wizard-prev" data-wizard-prev><i class="fa-solid fa-arrow-left"></i> Back</button>
                                         <button type="button" class="btn btn-primary btn-small extmgr-wizard-next" data-wizard-next><i class="fa-solid fa-arrow-right"></i> Next: Review</button>
@@ -516,6 +539,12 @@ if (file_exists('/var/www/header.php')) {
                                 <button id="open-extmgr-logs-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-file-lines"></i> Open ext-mgr Logs</button>
                                 <button id="download-extmgr-logs-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-download"></i> Download ext-mgr Logs</button>
                                 <button id="clear-extensions-folder-btn" class="btn btn-small btn-danger" type="button"><i class="fa-solid fa-sharp fa-triangle-exclamation"></i> Clear Extensions Folder</button>
+                            </div>
+                            <p class="config-help-static extmgr-help" style="margin-top:0.8rem;">Boot configuration management for hardware extensions (SPI, I2C, overlays).</p>
+                            <div class="extmgr-actions extmgr-troubleshooting-actions">
+                                <button id="boot-config-init-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-microchip"></i> Initialize Boot Config</button>
+                                <button id="boot-config-status-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-circle-info"></i> Boot Config Status</button>
+                                <button id="boot-config-list-btn" class="btn btn-small" type="button"><i class="fa-solid fa-sharp fa-list"></i> List Boot Fragments</button>
                             </div>
                             <p class="config-help-static extmgr-help" style="margin-top:0.8rem;">Debug information for developers.</p>
                             <div class="extmgr-actions extmgr-troubleshooting-actions">

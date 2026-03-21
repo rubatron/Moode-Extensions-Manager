@@ -40,12 +40,16 @@ ADDON_ROOTS=(
 
 DECLARED_APT_PACKAGES=()
 INSTALLED_APT_PACKAGES=()
+SKIPPED_APT_PACKAGES=()
 BUNDLED_PACKAGE_FILES=()
 INSTALLED_BUNDLED_PACKAGES=()
 DISCOVERED_SERVICE_UNITS=()
 INSTALLED_SERVICE_UNITS=()
 INJECTED_SERVICE_DEPENDENCIES=()
 PACKAGE_RUNTIME_LINKS=()
+BOOT_CONFIG_LINES=()
+BOOT_CONFIG_APPLIED=0
+BOOT_CONFIG_REQUIRES_REBOOT=0
 
 log() {
   mkdir -p "$EXTMGR_LOG_DIR"
@@ -84,6 +88,11 @@ info() {
 err() {
   printf 'ERROR: %s\n' "$*" >&2
   log "ERROR: $*"
+}
+
+warn() {
+  printf 'WARNING: %s\n' "$*" >&2
+  log "WARNING: $*"
 }
 
 require_root() {
@@ -183,6 +192,16 @@ ensure_security_context() {
   fi
 }
 
+is_package_installed() {
+  local pkg="$1"
+  dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q "install ok installed"
+}
+
+is_package_available() {
+  local pkg="$1"
+  apt-cache show "$pkg" >/dev/null 2>&1
+}
+
 install_additional_packages() {
   local manifest="$1"
   local packages=()
@@ -195,18 +214,70 @@ install_additional_packages() {
     return 0
   fi
 
-  info "Installing additional packages declared by manifest: ${packages[*]}"
+  # Check which packages are already installed and which are missing
+  local missing_packages=()
+  local already_installed=()
+  local unavailable_packages=()
+
+  for pkg in "${packages[@]}"; do
+    if is_package_installed "$pkg"; then
+      already_installed+=("$pkg")
+    elif is_package_available "$pkg"; then
+      missing_packages+=("$pkg")
+    else
+      unavailable_packages+=("$pkg")
+    fi
+  done
+
+  if [[ ${#already_installed[@]} -gt 0 ]]; then
+    info "Packages already installed: ${already_installed[*]}"
+  fi
+
+  if [[ ${#unavailable_packages[@]} -gt 0 ]]; then
+    warn "Packages not available in apt cache (may need manual install): ${unavailable_packages[*]}"
+  fi
+
+  if [[ ${#missing_packages[@]} -eq 0 ]]; then
+    info "All declared packages are already installed or unavailable."
+    INSTALLED_APT_PACKAGES=("${already_installed[@]}")
+    SKIPPED_APT_PACKAGES=("${unavailable_packages[@]}")
+    return 0
+  fi
+
+  info "Installing missing packages: ${missing_packages[*]}"
   if [[ $DRY_RUN -eq 1 ]]; then
     return 0
   fi
 
   export DEBIAN_FRONTEND=noninteractive
   apt-get update -y >/dev/null 2>&1 || true
-  if ! apt-get install -y --no-install-recommends "${packages[@]}" >/dev/null 2>&1; then
-    err "Failed to install packages: ${packages[*]}. Check dpkg state."
-    return 1
+
+  # Try to install missing packages, but don't fail hard if some can't be installed
+  local failed_packages=()
+  local success_packages=()
+
+  for pkg in "${missing_packages[@]}"; do
+    if apt-get install -y --no-install-recommends "$pkg" >/dev/null 2>&1; then
+      success_packages+=("$pkg")
+    else
+      failed_packages+=("$pkg")
+    fi
+  done
+
+  INSTALLED_APT_PACKAGES=("${already_installed[@]}" "${success_packages[@]}")
+  SKIPPED_APT_PACKAGES=("${unavailable_packages[@]}" "${failed_packages[@]}")
+
+  if [[ ${#success_packages[@]} -gt 0 ]]; then
+    info "Successfully installed: ${success_packages[*]}"
   fi
-  INSTALLED_APT_PACKAGES=("${packages[@]}")
+
+  if [[ ${#failed_packages[@]} -gt 0 ]]; then
+    warn "Failed to install (extension may still work): ${failed_packages[*]}"
+    # Return 0 - don't fail the entire install for package issues
+    # The extension might still work if packages are optional or alternatives exist
+  fi
+
+  return 0
 }
 
 scan_bundled_package_files() {
@@ -585,6 +656,78 @@ install_service_units() {
   done
 }
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Boot Configuration Management
+# ─────────────────────────────────────────────────────────────────────────────
+
+install_boot_config() {
+  local manifest="$1" ext_id="$2"
+  local boot_config_helper="${BASH_SOURCE[0]%/*}/ext-mgr-boot-config.sh"
+
+  # Read boot_config array from manifest
+  BOOT_CONFIG_LINES=()
+  while IFS= read -r line; do
+    [[ -n "$line" ]] && BOOT_CONFIG_LINES+=("$line")
+  done < <(json_array_lines "$manifest" "ext_mgr.boot_config")
+
+  if [[ ${#BOOT_CONFIG_LINES[@]} -eq 0 ]]; then
+    info "No boot_config declared in manifest"
+    return 0
+  fi
+
+  info "Boot config lines declared: ${#BOOT_CONFIG_LINES[@]}"
+  for line in "${BOOT_CONFIG_LINES[@]}"; do
+    info "  - $line"
+  done
+
+  if [[ $DRY_RUN -eq 1 ]]; then
+    info "Would add boot config for $ext_id"
+    return 0
+  fi
+
+  # Check if boot config helper exists
+  if [[ ! -x "$boot_config_helper" ]]; then
+    warn "Boot config helper not found or not executable: $boot_config_helper"
+    warn "Boot configuration will not be applied. Manual config may be needed."
+    return 0
+  fi
+
+  # Initialize boot config system if needed (one-time)
+  if ! "$boot_config_helper" status 2>/dev/null | grep -q "Initialized"; then
+    info "Initializing boot config system..."
+    if ! "$boot_config_helper" init; then
+      warn "Failed to initialize boot config system"
+      warn "Boot configuration will not be applied. Manual config may be needed."
+      return 0
+    fi
+  fi
+
+  # Add boot config for this extension
+  info "Adding boot config for $ext_id..."
+  if "$boot_config_helper" add "$ext_id" "${BOOT_CONFIG_LINES[@]}"; then
+    BOOT_CONFIG_APPLIED=1
+    BOOT_CONFIG_REQUIRES_REBOOT=1
+    info "Boot config applied for $ext_id - REBOOT REQUIRED"
+  else
+    warn "Failed to apply boot config for $ext_id"
+    warn "Boot configuration may need to be added manually."
+  fi
+}
+
+remove_boot_config() {
+  local ext_id="$1"
+  local boot_config_helper="${BASH_SOURCE[0]%/*}/ext-mgr-boot-config.sh"
+
+  if [[ ! -x "$boot_config_helper" ]]; then
+    return 0
+  fi
+
+  info "Removing boot config for $ext_id..."
+  if "$boot_config_helper" remove "$ext_id"; then
+    info "Boot config removed for $ext_id - REBOOT RECOMMENDED"
+  fi
+}
+
 write_install_metadata() {
   local manifest="$1" target_dir="$2" ext_id="$3" main_entry="$4"
   local metadata_dir="$target_dir/$EXTMGR_METADATA_DIR_NAME"
@@ -604,12 +747,16 @@ write_install_metadata() {
   python3 - "$metadata_file" "$ext_id" "$main_entry" "$(canonical_link_for "$ext_id")" "$SECURITY_USER" "$SECURITY_GROUP" \
     "$(join_lines "${DECLARED_APT_PACKAGES[@]}")" \
     "$(join_lines "${INSTALLED_APT_PACKAGES[@]}")" \
+    "$(join_lines "${SKIPPED_APT_PACKAGES[@]}")" \
     "$(join_lines "${BUNDLED_PACKAGE_FILES[@]}")" \
     "$(join_lines "${INSTALLED_BUNDLED_PACKAGES[@]}")" \
     "$(join_lines "${DISCOVERED_SERVICE_UNITS[@]}")" \
     "$(join_lines "${INSTALLED_SERVICE_UNITS[@]}")" \
     "$(join_lines "${INJECTED_SERVICE_DEPENDENCIES[@]}")" \
     "$(join_lines "${PACKAGE_RUNTIME_LINKS[@]}")" \
+    "$(join_lines "${BOOT_CONFIG_LINES[@]}")" \
+    "$BOOT_CONFIG_APPLIED" \
+    "$BOOT_CONFIG_REQUIRES_REBOOT" \
     "$install_script" "$repair_script" "$uninstall_script" <<'PY'
 import json
 import sys
@@ -619,12 +766,13 @@ def split_lines(value):
     return [line.strip() for line in (value or '').splitlines() if line.strip()]
 
 (metadata_file, ext_id, main_entry, canonical_link, user, group,
- declared_packages, installed_apt, bundled_files, installed_bundles,
+ declared_packages, installed_apt, skipped_apt, bundled_files, installed_bundles,
  discovered_services, installed_services, injected_dependencies,
- package_links, install_script, repair_script, uninstall_script) = sys.argv[1:18]
+ package_links, boot_config_lines, boot_config_applied, boot_config_reboot,
+ install_script, repair_script, uninstall_script) = sys.argv[1:22]
 
 payload = {
-    'schemaVersion': 1,
+    'schemaVersion': 2,
     'generatedAt': datetime.now(timezone.utc).isoformat(),
     'extensionId': ext_id,
     'mainEntry': main_entry,
@@ -636,6 +784,7 @@ payload = {
     'packages': {
         'declared': split_lines(declared_packages),
         'installedApt': split_lines(installed_apt),
+        'skippedApt': split_lines(skipped_apt),
         'bundledFiles': split_lines(bundled_files),
         'installedBundles': split_lines(installed_bundles),
     },
@@ -646,6 +795,11 @@ payload = {
     },
     'links': {
         'packageRuntimeLinks': split_lines(package_links),
+    },
+    'bootConfig': {
+        'lines': split_lines(boot_config_lines),
+        'applied': boot_config_applied == '1',
+        'requiresReboot': boot_config_reboot == '1',
     },
     'scripts': {
         'install': install_script == 'true',
@@ -753,6 +907,7 @@ main() {
   normalize_var_www_layout "$ext_id" "$TARGET_DIR" "$main_entry"
   rewrite_legacy_paths "$TARGET_DIR" "$ext_id"
   install_service_units "$manifest" "$TARGET_DIR" "$ext_id"
+  install_boot_config "$manifest" "$ext_id"
   write_install_metadata "$manifest" "$TARGET_DIR" "$ext_id" "$main_entry"
 
   extension_install_log "$ext_id" "install-helper completed"

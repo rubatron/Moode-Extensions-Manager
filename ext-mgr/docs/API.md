@@ -515,6 +515,7 @@ key=my_var
 These endpoints provide safe wrappers for moOde operations. Extensions should use these instead of direct database/API access to avoid conflicts (database locks, session issues).
 
 All broker endpoints use the `MoodeHelper` library which handles:
+
 - WAL mode and busy_timeout for SQLite
 - Retry logic with exponential backoff
 - Proper moOde REST API calls
@@ -528,6 +529,7 @@ GET /ext-mgr-api.php?action=moode_get_state
 ```
 
 **Response:**
+
 ```json
 {
   "ok": true,
@@ -550,6 +552,7 @@ item: required for play_item (path or URL)
 ```
 
 **Examples:**
+
 ```
 action=moode_playback&cmd=play
 action=moode_playback&cmd=play_item&item=RADIO/Radio Paradise.pls
@@ -584,6 +587,7 @@ cmd: list | get | add | update | delete | play
 | `play` | `name` |
 
 **Example - Add station:**
+
 ```
 action=moode_radio&cmd=add&name=My Station&url=https://stream.example.com/128&genre=Jazz
 ```

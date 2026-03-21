@@ -78,6 +78,9 @@
   var showApiStatusBtn = document.getElementById('show-api-status-btn');
   var showDatabaseBtn = document.getElementById('show-database-btn');
   var showMoodeApiBtn = document.getElementById('show-moode-api-btn');
+  var bootConfigInitBtn = document.getElementById('boot-config-init-btn');
+  var bootConfigStatusBtn = document.getElementById('boot-config-status-btn');
+  var bootConfigListBtn = document.getElementById('boot-config-list-btn');
   var importExtensionFileEl = document.getElementById('import-extension-file');
   var importExtensionFileNameEl = document.getElementById('import-extension-file-name');
   var importExtensionBtn = document.getElementById('import-extension-btn');
@@ -96,6 +99,8 @@
   var wizardServiceNameEl = document.getElementById('wizard-service-name');
   var wizardDependenciesEl = document.getElementById('wizard-dependencies');
   var wizardAptPackagesEl = document.getElementById('wizard-apt-packages');
+  var wizardBootConfigEl = document.getElementById('wizard-boot-config');
+  var wizardBootConfigWarningEl = document.getElementById('wizard-bootconfig-warning');
   var listFilterEl = document.getElementById('list-filter');
   var listSortEl = document.getElementById('list-sort');
   var listSearchEl = document.getElementById('list-search');
@@ -130,7 +135,8 @@
     extensionId: '',
     scan: null,
     review: null,
-    manifest: null
+    manifest: null,
+    info: null
   };
   var currentProviderStatus = {
     provider: 'github',
@@ -635,28 +641,13 @@
       importWizardState.info = null;
 
       // Clear form fields to prevent cache leakage between imports
-      if (wizardNameEl) wizardNameEl.value = '';
-      if (wizardVersionEl) wizardVersionEl.value = '';
-      if (wizardTypeEl) wizardTypeEl.value = 'other';
-      if (wizardServiceNameEl) wizardServiceNameEl.value = '';
-      if (wizardDependenciesEl) wizardDependenciesEl.value = '';
-      if (wizardAptPackagesEl) wizardAptPackagesEl.value = '';
-      if (wizardMenuMEl) wizardMenuMEl.checked = false;
-      if (wizardMenuLibraryEl) wizardMenuLibraryEl.checked = false;
-      if (wizardMenuSystemEl) wizardMenuSystemEl.checked = false;
-      if (wizardSettingsOnlyEl) wizardSettingsOnlyEl.checked = false;
+      clearWizardForm();
 
       // Clear file input
       if (importExtensionFileEl) importExtensionFileEl.value = '';
       if (importExtensionFileNameEl) importExtensionFileNameEl.textContent = 'No file chosen';
 
-      // Clear form fields and UI elements
-      if (wizardReviewJsonEl) {
-        wizardReviewJsonEl.textContent = '';
-      }
-      if (wizardScanSummaryEl) {
-        wizardScanSummaryEl.textContent = 'No scan data yet.';
-      }
+      // Disable install button until scan completes
       if (importExtensionInstallBtn) {
         importExtensionInstallBtn.disabled = true;
       }
@@ -1096,7 +1087,13 @@
 
     titleEl.textContent = String(config.title || 'Attention');
     messageEl.textContent = String(config.message || '');
-    noteEl.textContent = String(config.note || '');
+    // Support HTML in note (for scan issues list)
+    var noteText = String(config.note || '');
+    if (noteText.indexOf('<') === 0) {
+      noteEl.innerHTML = noteText;
+    } else {
+      noteEl.textContent = noteText;
+    }
     noteEl.classList.remove('error', 'ok');
     cancelBtn.textContent = String(config.cancelText || 'Cancel');
     confirmBtn.textContent = String(config.confirmText || 'Confirm');
@@ -1216,6 +1213,101 @@
     return api(params);
   }
 
+  function apiAbortImport(sessionId) {
+    return api({ action: 'import_extension_abort', session_id: sessionId });
+  }
+
+  /**
+   * Count and categorize warnings from the scan results.
+   * Returns { errors: number, warnings: number, items: Array }
+   */
+  function countScanIssues(scan) {
+    var result = { errors: 0, warnings: 0, items: [] };
+    if (!scan) return result;
+
+    // Check violations (severity = violation)
+    var violations = scan.violations || [];
+    violations.forEach(function(v) {
+      result.errors++;
+      result.items.push({ severity: 'error', message: v.label || v.path || 'Path violation' });
+    });
+
+    // Check warnings from path audit
+    var warnings = scan.warnings || [];
+    warnings.forEach(function(w) {
+      result.warnings++;
+      result.items.push({ severity: 'warning', message: w.message || w.label || w.path || 'Warning' });
+    });
+
+    // Check code patterns - only count warning and violation severity
+    var codePatterns = scan.code_patterns || {};
+    var bySeverity = codePatterns.by_severity || {};
+
+    // Violations from code patterns
+    (bySeverity.violation || []).forEach(function(p) {
+      result.errors++;
+      result.items.push({ severity: 'error', message: p.label + ': ' + p.description, file: p.file });
+    });
+
+    // Warnings from code patterns
+    (bySeverity.warning || []).forEach(function(p) {
+      result.warnings++;
+      result.items.push({ severity: 'warning', message: p.label + ': ' + p.description, file: p.file });
+    });
+
+    return result;
+  }
+
+  /**
+   * Format scan issues as HTML for the warning dialog.
+   */
+  function formatScanIssuesHtml(issues) {
+    if (!issues.items || issues.items.length === 0) {
+      return '';
+    }
+    var html = '<ul style="text-align:left; margin:10px 0; padding-left:20px; max-height:200px; overflow-y:auto;">';
+    issues.items.forEach(function(item) {
+      var icon = item.severity === 'error' ? '✗' : '⚠';
+      var color = item.severity === 'error' ? '#e74c3c' : '#f39c12';
+      var fileInfo = item.file ? ' <small style="opacity:0.7">(' + item.file + ')</small>' : '';
+      html += '<li style="color:' + color + '; margin:4px 0;">' + icon + ' ' + item.message + fileInfo + '</li>';
+    });
+    html += '</ul>';
+    return html;
+  }
+
+  /**
+   * Show warning dialog before proceeding with install.
+   * Returns a Promise that resolves to true (proceed) or false (cancel).
+   */
+  function showImportWarningDialog(issues) {
+    return new Promise(function(resolve) {
+      var title = issues.errors > 0 ? 'Scan Errors Found' : 'Scan Warnings Found';
+      var summaryText = '';
+      if (issues.errors > 0) {
+        summaryText += issues.errors + ' error' + (issues.errors > 1 ? 's' : '');
+      }
+      if (issues.warnings > 0) {
+        if (summaryText) summaryText += ' and ';
+        summaryText += issues.warnings + ' warning' + (issues.warnings > 1 ? 's' : '');
+      }
+
+      openActionModal({
+        title: title,
+        message: 'The code scanner found ' + summaryText + ' that may cause issues:',
+        note: formatScanIssuesHtml(issues),
+        confirmText: 'Proceed Anyway',
+        cancelText: 'Cancel Import',
+        onConfirm: function() {
+          resolve(true);
+        },
+        onCancel: function() {
+          resolve(false);
+        }
+      });
+    });
+  }
+
   function wizardSetStep(stepName) {
     // Update stepper indicators
     wizardStepEls.forEach(function (el) {
@@ -1241,7 +1333,107 @@
     }
   }
 
+  /**
+   * Clear wizard form fields to prevent stale data between imports.
+   * Called before populating form with new manifest data.
+   */
+  function clearWizardForm() {
+    if (wizardNameEl) wizardNameEl.value = '';
+    if (wizardVersionEl) wizardVersionEl.value = '';
+    if (wizardTypeEl) wizardTypeEl.value = 'other';
+    if (wizardServiceNameEl) wizardServiceNameEl.value = '';
+    if (wizardDependenciesEl) wizardDependenciesEl.value = '';
+    if (wizardAptPackagesEl) wizardAptPackagesEl.value = '';
+    if (wizardBootConfigEl) wizardBootConfigEl.value = '';
+    if (wizardBootConfigWarningEl) wizardBootConfigWarningEl.style.display = 'none';
+    if (wizardMenuMEl) wizardMenuMEl.checked = false;
+    if (wizardMenuLibraryEl) wizardMenuLibraryEl.checked = false;
+    if (wizardMenuSystemEl) wizardMenuSystemEl.checked = false;
+    if (wizardSettingsOnlyEl) wizardSettingsOnlyEl.checked = false;
+    if (wizardReviewJsonEl) wizardReviewJsonEl.textContent = '';
+    if (wizardScanSummaryEl) wizardScanSummaryEl.textContent = 'No scan data yet.';
+  }
+
+  /**
+   * Fully reset the import wizard state.
+   * Called before new upload or after abort/cancel.
+   * @param {Object} options - Reset options
+   * @param {boolean} options.cleanupServer - If true, calls API to clean up staged files
+   * @param {boolean} options.silent - If true, don't update status messages
+   * @param {boolean} options.preserveFileInput - If true, don't clear the file input
+   * @returns {Promise} Resolves when reset is complete
+   */
+  function resetImportWizard(options) {
+    var opts = options || {};
+    var cleanupPromise = Promise.resolve();
+
+    // If there's an existing session and we should cleanup server-side
+    if (opts.cleanupServer && importWizardState.sessionId) {
+      cleanupPromise = apiAbortImport(importWizardState.sessionId).catch(function(err) {
+        // Silently ignore cleanup errors (session may already be cleaned)
+        console.log('[ImportWizard] cleanup error (ignored):', err);
+      });
+    }
+
+    return cleanupPromise.then(function() {
+      // Reset all state variables
+      importWizardState.sessionId = '';
+      importWizardState.extensionId = '';
+      importWizardState.scan = null;
+      importWizardState.review = null;
+      importWizardState.manifest = null;
+      importWizardState.info = null;
+
+      // Clear form fields
+      clearWizardForm();
+
+      // Reset file input unless preserveFileInput is true
+      if (!opts.preserveFileInput) {
+        if (importExtensionFileEl) {
+          importExtensionFileEl.value = '';
+        }
+        if (importExtensionFileNameEl) {
+          importExtensionFileNameEl.textContent = 'No file chosen';
+        }
+      }
+
+      // Disable install button
+      if (importExtensionInstallBtn) {
+        importExtensionInstallBtn.disabled = true;
+      }
+
+      // Hide success/progress panels
+      if (wizardInstallSuccessEl) {
+        wizardInstallSuccessEl.style.display = 'none';
+      }
+      if (wizardInstallProgressEl) {
+        wizardInstallProgressEl.style.display = 'none';
+      }
+
+      // Restore wizard navigation visibility
+      var wizardNav = document.querySelector('.extmgr-wizard-nav');
+      if (wizardNav) {
+        wizardNav.style.display = '';
+      }
+
+      // Reset wizard stepper to first step
+      if (window.ExtMgrImportWizard && window.ExtMgrImportWizard.reset) {
+        window.ExtMgrImportWizard.reset();
+      }
+
+      // Clear any status/note messages unless silent
+      if (!opts.silent) {
+        setImportWizardNote('', null);
+      }
+
+      console.log('[ImportWizard] wizard state fully reset');
+    });
+  }
+
   function setWizardFormFromManifest(manifest, scan, review, info) {
+    // Clear form first to prevent stale values from previous imports
+    clearWizardForm();
+
     var row = manifest || {};
     var ext = row.ext_mgr || {};
     var menu = ext.menuVisibility || {};
@@ -1249,13 +1441,14 @@
     var install = ext.install || {};
     var infoData = info || {};
 
-    // Name priority: info.json name > manifest name
-    var extensionName = infoData.name || row.name || '';
+    // Name priority: manifest.name (unified) > info.json name (deprecated fallback)
+    var extensionName = row.name || infoData.name || '';
     if (wizardNameEl) {
       wizardNameEl.value = extensionName;
     }
+    // Version priority: manifest.version (unified) > info.json version (deprecated fallback)
     if (wizardVersionEl) {
-      wizardVersionEl.value = infoData.version || row.version || '';
+      wizardVersionEl.value = row.version || infoData.version || '';
     }
     if (wizardTypeEl) {
       wizardTypeEl.value = ext.type || ((scan || {}).detected_type || 'other');
@@ -1293,6 +1486,15 @@
       var reviewPkgs = Array.isArray((review || {}).manifestPackages) ? review.manifestPackages : [];
       wizardAptPackagesEl.value = Array.from(new Set(manifestPkgs.concat(scanPkgs, reviewPkgs))).join('\n');
     }
+    // Boot config from manifest ext_mgr.boot_config array
+    if (wizardBootConfigEl) {
+      var bootConfigLines = Array.isArray(extMgr.boot_config) ? extMgr.boot_config : [];
+      wizardBootConfigEl.value = bootConfigLines.join('\n');
+      // Show/hide reboot warning
+      if (wizardBootConfigWarningEl) {
+        wizardBootConfigWarningEl.style.display = bootConfigLines.length > 0 ? 'flex' : 'none';
+      }
+    }
   }
 
   function getWizardInstallPayload() {
@@ -1309,7 +1511,8 @@
       settings_only: wizardSettingsOnlyEl && wizardSettingsOnlyEl.checked ? '1' : '0',
       service_name: wizardServiceNameEl ? wizardServiceNameEl.value : '',
       dependencies: wizardDependenciesEl ? wizardDependenciesEl.value : '',
-      apt_packages: wizardAptPackagesEl ? wizardAptPackagesEl.value : ''
+      apt_packages: wizardAptPackagesEl ? wizardAptPackagesEl.value : '',
+      boot_config: wizardBootConfigEl ? wizardBootConfigEl.value : ''
     };
   }
 
@@ -1334,7 +1537,8 @@
         settingsCardOnly: !!(wizardSettingsOnlyEl && wizardSettingsOnlyEl.checked),
         serviceName: wizardServiceNameEl ? wizardServiceNameEl.value : '',
         dependencies: wizardDependenciesEl ? wizardDependenciesEl.value.split(/\r?\n/).filter(Boolean) : [],
-        aptPackages: wizardAptPackagesEl ? wizardAptPackagesEl.value.split(/\r?\n/).filter(Boolean) : []
+        aptPackages: wizardAptPackagesEl ? wizardAptPackagesEl.value.split(/\r?\n/).filter(Boolean) : [],
+        bootConfig: wizardBootConfigEl ? wizardBootConfigEl.value.split(/\r?\n/).filter(Boolean) : []
       }
     };
     wizardReviewJsonEl.textContent = JSON.stringify(reviewPayload, null, 2);
@@ -2957,6 +3161,84 @@
       });
   });
 
+  // Boot Config Management buttons
+  bindIfPresent(bootConfigInitBtn, 'click', function() {
+    if (!confirm('Initialize boot config system?\n\nThis will add an include directive to config.txt. This is a one-time setup required before extensions can modify boot configuration (SPI, I2C, overlays).')) {
+      return;
+    }
+    setStatus('Initializing boot config system...', null);
+    fetch(buildApiUrl({ action: 'boot_config_init' }), { method: 'POST' })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.ok) {
+          showDebugModal('Boot Config Initialized', data.data);
+          setStatus('Boot config system initialized successfully.', 'ok');
+        } else {
+          setStatus('Boot config init failed: ' + (data.error || 'Unknown error'), 'error');
+          showDebugModal('Boot Config Init Failed', data);
+        }
+      })
+      .catch(function(err) {
+        setStatus('Boot config init error: ' + err.message, 'error');
+      });
+  });
+
+  bindIfPresent(bootConfigStatusBtn, 'click', function() {
+    setStatus('Loading boot config status...', null);
+    fetch(buildApiUrl({ action: 'boot_config_status' }))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.ok) {
+          var statusHtml = '<strong>Boot Config Status</strong><br>';
+          statusHtml += '<br>Helper exists: ' + (data.data.helperExists ? '✓' : '✗');
+          statusHtml += '<br>Initialized: ' + (data.data.initialized ? '✓ Yes' : '✗ No (run Initialize Boot Config)');
+          statusHtml += '<br>Boot root: ' + (data.data.bootRoot || 'unknown');
+          statusHtml += '<br>Extensions with boot config: ' + data.data.fragmentCount;
+          statusHtml += '<br>Total config lines: ' + data.data.configLines;
+          if (maintenanceLogEl) {
+            maintenanceLogEl.innerHTML = statusHtml + '<pre style="white-space:pre-wrap;word-break:break-word;max-height:300px;overflow:auto;font-size:0.75rem;background:rgba(0,0,0,0.3);padding:0.5rem;border-radius:4px;margin-top:0.5rem;">' + (data.data.rawOutput || '').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</pre>';
+          }
+          setStatus('Boot config status loaded', 'ok');
+        } else {
+          setStatus('Failed to load boot config status: ' + (data.error || 'Unknown error'), 'error');
+        }
+      })
+      .catch(function(err) {
+        setStatus('Boot config status error: ' + err.message, 'error');
+      });
+  });
+
+  bindIfPresent(bootConfigListBtn, 'click', function() {
+    setStatus('Loading boot config fragments...', null);
+    fetch(buildApiUrl({ action: 'boot_config_list' }))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.ok) {
+          var fragments = data.data.fragments || [];
+          var listHtml = '<strong>Boot Config Fragments</strong><br><br>';
+          if (fragments.length === 0) {
+            listHtml += 'No extensions have boot configuration.<br>';
+          } else {
+            listHtml += '<table style="width:100%;font-size:0.85rem;"><tr><th style="text-align:left;">Extension</th><th style="text-align:right;">Lines</th></tr>';
+            fragments.forEach(function(f) {
+              listHtml += '<tr><td>' + f.extensionId + '</td><td style="text-align:right;">' + f.lineCount + '</td></tr>';
+            });
+            listHtml += '</table>';
+          }
+          listHtml += '<br>Total: ' + fragments.length + ' extension(s)';
+          if (maintenanceLogEl) {
+            maintenanceLogEl.innerHTML = listHtml;
+          }
+          setStatus('Boot config fragments loaded', 'ok');
+        } else {
+          setStatus('Failed to load boot config list: ' + (data.error || 'Unknown error'), 'error');
+        }
+      })
+      .catch(function(err) {
+        setStatus('Boot config list error: ' + err.message, 'error');
+      });
+  });
+
   [
     [managerVisibilityHeaderBtn, 'header'],
     [managerVisibilityLibraryBtn, 'library'],
@@ -2976,7 +3258,15 @@
       return;
     }
     var files = importExtensionFileEl.files || [];
-    importExtensionFileNameEl.textContent = files.length > 0 ? files[0].name : 'No file chosen';
+    var newFileName = files.length > 0 ? files[0].name : 'No file chosen';
+    importExtensionFileNameEl.textContent = newFileName;
+
+    // When a new file is selected, reset wizard state (cleanup existing session if any)
+    // This prevents stale data from previous imports
+    if (files.length > 0) {
+      console.log('[ImportWizard] new file selected, resetting wizard state');
+      resetImportWizard({ cleanupServer: true, silent: true, preserveFileInput: true });
+    }
   });
   bindIfPresent(importExtensionBtn, 'click', function () {
     var files = (importExtensionFileEl && importExtensionFileEl.files) || null;
@@ -3023,6 +3313,10 @@
         var hasDynamicHeader = codePatterns.some(function(f) { return f.id === 'has_dynamic_header_control'; });
         var needsHeaderUpgrade = codePatterns.some(function(f) { return f.id === 'hardcoded_navbar_suppress' || f.id === 'hardcoded_header_suppress'; });
 
+        // Check for boot configuration
+        var bootConfig = (importWizardState.scan || {}).boot_config || [];
+        var requiresReboot = (importWizardState.scan || {}).requires_reboot || false;
+
         if (wizardScanSummaryEl) {
           var summaryParts = ['Session: ' + importWizardState.sessionId, 'Extension: ' + importWizardState.extensionId, 'violations=' + violations, 'warnings=' + warnings];
           if (templateUpgrade && templateUpgrade.needed) {
@@ -3037,6 +3331,11 @@
             summaryParts.push('header-control=dynamic');
           } else if (needsHeaderUpgrade) {
             summaryParts.push('header-control=needs-upgrade');
+          }
+          // Add boot config status
+          if (requiresReboot || bootConfig.length > 0) {
+            summaryParts.push('boot-config=' + bootConfig.length + ' lines');
+            summaryParts.push('🔄 REBOOT REQUIRED');
           }
           wizardScanSummaryEl.textContent = summaryParts.join(' | ');
         }
@@ -3053,6 +3352,9 @@
         var statusNote = 'Scan complete. Review metadata and run install from Step 6.';
         if (templateUpgrade && templateUpgrade.needed) {
           statusNote += ' Template will be auto-upgraded for dynamic header visibility.';
+        }
+        if (requiresReboot || bootConfig.length > 0) {
+          statusNote += ' ⚠️ This extension modifies boot configuration - REBOOT REQUIRED after install.';
         }
         setStatus('Scan complete for ' + (importWizardState.extensionId || 'unknown') + '.', 'ok');
         setImportWizardNote(statusNote, 'ok');
@@ -3082,7 +3384,7 @@
   });
 
   // Menu/service/package fields update review but don't jump
-  [wizardMenuMEl, wizardMenuLibraryEl, wizardMenuSystemEl, wizardSettingsOnlyEl, wizardServiceNameEl, wizardDependenciesEl, wizardAptPackagesEl].forEach(function (el) {
+  [wizardMenuMEl, wizardMenuLibraryEl, wizardMenuSystemEl, wizardSettingsOnlyEl, wizardServiceNameEl, wizardDependenciesEl, wizardAptPackagesEl, wizardBootConfigEl].forEach(function (el) {
     if (!el) {
       return;
     }
@@ -3093,6 +3395,14 @@
       renderWizardReview();
     });
   });
+
+  // Show/hide boot config reboot warning based on content
+  if (wizardBootConfigEl && wizardBootConfigWarningEl) {
+    wizardBootConfigEl.addEventListener('input', function () {
+      var hasContent = wizardBootConfigEl.value.trim().length > 0;
+      wizardBootConfigWarningEl.style.display = hasContent ? 'flex' : 'none';
+    });
+  }
 
   // Progress bar elements
   var wizardInstallProgressEl = document.getElementById('wizard-install-progress');
@@ -3172,6 +3482,148 @@
     console.log('[ImportWizard] button id:', importExtensionInstallBtn.id, 'disabled:', importExtensionInstallBtn.disabled);
   }
 
+  /**
+   * Execute the actual install process (dry-run + real install).
+   * Called after any warning dialogs have been confirmed.
+   */
+  function executeInstall() {
+    importExtensionInstallBtn.disabled = true;
+    setStatus('Installing from staged review session...', null);
+    wizardSetStep('review');
+
+    // Show progress bar
+    showInstallProgress(true);
+
+    // Phase 1: Dry-run validation
+    var dryRunStages = [
+      { percent: 10, status: 'Running dry-run validation...', delay: 300 },
+      { percent: 25, status: 'Checking package structure...', delay: 200 },
+      { percent: 40, status: 'Validating dependencies...', delay: 300 }
+    ];
+
+    // Phase 2: Real install (after dry-run succeeds)
+    var installStages = [
+      { percent: 50, status: 'Dry-run passed! Installing...', delay: 300 },
+      { percent: 60, status: 'Creating extension directory...', delay: 200 },
+      { percent: 70, status: 'Extracting files...', delay: 400 },
+      { percent: 80, status: 'Setting permissions...', delay: 200 },
+      { percent: 90, status: 'Running install script...', delay: 300 },
+      { percent: 95, status: 'Updating registry...', delay: 200 }
+    ];
+
+    // Start dry-run progress animation
+    animateInstallProgress(dryRunStages, function() {
+      // Animation done, wait for dry-run API response
+    });
+
+    var installPayload = getWizardInstallPayload();
+
+    // Step 1: Run dry-run first
+    var dryRunPayload = Object.assign({}, installPayload, { dry_run: '1' });
+    console.log('[ImportWizard] calling dry-run with payload:', JSON.stringify(dryRunPayload));
+
+    apiInstallFromSession(dryRunPayload)
+      .then(function (dryRunData) {
+        console.log('[ImportWizard] dry-run success:', JSON.stringify(dryRunData));
+
+        // Dry-run passed, now run real install
+        updateInstallProgress(45, 'Dry-run validation passed!');
+
+        // Animate through install stages
+        setTimeout(function() {
+          animateInstallProgress(installStages, function() {
+            // Animation done, wait for real install API response
+          });
+
+          // Step 2: Run real install
+          var realPayload = Object.assign({}, installPayload, { dry_run: '0' });
+          console.log('[ImportWizard] calling real install with payload:', JSON.stringify(realPayload));
+
+          apiInstallFromSession(realPayload)
+            .then(function (data) {
+              console.log('[ImportWizard] install success:', JSON.stringify(data));
+              var payload = (data || {}).data || {};
+              var importedId = payload.extensionId || importWizardState.extensionId || 'unknown';
+
+              // Check for skipped packages
+              var packageStatus = payload.packageStatus || {};
+              var skipped = packageStatus.skipped || [];
+              var skippedWarning = '';
+              if (skipped.length > 0) {
+                skippedWarning = '<br><span style="color: #c55a11;">⚠ Some packages could not be installed: ' + skipped.join(', ') +
+                  '</span><br><small style="opacity:0.7;">The extension may still work if these are optional or already available.</small>';
+              }
+
+              // Check for boot config changes requiring reboot
+              var bootConfigStatus = payload.bootConfigStatus || {};
+              var rebootNotice = '';
+              if (bootConfigStatus.requiresReboot) {
+                var bootLines = bootConfigStatus.lines || [];
+                rebootNotice = '<br><span style="color: #c55a11; font-weight: bold;">🔄 REBOOT REQUIRED</span>' +
+                  '<br><small style="opacity:0.7;">Boot configuration added (' + bootLines.length + ' lines). ' +
+                  'Please reboot your device for hardware settings to take effect.</small>';
+              }
+
+              // Complete progress then show success
+              updateInstallProgress(100, 'Installation complete!');
+              setTimeout(function() {
+                var summaryHtml = importReviewSummary(payload.review || {});
+                showInstallSuccess(importedId,
+                  'Extension <strong>' + importedId + '</strong> has been successfully installed.' +
+                  rebootNotice +
+                  skippedWarning +
+                  (summaryHtml ? '<br><small style="opacity:0.7">' + summaryHtml.replace(/<br>/g, ' | ') + '</small>' : '')
+                );
+                setStatus('Extension imported: ' + importedId + (bootConfigStatus.requiresReboot ? ' (reboot required)' : ''), 'ok');
+                setImportWizardNote('Extension imported: ' + importedId + summaryHtml, 'ok');
+              }, 400);
+
+              importWizardState.sessionId = '';
+              if (importExtensionInstallBtn) {
+                importExtensionInstallBtn.disabled = true;
+              }
+              runRefresh();
+            })
+            .catch(function (err) {
+              console.error('[ImportWizard] real install failed:', err);
+              var fullMessage = String((err && err.message) || 'Install failed after dry-run.');
+              showInstallProgress(false);
+              setStatus(firstSentence(fullMessage), 'error');
+              setImportWizardNote(fullMessage, 'error');
+              if (importExtensionInstallBtn && importWizardState.sessionId) {
+                importExtensionInstallBtn.disabled = false;
+              }
+            });
+        }, 500);
+      })
+      .catch(function (err) {
+        console.error('[ImportWizard] dry-run failed:', err);
+          var fullMessage = String((err && err.message) || 'Dry-run validation failed.');
+          showInstallProgress(false);
+          setStatus('Dry-run failed: ' + firstSentence(fullMessage), 'error');
+          setImportWizardNote('Dry-run validation failed: ' + fullMessage, 'error');
+          if (importExtensionInstallBtn && importWizardState.sessionId) {
+            importExtensionInstallBtn.disabled = false;
+          }
+        });
+  }
+
+  /**
+   * Abort the import and clean up staged files.
+   */
+  function abortImport() {
+    if (!importWizardState.sessionId) return Promise.resolve();
+
+    setStatus('Cancelling import...', null);
+    return resetImportWizard({ cleanupServer: true }).then(function() {
+      setStatus('Import cancelled. Staged files cleaned up.', 'ok');
+      setImportWizardNote('Import cancelled. You can upload a new package.', null);
+    }).catch(function(err) {
+      console.error('[ImportWizard] abort failed:', err);
+      setStatus('Abort failed: ' + String(err && err.message || err), 'error');
+    });
+  }
+
   // Use direct addEventListener as fallback in case bindIfPresent has issues
   if (importExtensionInstallBtn) {
     importExtensionInstallBtn.addEventListener('click', function (e) {
@@ -3185,104 +3637,25 @@
         return;
       }
 
-      importExtensionInstallBtn.disabled = true;
-      setStatus('Installing from staged review session...', null);
-      wizardSetStep('review');
+      // Check for scan warnings/errors before proceeding
+      var issues = countScanIssues(importWizardState.scan);
+      console.log('[ImportWizard] scan issues:', JSON.stringify(issues));
 
-      // Show progress bar
-      showInstallProgress(true);
-
-      // Phase 1: Dry-run validation
-      var dryRunStages = [
-        { percent: 10, status: 'Running dry-run validation...', delay: 300 },
-        { percent: 25, status: 'Checking package structure...', delay: 200 },
-        { percent: 40, status: 'Validating dependencies...', delay: 300 }
-      ];
-
-      // Phase 2: Real install (after dry-run succeeds)
-      var installStages = [
-        { percent: 50, status: 'Dry-run passed! Installing...', delay: 300 },
-        { percent: 60, status: 'Creating extension directory...', delay: 200 },
-        { percent: 70, status: 'Extracting files...', delay: 400 },
-        { percent: 80, status: 'Setting permissions...', delay: 200 },
-        { percent: 90, status: 'Running install script...', delay: 300 },
-        { percent: 95, status: 'Updating registry...', delay: 200 }
-      ];
-
-      // Start dry-run progress animation
-      animateInstallProgress(dryRunStages, function() {
-        // Animation done, wait for dry-run API response
-      });
-
-      var installPayload = getWizardInstallPayload();
-
-      // Step 1: Run dry-run first
-      var dryRunPayload = Object.assign({}, installPayload, { dry_run: '1' });
-      console.log('[ImportWizard] calling dry-run with payload:', JSON.stringify(dryRunPayload));
-
-      apiInstallFromSession(dryRunPayload)
-        .then(function (dryRunData) {
-          console.log('[ImportWizard] dry-run success:', JSON.stringify(dryRunData));
-
-          // Dry-run passed, now run real install
-          updateInstallProgress(45, 'Dry-run validation passed!');
-
-          // Animate through install stages
-          setTimeout(function() {
-            animateInstallProgress(installStages, function() {
-              // Animation done, wait for real install API response
-            });
-
-            // Step 2: Run real install
-            var realPayload = Object.assign({}, installPayload, { dry_run: '0' });
-            console.log('[ImportWizard] calling real install with payload:', JSON.stringify(realPayload));
-
-            apiInstallFromSession(realPayload)
-              .then(function (data) {
-                console.log('[ImportWizard] install success:', JSON.stringify(data));
-                var payload = (data || {}).data || {};
-                var importedId = payload.extensionId || importWizardState.extensionId || 'unknown';
-
-                // Complete progress then show success
-                updateInstallProgress(100, 'Installation complete!');
-                setTimeout(function() {
-                  var summaryHtml = importReviewSummary(payload.review || {});
-                  showInstallSuccess(importedId,
-                    'Extension <strong>' + importedId + '</strong> has been successfully installed.' +
-                    (summaryHtml ? '<br><small style="opacity:0.7">' + summaryHtml.replace(/<br>/g, ' | ') + '</small>' : '')
-                  );
-                  setStatus('Extension imported: ' + importedId, 'ok');
-                  setImportWizardNote('Extension imported: ' + importedId + summaryHtml, 'ok');
-                }, 400);
-
-                importWizardState.sessionId = '';
-                if (importExtensionInstallBtn) {
-                  importExtensionInstallBtn.disabled = true;
-                }
-                runRefresh();
-              })
-              .catch(function (err) {
-                console.error('[ImportWizard] real install failed:', err);
-                var fullMessage = String((err && err.message) || 'Install failed after dry-run.');
-                showInstallProgress(false);
-                setStatus(firstSentence(fullMessage), 'error');
-                setImportWizardNote(fullMessage, 'error');
-                if (importExtensionInstallBtn && importWizardState.sessionId) {
-                  importExtensionInstallBtn.disabled = false;
-                }
-              });
-          }, 500);
-        })
-        .catch(function (err) {
-          console.error('[ImportWizard] dry-run failed:', err);
-          var fullMessage = String((err && err.message) || 'Dry-run validation failed.');
-          showInstallProgress(false);
-          setStatus('Dry-run failed: ' + firstSentence(fullMessage), 'error');
-          setImportWizardNote('Dry-run validation failed: ' + fullMessage, 'error');
-          if (importExtensionInstallBtn && importWizardState.sessionId) {
-            importExtensionInstallBtn.disabled = false;
+      if (issues.errors > 0 || issues.warnings > 0) {
+        // Show warning dialog and wait for user decision
+        showImportWarningDialog(issues).then(function(proceed) {
+          if (proceed) {
+            console.log('[ImportWizard] user chose to proceed despite warnings');
+            executeInstall();
+          } else {
+            console.log('[ImportWizard] user cancelled import');
+            abortImport();
           }
         });
+      } else {
+        // No issues, proceed directly
+        executeInstall();
+      }
     });
   } else {
     console.error('[ImportWizard] install button element NOT FOUND!');
@@ -3297,34 +3670,8 @@
   // Wizard close/done button handler
   var wizardCloseBtn = document.getElementById('wizard-close-btn');
   bindIfPresent(wizardCloseBtn, 'click', function () {
-    // Reset wizard state
-    if (wizardInstallSuccessEl) {
-      wizardInstallSuccessEl.style.display = 'none';
-    }
-    if (wizardInstallProgressEl) {
-      wizardInstallProgressEl.style.display = 'none';
-    }
-    // Restore wizard navigation
-    var wizardNav = document.querySelector('.extmgr-wizard-nav');
-    if (wizardNav) {
-      wizardNav.style.display = '';
-    }
-    importWizardState.sessionId = '';
-    importWizardState.extensionId = '';
-    if (importExtensionFileEl) {
-      importExtensionFileEl.value = '';
-    }
-    if (importExtensionFileNameEl) {
-      importExtensionFileNameEl.textContent = 'No file chosen';
-    }
-    if (importExtensionInstallBtn) {
-      importExtensionInstallBtn.disabled = true;
-    }
-    setImportWizardNote('', null);
-    // Reset wizard steps
-    if (window.ExtMgrImportWizard && window.ExtMgrImportWizard.reset) {
-      window.ExtMgrImportWizard.reset();
-    }
+    // Full reset including server cleanup if there's a session
+    resetImportWizard({ cleanupServer: true });
   });
 
   bindIfPresent(systemUpdateBtn, 'click', function () {
