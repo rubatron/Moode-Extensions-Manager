@@ -9,6 +9,7 @@
 - **Menu Control** - Toggle M menu / Library menu visibility per extension
 - **Code Scanner** - Automated detection of patterns and issues via ext_helper.py
 - **Service Management** - Systemd integration with watchdog monitoring
+- **boot_config Management** - Extensions can add `/boot/firmware/config.txt` fragments (DAC overlays, GPIO)
 - **Self-Update** - Built-in update mechanism with rollback support
 - **Debug Tools** - Registry, variables, services, and API status inspection
 

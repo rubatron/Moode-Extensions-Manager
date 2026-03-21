@@ -467,6 +467,62 @@ POST /ext-mgr-api.php?action=registry_sync
 
 ---
 
+## boot_config Management
+
+Manage `/boot/firmware/config.txt` fragments for extensions that need hardware configuration (e.g., DAC overlays, GPIO settings).
+
+### boot_config_status
+
+Check if boot_config management is available.
+
+```
+GET /ext-mgr-api.php?action=boot_config_status
+```
+
+**Response:**
+
+```json
+{
+  "ok": true,
+  "data": {
+    "available": true,
+    "fragments_dir": "/boot/firmware/extensions.d",
+    "active_fragments": ["ext-dac-overlay", "ext-gpio-fan"]
+  }
+}
+```
+
+### boot_config_add
+
+Add a config.txt fragment for an extension.
+
+```
+POST /ext-mgr-api.php?action=boot_config_add
+
+id=my-extension
+content=dtoverlay=my-dac\ngpio=12=op,dh
+```
+
+### boot_config_remove
+
+Remove config.txt fragment for an extension.
+
+```
+POST /ext-mgr-api.php?action=boot_config_remove
+
+id=my-extension
+```
+
+### boot_config_list
+
+List all active boot_config fragments.
+
+```
+GET /ext-mgr-api.php?action=boot_config_list
+```
+
+---
+
 ## Variables
 
 ### variables

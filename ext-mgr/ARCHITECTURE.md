@@ -168,6 +168,15 @@ ext-mgr is the extension management system for moOde audio player (Raspberry Pi)
 | `get_variable` | GET | Get single variable |
 | `registry_sync` | POST | Force registry sync |
 
+### boot_config Management
+
+| Action | Method | Description |
+|--------|--------|-------------|
+| `boot_config_add` | POST | Add config.txt fragment for extension |
+| `boot_config_remove` | POST | Remove config.txt fragment |
+| `boot_config_list` | GET | List active fragments |
+| `boot_config_status` | GET | Check boot_config capability |
+
 ## Security Model
 
 ### Principals
@@ -185,6 +194,7 @@ ext-mgr is the extension management system for moOde audio player (Raspberry Pi)
 ### Privilege Isolation
 
 - Symlink repair via privileged helper: `/usr/local/sbin/ext-mgr-repair-symlink`
+- boot_config management via sudoers: `/var/www/extensions/api/ext-mgr-boot-config.sh`
 - Service management via systemd with proper After/Requires chains
 - Atomic JSON writes for state files
 
@@ -246,7 +256,8 @@ ext-mgr/
 │   ├── bootstrap-moode.sh   # Remote bootstrap
 │   └── ext-mgr-*.sh         # Various helpers
 ├── api/
-│   └── ext-mgr-api.php      # API (~7000 lines)
+│   ├── ext-mgr-api.php      # API (~7000 lines)
+│   └── ext-mgr-boot-config.sh # /boot/firmware/config.txt management
 ├── ext-mgr.php              # Main view
 ├── registry.json            # Extension state
 └── manifest.json            # ext-mgr manifest

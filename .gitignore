@@ -1,0 +1,17 @@
+# Root-level ignores
+
+# Dev/inspiration folders (not deployed)
+inspiration/
+temp/
+
+# Build output
+.venv/
+
+# Scripts folder is for local dev only (bootstrap-moode.sh pulls install.sh from GitHub)
+scripts/
+
+# OS/editor
+.DS_Store
+Thumbs.db
+*.swp
+*~
