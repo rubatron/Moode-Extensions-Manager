@@ -2,6 +2,7 @@
   "id": "auto-generate",
   "name": "Template Extension",
   "version": "0.1.0",
+  "template_kit_version": "1.0.0",
   "main": "template.php",
   "ext_mgr": {
     "enabled": true,

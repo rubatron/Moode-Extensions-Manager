@@ -339,7 +339,7 @@
   // ═══════════════════════════════════════════════════════════════════════════════
   var VariablesManager = (function() {
     var containerEl = null;
-    var currentTab = 'extmgr';
+    var currentTab = 'moode';
     var currentExtId = '';
     var editScope = 'extmgr';
     var editExtId = '';
@@ -349,7 +349,7 @@
       if (!containerEl) return;
 
       bindEvents();
-      renderTab('extmgr');
+      renderTab('moode');
     }
 
     function bindEvents() {
@@ -2341,14 +2341,16 @@
 
   function extensionDetailsSummary(item) {
     var info = (item && item.extensionInfo) || {};
+    var manifest = (item && item.manifest) || {};
     var installMetadata = (item && item.installMetadata) || {};
     var counts = installMetadata.counts || {};
     var service = (item && item.service) || {};
     var id = item.id || 'unknown';
-    var version = info.version || item.version || 'unknown';
+    var version = info.version || manifest.version || item.version || 'unknown';
+    var templateKitVersion = manifest.template_kit_version || info.template_kit_version || '';
     var type = info.type || 'unknown';
-    var author = info.author || 'unknown';
-    var license = info.license || 'unknown';
+    var author = info.author || manifest.author || 'unknown';
+    var license = info.license || manifest.license || 'unknown';
     var serviceName = service.name || '';
     var settingsPage = info.settingsPage || item.entry || ('/' + id + '.php');
     var isCertified = info.certified === true;
@@ -2363,7 +2365,12 @@
       bits.push('<div class="list-meta-row"><span class="list-meta-label">Certified</span><span class="list-meta-value"><i class="fas fa-certificate" style="color:#c55a11"></i> Yes</span></div>');
     }
     bits.push(
-      '<div class="list-meta-row"><span class="list-meta-label">Version</span><span class="list-meta-value">' + escapeHtml(version) + '</span></div>',
+      '<div class="list-meta-row"><span class="list-meta-label">Version</span><span class="list-meta-value">' + escapeHtml(version) + '</span></div>'
+    );
+    if (templateKitVersion) {
+      bits.push('<div class="list-meta-row"><span class="list-meta-label">Template Kit</span><span class="list-meta-value">v' + escapeHtml(templateKitVersion) + '</span></div>');
+    }
+    bits.push(
       '<div class="list-meta-row"><span class="list-meta-label">Type</span><span class="list-meta-value">' + escapeHtml(type) + '</span></div>',
       '<div class="list-meta-row"><span class="list-meta-label">Author</span><span class="list-meta-value">' + escapeHtml(author) + '</span></div>',
       '<div class="list-meta-row"><span class="list-meta-label">License</span><span class="list-meta-value">' + escapeHtml(license) + '</span></div>'

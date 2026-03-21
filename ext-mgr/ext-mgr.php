@@ -479,11 +479,11 @@ if (file_exists('/var/www/header.php')) {
                             <div id="variables-manager-container" class="extmgr-variables-manager">
                                 <!-- Tab Navigation -->
                                 <div class="extmgr-var-tabs" role="tablist">
-                                    <button type="button" class="extmgr-var-tab is-active" data-var-tab="extmgr" role="tab" aria-selected="true">
-                                        <i class="fa-solid fa-gears"></i> ext-mgr
+                                    <button type="button" class="extmgr-var-tab is-active" data-var-tab="moode" role="tab" aria-selected="true">
+                                        <i class="fa-solid fa-bars-staggered"></i> moOde
                                     </button>
-                                    <button type="button" class="extmgr-var-tab" data-var-tab="moode" role="tab" aria-selected="false">
-                                        <i class="fa-solid fa-music"></i> moOde
+                                    <button type="button" class="extmgr-var-tab" data-var-tab="extmgr" role="tab" aria-selected="false">
+                                        <i class="fa-solid fa-gears"></i> ext-mgr
                                     </button>
                                     <button type="button" class="extmgr-var-tab" data-var-tab="extensions" role="tab" aria-selected="false">
                                         <i class="fa-solid fa-puzzle-piece"></i> Extensions
@@ -493,19 +493,19 @@ if (file_exists('/var/www/header.php')) {
                                     </button>
                                 </div>
 
-                                <!-- Tab Panel: ext-mgr Variables -->
-                                <div class="extmgr-var-panel is-active" data-var-panel="extmgr" role="tabpanel">
-                                    <p class="extmgr-var-help">ext-mgr system paths and feature configuration.</p>
-                                    <div id="var-extmgr-content" class="extmgr-var-editor">
-                                        <p class="extmgr-note">Loading ext-mgr variables...</p>
-                                    </div>
-                                </div>
-
                                 <!-- Tab Panel: moOde Variables (Read-Only) -->
-                                <div class="extmgr-var-panel" data-var-panel="moode" role="tabpanel">
+                                <div class="extmgr-var-panel is-active" data-var-panel="moode" role="tabpanel">
                                     <p class="extmgr-var-help">moOde player configuration (read-only).</p>
                                     <div id="var-moode-content" class="extmgr-var-editor">
                                         <p class="extmgr-note">Loading moOde variables...</p>
+                                    </div>
+                                </div>
+
+                                <!-- Tab Panel: ext-mgr Variables -->
+                                <div class="extmgr-var-panel" data-var-panel="extmgr" role="tabpanel">
+                                    <p class="extmgr-var-help">ext-mgr system paths and feature configuration.</p>
+                                    <div id="var-extmgr-content" class="extmgr-var-editor">
+                                        <p class="extmgr-note">Loading ext-mgr variables...</p>
                                     </div>
                                 </div>
 
