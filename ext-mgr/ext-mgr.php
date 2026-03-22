@@ -245,8 +245,8 @@ if (file_exists('/var/www/header.php')) {
                                 <section class="extmgr-wizard-panel" data-panel="review">
                                     <h3 class="extmgr-panel-title"><i class="fa-solid fa-clipboard-check"></i> Review &amp; Install</h3>
                                     <p class="extmgr-panel-desc">Review configuration and install the extension.</p>
-                                    <div id="wizard-scan-summary" class="extmgr-note">No scan data yet.</div>
-                                    <pre id="wizard-review-json" class="extmgr-log-content">{}</pre>
+                                    <div id="wizard-scan-summary" class="extmgr-note" style="display:none;">No scan data yet.</div>
+                                    <div id="wizard-review-json" class="extmgr-review-container"></div>
 
                                     <!-- Install Progress -->
                                     <div id="wizard-install-progress" class="extmgr-install-progress" style="display:none;">

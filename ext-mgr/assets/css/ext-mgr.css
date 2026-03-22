@@ -1589,6 +1589,242 @@ body:not([data-standalone]) .extmgr-page-shell {
   color: var(--rp-text-strong);
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════════
+   WIZARD REVIEW STEP - Scan Results & Install Summary
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.extmgr-review-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.8rem 1rem;
+  margin-bottom: 0.8rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  border: 1px solid var(--rp-divider-soft);
+}
+
+.extmgr-review-header h4 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--rp-text-strong);
+}
+
+.extmgr-review-header .extmgr-version {
+  font-weight: 400;
+  font-size: 0.85rem;
+  color: var(--rp-text-soft);
+  margin-left: 0.5rem;
+}
+
+.extmgr-type-badge {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.75rem;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  color: var(--rp-text-soft);
+  text-transform: capitalize;
+}
+
+.extmgr-review-section {
+  margin-bottom: 1rem;
+  padding: 0.8rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--rp-divider-soft);
+}
+
+.extmgr-review-section h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.extmgr-review-note {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.8rem;
+  color: var(--rp-text-soft);
+}
+
+.extmgr-review-list {
+  margin: 0;
+  padding: 0 0 0 1.2rem;
+  list-style: none;
+}
+
+.extmgr-review-list li {
+  margin: 0.4rem 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.extmgr-review-list li i {
+  width: 1rem;
+  text-align: center;
+  margin-right: 0.3rem;
+}
+
+.extmgr-review-list-compact li {
+  margin: 0.2rem 0;
+}
+
+.extmgr-fix-hint {
+  display: block;
+  margin-top: 0.2rem;
+  padding-left: 1.3rem;
+  color: var(--rp-text-soft);
+  font-style: italic;
+}
+
+/* Violations - Red */
+.extmgr-review-violations {
+  background: rgba(231, 76, 60, 0.08);
+  border-color: rgba(231, 76, 60, 0.3);
+}
+
+.extmgr-review-violations h4 {
+  color: #e74c3c;
+}
+
+.extmgr-review-violations li {
+  color: #f5a9a2;
+}
+
+/* Warnings - Yellow/Orange */
+.extmgr-review-warnings {
+  background: rgba(243, 156, 18, 0.08);
+  border-color: rgba(243, 156, 18, 0.3);
+}
+
+.extmgr-review-warnings h4 {
+  color: #f39c12;
+}
+
+.extmgr-review-warnings li {
+  color: #f5d89a;
+}
+
+/* Upgrades - Blue */
+.extmgr-review-upgrades {
+  background: rgba(52, 152, 219, 0.08);
+  border-color: rgba(52, 152, 219, 0.3);
+}
+
+.extmgr-review-upgrades h4 {
+  color: #3498db;
+}
+
+.extmgr-review-upgrades li {
+  color: #a3d5f5;
+}
+
+/* OK/Verified - Green */
+.extmgr-review-ok {
+  background: rgba(39, 174, 96, 0.08);
+  border-color: rgba(39, 174, 96, 0.3);
+}
+
+.extmgr-review-ok h4 {
+  color: #27ae60;
+}
+
+.extmgr-review-ok li {
+  color: #7dcea0;
+}
+
+/* Install Summary */
+.extmgr-review-install {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.extmgr-review-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.extmgr-review-table td {
+  padding: 0.4rem 0;
+  font-size: 0.85rem;
+  border-bottom: 1px solid var(--rp-divider-soft);
+}
+
+.extmgr-review-table td:first-child {
+  width: 150px;
+  color: var(--rp-text-soft);
+}
+
+.extmgr-review-table td:last-child {
+  color: var(--rp-text-strong);
+}
+
+.extmgr-review-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Badges */
+.extmgr-badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 10px;
+  margin-left: 0.4rem;
+}
+
+.extmgr-badge-error {
+  background: rgba(231, 76, 60, 0.2);
+  color: #e74c3c;
+}
+
+.extmgr-badge-warning {
+  background: rgba(243, 156, 18, 0.2);
+  color: #f39c12;
+}
+
+.extmgr-badge-info {
+  background: rgba(52, 152, 219, 0.2);
+  color: #3498db;
+}
+
+.extmgr-badge-ok {
+  background: rgba(39, 174, 96, 0.2);
+  color: #27ae60;
+}
+
+.extmgr-badge-muted {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--rp-text-soft);
+  opacity: 0.6;
+}
+
+.extmgr-review-badges {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.extmgr-muted {
+  color: var(--rp-text-soft);
+  opacity: 0.6;
+  font-style: italic;
+}
+
+.extmgr-tag {
+  display: inline-block;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.75rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  margin-left: 0.3rem;
+}
+
+.extmgr-tag-warning {
+  background: rgba(243, 156, 18, 0.2);
+  color: #f39c12;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════════ */
 
 .extmgr-form-grid {

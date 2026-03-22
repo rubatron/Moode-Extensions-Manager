@@ -1587,32 +1587,164 @@
     };
   }
 
+  /**
+   * Build HTML for scan issues (violations, warnings, upgrades).
+   */
+  function buildScanIssuesHtml(scan) {
+    var html = '';
+    var violations = scan.violations || [];
+    var warnings = scan.warnings || [];
+    var codePatterns = (scan.code_patterns || {}).by_severity || {};
+    var codeViolations = codePatterns.violation || [];
+    var codeWarnings = codePatterns.warning || [];
+    var upgradeables = codePatterns.upgradeable || [];
+    var okPatterns = codePatterns.ok || [];
+
+    // Violations (blocks install)
+    if (violations.length > 0 || codeViolations.length > 0) {
+      html += '<div class="extmgr-review-section extmgr-review-violations">';
+      html += '<h4><i class="fa-solid fa-circle-xmark"></i> Violations <span class="extmgr-badge extmgr-badge-error">' + (violations.length + codeViolations.length) + '</span></h4>';
+      html += '<p class="extmgr-review-note">These issues block installation.</p>';
+      html += '<ul class="extmgr-review-list">';
+      violations.forEach(function(v) {
+        html += '<li><i class="fa-solid fa-ban"></i> <strong>Path:</strong> ' + escapeHtml(v.path) + ' <span class="extmgr-tag">' + escapeHtml(v.label) + '</span></li>';
+      });
+      codeViolations.forEach(function(p) {
+        html += '<li><i class="fa-solid fa-code"></i> <strong>' + escapeHtml(p.label) + '</strong> in <code>' + escapeHtml(p.file) + '</code></li>';
+      });
+      html += '</ul></div>';
+    }
+
+    // Warnings (require acknowledgment)
+    if (warnings.length > 0 || codeWarnings.length > 0) {
+      html += '<div class="extmgr-review-section extmgr-review-warnings">';
+      html += '<h4><i class="fa-solid fa-triangle-exclamation"></i> Warnings <span class="extmgr-badge extmgr-badge-warning">' + (warnings.length + codeWarnings.length) + '</span></h4>';
+      html += '<p class="extmgr-review-note">Review before proceeding.</p>';
+      html += '<ul class="extmgr-review-list">';
+      warnings.forEach(function(w) {
+        html += '<li><i class="fa-solid fa-route"></i> <strong>Path:</strong> ' + escapeHtml(w.path) + ' <span class="extmgr-tag">' + escapeHtml(w.label) + '</span></li>';
+      });
+      codeWarnings.forEach(function(p) {
+        html += '<li><i class="fa-solid fa-code"></i> <strong>' + escapeHtml(p.label) + '</strong> in <code>' + escapeHtml(p.file) + '</code>';
+        if (p.fix) html += '<br><small class="extmgr-fix-hint"><i class="fa-solid fa-lightbulb"></i> ' + escapeHtml(p.fix) + '</small>';
+        html += '</li>';
+      });
+      html += '</ul></div>';
+    }
+
+    // Auto-upgrades (informational)
+    if (upgradeables.length > 0) {
+      html += '<div class="extmgr-review-section extmgr-review-upgrades">';
+      html += '<h4><i class="fa-solid fa-wand-magic-sparkles"></i> Auto-Upgrades <span class="extmgr-badge extmgr-badge-info">' + upgradeables.length + '</span></h4>';
+      html += '<p class="extmgr-review-note">These will be automatically applied during install.</p>';
+      html += '<ul class="extmgr-review-list">';
+      upgradeables.forEach(function(p) {
+        html += '<li><i class="fa-solid fa-arrow-up"></i> <strong>' + escapeHtml(p.label) + '</strong> in <code>' + escapeHtml(p.file) + '</code>';
+        if (p.fix) html += '<br><small class="extmgr-fix-hint"><i class="fa-solid fa-check"></i> ' + escapeHtml(p.fix) + '</small>';
+        html += '</li>';
+      });
+      html += '</ul></div>';
+    }
+
+    // OK patterns (verified integrations)
+    if (okPatterns.length > 0) {
+      html += '<div class="extmgr-review-section extmgr-review-ok">';
+      html += '<h4><i class="fa-solid fa-circle-check"></i> Verified <span class="extmgr-badge extmgr-badge-ok">' + okPatterns.length + '</span></h4>';
+      html += '<ul class="extmgr-review-list extmgr-review-list-compact">';
+      okPatterns.forEach(function(p) {
+        html += '<li><i class="fa-solid fa-check"></i> ' + escapeHtml(p.label) + '</li>';
+      });
+      html += '</ul></div>';
+    }
+
+    return html;
+  }
+
+  /**
+   * Build HTML for install summary (packages, services, scripts).
+   */
+  function buildInstallSummaryHtml(review, manifest) {
+    var html = '<div class="extmgr-review-section extmgr-review-install">';
+    html += '<h4><i class="fa-solid fa-box-open"></i> Install Summary</h4>';
+
+    var packages = review.manifestPackages || [];
+    var services = review.serviceUnits || [];
+    var scripts = review.installScripts || {};
+    var bootConfig = ((manifest.ext_mgr || {}).boot_config || []);
+
+    html += '<table class="extmgr-review-table"><tbody>';
+
+    // Packages
+    html += '<tr><td><i class="fa-solid fa-cube"></i> APT Packages</td><td>';
+    html += packages.length > 0 ? packages.map(escapeHtml).join(', ') : '<span class="extmgr-muted">None</span>';
+    html += '</td></tr>';
+
+    // Services
+    html += '<tr><td><i class="fa-solid fa-gear"></i> Systemd Services</td><td>';
+    html += services.length > 0 ? services.map(escapeHtml).join(', ') : '<span class="extmgr-muted">None</span>';
+    html += '</td></tr>';
+
+    // Install scripts
+    var scriptList = [];
+    if (scripts.install) scriptList.push('install.sh');
+    if (scripts.repair) scriptList.push('repair.sh');
+    if (scripts.uninstall) scriptList.push('uninstall.sh');
+    html += '<tr><td><i class="fa-solid fa-terminal"></i> Scripts</td><td>';
+    html += scriptList.length > 0 ? scriptList.join(', ') : '<span class="extmgr-muted">None</span>';
+    html += '</td></tr>';
+
+    // Boot config
+    html += '<tr><td><i class="fa-solid fa-microchip"></i> Boot Config</td><td>';
+    if (bootConfig.length > 0) {
+      html += '<span class="extmgr-tag extmgr-tag-warning"><i class="fa-solid fa-rotate"></i> ' + bootConfig.length + ' lines (reboot required)</span>';
+    } else {
+      html += '<span class="extmgr-muted">None</span>';
+    }
+    html += '</td></tr>';
+
+    html += '</tbody></table></div>';
+    return html;
+  }
+
   function renderWizardReview() {
     if (!wizardReviewJsonEl) {
       return;
     }
-    var reviewPayload = {
-      sessionId: importWizardState.sessionId,
-      extensionId: importWizardState.extensionId,
-      scan: importWizardState.scan || {},
-      review: importWizardState.review || {},
-      manifestPreview: {
-        name: wizardNameEl ? wizardNameEl.value : '',
-        version: wizardVersionEl ? wizardVersionEl.value : '',
-        type: wizardTypeEl ? wizardTypeEl.value : '',
-        menuVisibility: {
-          m: !!(wizardMenuMEl && wizardMenuMEl.checked),
-          library: !!(wizardMenuLibraryEl && wizardMenuLibraryEl.checked),
-          system: !!(wizardMenuSystemEl && wizardMenuSystemEl.checked)
-        },
-        settingsCardOnly: !!(wizardSettingsOnlyEl && wizardSettingsOnlyEl.checked),
-        serviceName: wizardServiceNameEl ? wizardServiceNameEl.value : '',
-        dependencies: wizardDependenciesEl ? wizardDependenciesEl.value.split(/\r?\n/).filter(Boolean) : [],
-        aptPackages: wizardAptPackagesEl ? wizardAptPackagesEl.value.split(/\r?\n/).filter(Boolean) : [],
-        bootConfig: wizardBootConfigEl ? wizardBootConfigEl.value.split(/\r?\n/).filter(Boolean) : []
-      }
-    };
-    wizardReviewJsonEl.textContent = JSON.stringify(reviewPayload, null, 2);
+
+    var scan = importWizardState.scan || {};
+    var review = importWizardState.review || {};
+    var manifest = importWizardState.manifest || {};
+
+    // Build formatted review HTML
+    var html = '';
+
+    // Extension info header
+    var name = wizardNameEl ? wizardNameEl.value : (manifest.name || importWizardState.extensionId);
+    var version = wizardVersionEl ? wizardVersionEl.value : (manifest.version || '');
+    var type = wizardTypeEl ? wizardTypeEl.value : ((manifest.ext_mgr || {}).type || 'other');
+
+    html += '<div class="extmgr-review-header">';
+    html += '<h4><i class="fa-solid fa-puzzle-piece"></i> ' + escapeHtml(name) + ' <span class="extmgr-version">' + escapeHtml(version) + '</span></h4>';
+    html += '<span class="extmgr-type-badge">' + escapeHtml(type) + '</span>';
+    html += '</div>';
+
+    // Scan issues
+    html += buildScanIssuesHtml(scan);
+
+    // Install summary
+    html += buildInstallSummaryHtml(review, manifest);
+
+    // Menu visibility summary
+    html += '<div class="extmgr-review-section extmgr-review-menu">';
+    html += '<h4><i class="fa-solid fa-bars"></i> Menu Visibility</h4>';
+    html += '<div class="extmgr-review-badges">';
+    html += (wizardMenuMEl && wizardMenuMEl.checked) ? '<span class="extmgr-badge extmgr-badge-ok">M Menu</span>' : '<span class="extmgr-badge extmgr-badge-muted">M Menu</span>';
+    html += (wizardMenuLibraryEl && wizardMenuLibraryEl.checked) ? '<span class="extmgr-badge extmgr-badge-ok">Library</span>' : '<span class="extmgr-badge extmgr-badge-muted">Library</span>';
+    html += (wizardMenuSystemEl && wizardMenuSystemEl.checked) ? '<span class="extmgr-badge extmgr-badge-ok">System</span>' : '<span class="extmgr-badge extmgr-badge-muted">System</span>';
+    html += '</div></div>';
+
+    // Replace pre content with formatted HTML
+    wizardReviewJsonEl.innerHTML = html;
   }
 
   function readPref(key, fallback) {
