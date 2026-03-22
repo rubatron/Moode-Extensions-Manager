@@ -5,23 +5,62 @@ if ($action !== 'download_extension_template' && $action !== 'download_extension
     header('Content-Type: application/json; charset=utf-8');
 }
 
-// Base directory is always /var/www/extensions/sys regardless of API file location
-$extensionsRootPath = '/var/www/extensions';
-$baseDir = $extensionsRootPath . '/sys';
-$registryPath = $baseDir . '/registry.json';
-$metaPath = $baseDir . '/ext-mgr.meta.json';
-$versionPath = $baseDir . '/ext-mgr.version';
-$releasePath = $baseDir . '/ext-mgr.release.json';
-$symlinkHelperPath = '/usr/local/sbin/ext-mgr-repair-symlink';
-$extensionsInstalledPath = $extensionsRootPath . '/installed';
-$extensionsCachePath = $extensionsRootPath . '/cache';
-$extensionsBackupPath = $baseDir . '/backup';
-$extensionsSysLogsRootPath = $baseDir . '/logs';
-$extensionsLogsPath = $extensionsSysLogsRootPath . '/extensionslogs';
-$extMgrLogsPath = $extensionsSysLogsRootPath . '/ext-mgr logs';
-$extMgrRuntimeLogsPath = $baseDir . '/.ext-mgr/logs';
-$extMgrVariablesPath = $baseDir . '/.ext-mgr/variables.json';
-$extMgrInstallVarsPath = $baseDir . '/scripts/ext-mgr-install-vars.json';
+// ═══════════════════════════════════════════════════════════════════════════════
+// PATH CONSTANTS - Single source of truth for all paths
+// ═══════════════════════════════════════════════════════════════════════════════
+define('MOODE_ROOT', '/var/www');
+define('MOODE_INC', MOODE_ROOT . '/inc');
+define('MOODE_SQLITE_DB', '/var/local/www/db/moode-sqlite3.db');
+define('MOODE_RELEASE_FILE', MOODE_ROOT . '/moode_release');
+
+define('EXT_ROOT', MOODE_ROOT . '/extensions');
+define('EXT_INSTALLED', EXT_ROOT . '/installed');
+define('EXT_CACHE', EXT_ROOT . '/cache');
+define('EXT_SYS', EXT_ROOT . '/sys');
+define('EXT_API', EXT_ROOT . '/api');
+
+define('EXT_SYS_BACKUP', EXT_SYS . '/backup');
+define('EXT_SYS_LOGS', EXT_SYS . '/logs');
+define('EXT_SYS_LOGS_EXT', EXT_SYS_LOGS . '/extensionslogs');
+define('EXT_SYS_LOGS_MGR', EXT_SYS_LOGS . '/ext-mgr logs');
+define('EXT_SYS_RUNTIME', EXT_SYS . '/.ext-mgr');
+define('EXT_SYS_TEMPLATE', EXT_SYS . '/template');
+define('EXT_SYS_SCRIPTS', EXT_SYS . '/scripts');
+
+define('EXT_REGISTRY', EXT_SYS . '/registry.json');
+define('EXT_META', EXT_SYS . '/ext-mgr.meta.json');
+define('EXT_VERSION', EXT_SYS . '/ext-mgr.version');
+define('EXT_RELEASE', EXT_SYS . '/ext-mgr.release.json');
+define('EXT_VARIABLES', EXT_SYS_RUNTIME . '/variables.json');
+define('EXT_INSTALL_VARS', EXT_SYS_SCRIPTS . '/ext-mgr-install-vars.json');
+define('EXT_SERVICE_STATE', EXT_SYS_RUNTIME . '/service-state.json');
+define('EXT_WATCHDOG_STATE', EXT_SYS_RUNTIME . '/watchdog-state.json');
+define('EXT_PACKAGES_DIR', EXT_SYS_RUNTIME . '/packages');
+
+define('EXT_BOOT_CONFIG_HELPER', EXT_API . '/ext-mgr-boot-config.sh');
+define('EXT_BOOT_FRAGMENTS_DIR', '/boot/firmware/extensions.d');
+define('EXT_BOOT_CONFIG_TARGET', '/boot/firmware/config.txt');
+
+define('EXT_SYMLINK_HELPER', '/usr/local/sbin/ext-mgr-repair-symlink');
+define('EXT_CANONICAL_ROUTE_PATTERN', MOODE_ROOT . '/%s.php');
+
+// Legacy variables for backward compatibility (deprecated, use constants instead)
+$extensionsRootPath = EXT_ROOT;
+$baseDir = EXT_SYS;
+$registryPath = EXT_REGISTRY;
+$metaPath = EXT_META;
+$versionPath = EXT_VERSION;
+$releasePath = EXT_RELEASE;
+$symlinkHelperPath = EXT_SYMLINK_HELPER;
+$extensionsInstalledPath = EXT_INSTALLED;
+$extensionsCachePath = EXT_CACHE;
+$extensionsBackupPath = EXT_SYS_BACKUP;
+$extensionsSysLogsRootPath = EXT_SYS_LOGS;
+$extensionsLogsPath = EXT_SYS_LOGS_EXT;
+$extMgrLogsPath = EXT_SYS_LOGS_MGR;
+$extMgrRuntimeLogsPath = EXT_SYS_RUNTIME . '/logs';
+$extMgrVariablesPath = EXT_VARIABLES;
+$extMgrInstallVarsPath = EXT_INSTALL_VARS;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // VARIABLES API - Centralized configuration system for ext-mgr and extensions
@@ -31,23 +70,23 @@ function getDefaultSystemVariables()
 {
     return [
         'paths' => [
-            'extensionsRoot' => '/var/www/extensions',
-            'installedRoot' => '/var/www/extensions/installed',
-            'cacheRoot' => '/var/www/extensions/cache',
-            'backupRoot' => '/var/www/extensions/sys/backup',
-            'registryPath' => '/var/www/extensions/sys/registry.json',
-            'logsRoot' => '/var/www/extensions/sys/logs',
-            'extensionLogsRoot' => '/var/www/extensions/sys/logs/extensionslogs',
-            'extMgrLogsRoot' => '/var/www/extensions/sys/logs/ext-mgr logs',
-            'runtimeRoot' => '/var/www/extensions/sys/.ext-mgr',
-            'variablesPath' => '/var/www/extensions/sys/.ext-mgr/variables.json',
-            'canonicalRoutePattern' => '/var/www/%s.php',
-            'moodeRoot' => '/var/www',
-            'moodeInclude' => '/var/www/inc',
-            'sqliteDb' => '/var/local/www/db/moode-sqlite3.db',
-            'bootConfigHelper' => '/var/www/extensions/api/ext-mgr-boot-config.sh',
-            'bootConfigFragmentsDir' => '/boot/firmware/extensions.d',
-            'bootConfigTarget' => '/boot/firmware/config.txt',
+            'extensionsRoot' => EXT_ROOT,
+            'installedRoot' => EXT_INSTALLED,
+            'cacheRoot' => EXT_CACHE,
+            'backupRoot' => EXT_SYS_BACKUP,
+            'registryPath' => EXT_REGISTRY,
+            'logsRoot' => EXT_SYS_LOGS,
+            'extensionLogsRoot' => EXT_SYS_LOGS_EXT,
+            'extMgrLogsRoot' => EXT_SYS_LOGS_MGR,
+            'runtimeRoot' => EXT_SYS_RUNTIME,
+            'variablesPath' => EXT_VARIABLES,
+            'canonicalRoutePattern' => EXT_CANONICAL_ROUTE_PATTERN,
+            'moodeRoot' => MOODE_ROOT,
+            'moodeInclude' => MOODE_INC,
+            'sqliteDb' => MOODE_SQLITE_DB,
+            'bootConfigHelper' => EXT_BOOT_CONFIG_HELPER,
+            'bootConfigFragmentsDir' => EXT_BOOT_FRAGMENTS_DIR,
+            'bootConfigTarget' => EXT_BOOT_CONFIG_TARGET,
         ],
         'uris' => [
             'apiEndpoint' => '/ext-mgr-api.php',
@@ -587,7 +626,7 @@ function buildRuntimeMemoryHealth()
 
 function readExtMgrServiceHealth()
 {
-    $statePath = '/var/www/extensions/sys/.ext-mgr/service-state.json';
+    $statePath = EXT_SERVICE_STATE;
     $fallback = [
         'status' => 'not-installed',
         'detail' => 'service-state-missing',
@@ -625,7 +664,7 @@ function readExtMgrServiceHealth()
 
 function readExtMgrWatchdogHealth()
 {
-    $statePath = '/var/www/extensions/sys/.ext-mgr/watchdog-state.json';
+    $statePath = EXT_WATCHDOG_STATE;
     $fallback = [
         'status' => 'not-installed',
         'detail' => 'watchdog-state-missing',
@@ -1736,7 +1775,7 @@ function buildSystemResourceSnapshot($registryExtensions, $extensionsInstalledPa
         'memory' => $memory,
         'disk' => [
             'root' => diskUsageForPath('/'),
-            'extensions' => diskUsageForPath('/var/www/extensions'),
+            'extensions' => diskUsageForPath(EXT_ROOT),
         ],
         'extMgr' => [
             'memoryMiB' => $runtimeMemory['serviceMemoryMiB'],
@@ -1955,7 +1994,7 @@ function extensionIdExists($extId, $registryPath)
         return false;
     }
 
-    if (is_dir('/var/www/extensions/installed/' . $id)) {
+    if (is_dir(EXT_INSTALLED . '/' . $id)) {
         return true;
     }
 
@@ -2009,7 +2048,7 @@ function updateImportedManifestWithManagedId($sourceDir, $manifestData, $newId, 
     $extMgr['service'] = $service;
 
     $logging = is_array($extMgr['logging'] ?? null) ? $extMgr['logging'] : [];
-    $logging['globalDir'] = '/var/www/extensions/sys/logs/extensionslogs/' . $newId;
+    $logging['globalDir'] = EXT_SYS_LOGS_EXT . '/' . $newId;
     $extMgr['logging'] = $logging;
     $manifestData['ext_mgr'] = $extMgr;
 
@@ -2084,7 +2123,7 @@ function buildTemplatePackageFiles($extensionId)
             ],
             'logging' => [
                 'localDir' => 'logs',
-                'globalDir' => '/var/www/extensions/sys/logs/extensionslogs/auto-generate',
+                'globalDir' => EXT_SYS_LOGS_EXT . '/auto-generate',
                 'files' => ['install.log', 'system.log', 'error.log'],
             ],
             'install' => [
@@ -2511,7 +2550,7 @@ function writeTemplateZipArchive($zipPath, $extensionId, &$error)
     $error = '';
 
     // Try to read from template folder on disk first
-    $templateDir = '/var/www/extensions/sys/template';
+    $templateDir = EXT_SYS_TEMPLATE;
     $files = null;
     $diskError = '';
 
@@ -4356,7 +4395,7 @@ function readExtensionInstallMetadata($extId)
         return null;
     }
 
-    $metadataPath = '/var/www/extensions/installed/' . $extId . '/.ext-mgr/install-metadata.json';
+    $metadataPath = EXT_INSTALLED . '/' . $extId . '/.ext-mgr/install-metadata.json';
     $raw = readJsonFile($metadataPath, null);
     if (!is_array($raw)) {
         return null;
@@ -4400,7 +4439,7 @@ function readExtensionInstallMetadata($extId)
 
 function loadExtensionInfo($extId, $entryPath, $fallbackName, $fallbackVersion)
 {
-    $installedDir = '/var/www/extensions/installed/' . $extId;
+    $installedDir = EXT_INSTALLED . '/' . $extId;
     $candidates = [
         $installedDir . '/info.json',
         $installedDir . '/extension-info.json',
@@ -4444,7 +4483,7 @@ function loadExtensionInfo($extId, $entryPath, $fallbackName, $fallbackVersion)
 
 function loadExtensionManifest($extId)
 {
-    $installedDir = '/var/www/extensions/installed/' . $extId;
+    $installedDir = EXT_INSTALLED . '/' . $extId;
     $manifestPath = $installedDir . '/manifest.json';
 
     if (!is_file($manifestPath)) {
@@ -4703,8 +4742,8 @@ function syncRegistryWithFilesystem($registryPath, $pruneMissing = false)
         }
         $knownIds[$id] = true;
 
-        $installedDir = '/var/www/extensions/installed/' . $id;
-        $canonicalLink = '/var/www/' . $id . '.php';
+        $installedDir = EXT_INSTALLED . '/' . $id;
+        $canonicalLink = MOODE_ROOT . '/' . $id . '.php';
         $dirPresent = is_dir($installedDir);
         $routePresent = (is_link($canonicalLink) || file_exists($canonicalLink));
 
@@ -4768,7 +4807,7 @@ function syncRegistryWithFilesystem($registryPath, $pruneMissing = false)
                 'showInMMenu' => true,
                 'showInLibrary' => true,
                 'installed' => true,
-                'routeInstalled' => (is_link('/var/www/' . $entry . '.php') || file_exists('/var/www/' . $entry . '.php')),
+                'routeInstalled' => (is_link(MOODE_ROOT . '/' . $entry . '.php') || file_exists(MOODE_ROOT . '/' . $entry . '.php')),
             ];
             $knownIds[$entry] = true;
             $summary['discovered']++;
@@ -4803,7 +4842,7 @@ function isSafeRelativeSubPath($path)
 function resolveExtensionEntryFile($extId, $entryPath, &$error)
 {
     $error = '';
-    $installedDir = '/var/www/extensions/installed/' . $extId;
+    $installedDir = EXT_INSTALLED . '/' . $extId;
     if (!is_dir($installedDir)) {
         $error = 'Installed extension directory not found: ' . $installedDir;
         return null;
@@ -4864,7 +4903,7 @@ function repairExtensionSymlink($extId, $entryPath, &$error)
         return null;
     }
 
-    $linkPath = '/var/www/' . $extId . '.php';
+    $linkPath = MOODE_ROOT . '/' . $extId . '.php';
     if (file_exists($linkPath) || is_link($linkPath)) {
         if (!@unlink($linkPath)) {
             $helperResult = runPrivilegedSymlinkRepair($extId, $entryPath, $helperError);
@@ -5454,12 +5493,12 @@ function removeExtensionById($extId, $registryPath, $backupRoot, &$error)
         $warnings[] = 'Extension not found in registry; continuing with filesystem cleanup for ' . $extId . '.';
     }
 
-    $installedDir = '/var/www/extensions/installed/' . $extId;
-    $linkPath = '/var/www/' . $extId . '.php';
-    $legacyLinkPath = '/var/www/extensions/' . $extId . '.php';
-    $globalLogsDir = '/var/www/extensions/sys/logs/extensionslogs/' . $extId;
-    $legacyInstalledLogsDir = '/var/www/extensions/logs/' . $extId;
-    $runtimeCacheDir = '/var/www/extensions/cache/' . $extId;
+    $installedDir = EXT_INSTALLED . '/' . $extId;
+    $linkPath = MOODE_ROOT . '/' . $extId . '.php';
+    $legacyLinkPath = EXT_ROOT . '/' . $extId . '.php';
+    $globalLogsDir = EXT_SYS_LOGS_EXT . '/' . $extId;
+    $legacyInstalledLogsDir = EXT_ROOT . '/logs/' . $extId;
+    $runtimeCacheDir = EXT_CACHE . '/' . $extId;
 
     $installMetadata = readExtensionInstallMetadata($extId);
     $uninstallSummary = [
