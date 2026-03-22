@@ -449,6 +449,27 @@ if (file_exists('/var/www/header.php')) {
                         </div>
                     </div>
 
+                    <div class="extmgr-submenu" id="submenu-system-services">
+                        <button class="extmgr-submenu-header" type="button" data-submenu-toggle aria-expanded="false">
+                            <span>System Services</span>
+                            <i class="fa-solid fa-angle-down" aria-hidden="true"></i>
+                        </button>
+                        <div class="extmgr-submenu-body">
+                            <div id="services-core-list" class="extmgr-services-list">
+                                <div class="extmgr-note">Core moOde services: loading...</div>
+                            </div>
+                            <div id="services-extmgr-list" class="extmgr-services-list">
+                                <div class="extmgr-note">ext-mgr services: loading...</div>
+                            </div>
+                            <div id="services-extensions-list" class="extmgr-services-list">
+                                <div class="extmgr-note">Extension services: loading...</div>
+                            </div>
+                            <div class="extmgr-actions">
+                                <button id="refresh-services-btn" class="btn btn-primary btn-small" type="button"><i class="fa-solid fa-sharp fa-server"></i> Refresh Services</button>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="extmgr-submenu" id="submenu-maintenance-storage">
                         <button class="extmgr-submenu-header" type="button" data-submenu-toggle aria-expanded="false">
                             <span>Maintenance and Storage</span>

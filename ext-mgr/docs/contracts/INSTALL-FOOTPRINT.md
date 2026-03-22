@@ -141,18 +141,18 @@ The `.ext-mgr/` directory is hidden and owned by the security principal (moode-e
 function readInstallMetadata($extId) {
     $metadataDir = '/var/www/extensions/installed/' . $extId . '/.ext-mgr';
     $metadataPath = $metadataDir . '/install-metadata.json';
-    
+
     if (!is_file($metadataPath)) {
         return null;
     }
-    
+
     $content = file_get_contents($metadataPath);
     $data = json_decode($content, true);
-    
+
     if (!is_array($data) || ($data['schemaVersion'] ?? 0) < 2) {
         return null; // Unsupported or invalid
     }
-    
+
     return $data;
 }
 ```
@@ -197,6 +197,7 @@ if schema_version == 1:
 ### Future Versions
 
 When adding fields:
+
 - Keep backward compatibility
 - Use `schemaVersion` to detect old files
 - Add migration logic in install-helper.sh

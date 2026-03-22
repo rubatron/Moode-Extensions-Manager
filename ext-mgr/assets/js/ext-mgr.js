@@ -69,6 +69,10 @@
   var downloadExtMgrLogsBtn = document.getElementById('download-extmgr-logs-btn');
   var clearExtensionsFolderBtn = document.getElementById('clear-extensions-folder-btn');
   var refreshResourcesBtn = document.getElementById('refresh-resources-btn');
+  var refreshServicesBtn = document.getElementById('refresh-services-btn');
+  var servicesCoreListEl = document.getElementById('services-core-list');
+  var servicesExtmgrListEl = document.getElementById('services-extmgr-list');
+  var servicesExtensionsListEl = document.getElementById('services-extensions-list');
   var createBackupBtn = document.getElementById('create-backup-btn');
   var clearCacheBtn = document.getElementById('clear-cache-btn');
   var syncRegistryBtn = document.getElementById('sync-registry-btn');
@@ -1072,6 +1076,7 @@
     applyTip(createBackupBtn, 'manager.maintenance.backup', 'Create a backup snapshot for ext-mgr runtime state.');
     applyTip(clearCacheBtn, 'manager.maintenance.clearCache', 'Clear cached files in ' + Config.getPath('cacheRoot', '/var/www/extensions/cache') + '.');
     applyTip(refreshResourcesBtn, 'manager.system.refreshResources', 'Refresh memory, CPU, and storage metrics.');
+    applyTip(refreshServicesBtn, 'manager.system.refreshServices', 'Refresh systemd service status for moOde and extensions.');
   }
 
   function bindIfPresent(el, eventName, handler) {
@@ -1939,6 +1944,71 @@
       resourceRequirementsNoteEl.textContent = req.length
         ? ('Requirements for accurate per-extension memory: ' + req.join(' | '))
         : 'Runtime process matching is active.';
+    }
+  }
+
+  function buildServiceStatusBadge(active, sub) {
+    var cls = 'extmgr-service-badge';
+    var label = active || 'unknown';
+    if (active === 'active' && sub === 'running') {
+      cls += ' extmgr-service-running';
+      label = 'running';
+    } else if (active === 'active') {
+      cls += ' extmgr-service-active';
+    } else if (active === 'inactive') {
+      cls += ' extmgr-service-inactive';
+    } else if (active === 'failed') {
+      cls += ' extmgr-service-failed';
+    } else if (active === 'not-found') {
+      cls += ' extmgr-service-notfound';
+      label = 'not installed';
+    }
+    return '<span class="' + cls + '">' + escapeHtml(label) + '</span>';
+  }
+
+  function buildServiceRow(svc) {
+    var name = svc.name || 'unknown';
+    var displayName = name.replace('.service', '');
+    var badge = buildServiceStatusBadge(svc.active, svc.sub);
+    var desc = svc.description ? ' <span class="extmgr-service-desc">' + escapeHtml(svc.description) + '</span>' : '';
+    return '<div class="extmgr-service-row">' +
+      '<span class="extmgr-service-name">' + escapeHtml(displayName) + '</span>' +
+      badge + desc +
+      '</div>';
+  }
+
+  function renderSystemServices(data) {
+    var core = Array.isArray(data.core) ? data.core : [];
+    var extMgr = Array.isArray(data.extMgr) ? data.extMgr : [];
+    var extensions = Array.isArray(data.extensions) ? data.extensions : [];
+
+    if (servicesCoreListEl) {
+      if (core.length === 0) {
+        servicesCoreListEl.innerHTML = '<div class="extmgr-note">No core services detected.</div>';
+      } else {
+        servicesCoreListEl.innerHTML = '<div class="extmgr-services-title">Core moOde Services</div>' +
+          core.map(buildServiceRow).join('');
+      }
+    }
+
+    if (servicesExtmgrListEl) {
+      servicesExtmgrListEl.innerHTML = '<div class="extmgr-services-title">Extension Manager Services</div>' +
+        extMgr.map(buildServiceRow).join('');
+    }
+
+    if (servicesExtensionsListEl) {
+      if (extensions.length === 0) {
+        servicesExtensionsListEl.innerHTML = '<div class="extmgr-note">No extension services registered.</div>';
+      } else {
+        servicesExtensionsListEl.innerHTML = '<div class="extmgr-services-title">Extension Services</div>' +
+          extensions.map(function (svc) {
+            var row = buildServiceRow(svc);
+            if (svc.extensionId) {
+              row = row.replace('extmgr-service-row">', 'extmgr-service-row" data-ext-id="' + escapeHtml(svc.extensionId) + '">');
+            }
+            return row;
+          }).join('');
+      }
     }
   }
 
@@ -2935,6 +3005,7 @@
           renderItems(allItems);
         });
         runSystemResources(true);
+        runSystemServices(true);
         if (!silent) {
           setStatus('Loaded manager status and ' + allItems.length + ' extension(s).', 'ok');
         }
@@ -2983,6 +3054,25 @@
         renderMaintenanceStatus(payload.maintenance || {});
         if (!silent) {
           setStatus('System resources refreshed.', 'ok');
+        }
+      })
+      .catch(function (err) {
+        if (!silent) {
+          setStatus(err.message, 'error');
+        }
+      });
+  }
+
+  function runSystemServices(silent) {
+    if (!silent) {
+      setStatus('Collecting service status...', null);
+    }
+    return api({ action: 'system_services' })
+      .then(function (data) {
+        var payload = (data && data.data) || {};
+        renderSystemServices(payload);
+        if (!silent) {
+          setStatus('Service status refreshed.', 'ok');
         }
       })
       .catch(function (err) {
@@ -3258,6 +3348,9 @@
   bindIfPresent(repairBtn, 'click', runRepair);
   bindIfPresent(refreshResourcesBtn, 'click', function () {
     runSystemResources(false);
+  });
+  bindIfPresent(refreshServicesBtn, 'click', function () {
+    runSystemServices(false);
   });
   bindIfPresent(createBackupBtn, 'click', runCreateBackup);
   bindIfPresent(clearCacheBtn, 'click', runClearCache);

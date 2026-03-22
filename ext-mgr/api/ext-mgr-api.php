@@ -1749,6 +1749,120 @@ function buildSystemResourceSnapshot($registryExtensions, $extensionsInstalledPa
     ];
 }
 
+/**
+ * Get the status of a systemd service.
+ * @return array{name: string, active: string, sub: string, description: string, loaded: bool}
+ */
+function readSystemdServiceStatus($serviceName)
+{
+    $name = preg_replace('/[^a-zA-Z0-9._@-]/', '', $serviceName);
+    $result = [
+        'name' => $name,
+        'active' => 'unknown',
+        'sub' => 'unknown',
+        'description' => '',
+        'loaded' => false,
+    ];
+
+    // Check if service unit exists
+    $unitPath = '/etc/systemd/system/' . $name;
+    $libPath = '/lib/systemd/system/' . $name;
+    if (!file_exists($unitPath) && !file_exists($libPath)) {
+        $result['active'] = 'not-found';
+        return $result;
+    }
+    $result['loaded'] = true;
+
+    // Get active state
+    $cmd = 'systemctl show ' . escapeshellarg($name) . ' --property=ActiveState,SubState,Description --no-pager 2>/dev/null';
+    $output = shell_exec($cmd);
+    if ($output !== null && $output !== '') {
+        $lines = explode("\n", trim($output));
+        foreach ($lines as $line) {
+            if (strpos($line, '=') !== false) {
+                list($key, $val) = explode('=', $line, 2);
+                $key = trim($key);
+                $val = trim($val);
+                if ($key === 'ActiveState') {
+                    $result['active'] = $val !== '' ? $val : 'unknown';
+                } elseif ($key === 'SubState') {
+                    $result['sub'] = $val !== '' ? $val : 'unknown';
+                } elseif ($key === 'Description') {
+                    $result['description'] = $val;
+                }
+            }
+        }
+    }
+
+    return $result;
+}
+
+/**
+ * Build a snapshot of core moOde and extension-related services.
+ * @return array{core: array, extensions: array}
+ */
+function buildServicesSnapshot($registryExtensions)
+{
+    // Core moOde services
+    $coreServices = [
+        'mpd.service',
+        'php8.2-fpm.service',
+        'nginx.service',
+        'smbd.service',
+        'nfs-server.service',
+        'bluetooth.service',
+        'spotifyd.service',
+        'shairport-sync.service',
+        'squeezelite.service',
+        'upmpdcli.service',
+    ];
+
+    // ext-mgr services
+    $extMgrServices = [
+        'moode-extmgr.service',
+        'moode-extmgr-watchdog.service',
+    ];
+
+    $core = [];
+    foreach ($coreServices as $svc) {
+        $status = readSystemdServiceStatus($svc);
+        // Only include if service exists
+        if ($status['active'] !== 'not-found') {
+            $core[] = $status;
+        }
+    }
+
+    $extMgr = [];
+    foreach ($extMgrServices as $svc) {
+        $extMgr[] = readSystemdServiceStatus($svc);
+    }
+
+    // Extension services (from install metadata)
+    $extServices = [];
+    $exts = is_array($registryExtensions) ? $registryExtensions : [];
+    foreach ($exts as $ext) {
+        $id = $ext['id'] ?? '';
+        $serviceUnits = $ext['serviceUnits'] ?? [];
+        if (!is_array($serviceUnits)) {
+            continue;
+        }
+        foreach ($serviceUnits as $unit) {
+            if (is_string($unit) && $unit !== '') {
+                $status = readSystemdServiceStatus($unit);
+                $status['extensionId'] = $id;
+                $extServices[] = $status;
+            }
+        }
+    }
+
+    return [
+        'core' => $core,
+        'extMgr' => $extMgr,
+        'extensions' => $extServices,
+        'timestamp' => date('c'),
+    ];
+}
+
 function readMeta($path)
 {
     $defaults = defaultMeta();
@@ -8070,6 +8184,16 @@ if ($action === 'system_resources') {
             'resources' => buildSystemResourceSnapshot($registry['extensions'], $extensionsInstalledPath),
             'maintenance' => buildMaintenanceStatus($extensionsCachePath, $extensionsBackupPath),
         ],
+    ], JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+if ($action === 'system_services') {
+    $registry = normalizeRegistry(readRegistry($registryPath));
+
+    echo json_encode([
+        'ok' => true,
+        'data' => buildServicesSnapshot($registry['extensions']),
     ], JSON_UNESCAPED_SLASHES);
     exit;
 }

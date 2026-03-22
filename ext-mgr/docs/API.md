@@ -433,6 +433,35 @@ GET /ext-mgr-api.php?action=system_resources
 }
 ```
 
+### system_services
+
+Get systemd service status for moOde core, ext-mgr, and extension services.
+
+```
+GET /ext-mgr-api.php?action=system_services
+```
+
+**Response:**
+
+```json
+{
+  "ok": true,
+  "data": {
+    "core": [
+      { "name": "mpd.service", "active": "active", "sub": "running", "description": "Music Player Daemon", "loaded": true },
+      { "name": "nginx.service", "active": "active", "sub": "running", "description": "Nginx HTTP Server", "loaded": true }
+    ],
+    "extMgr": [
+      { "name": "moode-extmgr.service", "active": "active", "sub": "running", "description": "moOde Extension Manager", "loaded": true }
+    ],
+    "extensions": [
+      { "name": "my-extension.service", "active": "inactive", "sub": "dead", "description": "", "loaded": true, "extensionId": "my-extension" }
+    ],
+    "timestamp": "2026-03-22T10:30:00+00:00"
+  }
+}
+```
+
 ### clear_cache
 
 Clear ext-mgr cache files.
